@@ -31,7 +31,9 @@ export default defineConfig(
   {
     files: ['**/components/ui/**/*.{ts,tsx}'],
     rules: {
-      'react-refresh/only-export-components': 'off'
+      // shadcn/ui 生成代码豁免：保持与上游一致，便于组件增补与升级
+      'react-refresh/only-export-components': 'off',
+      '@typescript-eslint/explicit-function-return-type': 'off'
     }
   },
   eslintConfigPrettier

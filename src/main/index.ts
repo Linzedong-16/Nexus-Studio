@@ -1,21 +1,30 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow } from 'electron'
 import { join } from 'path'
-import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { electronApp, optimizer } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import { registerWindowIpc } from './ipc/window'
 
 function createWindow(): void {
-  // Create the browser window.
+  // 无边框窗口：自定义标题栏（顶栏拖拽区 + 窗口控制按钮在渲染进程实现）
   const mainWindow = new BrowserWindow({
-    width: 900,
-    height: 670,
+    width: 1280,
+    height: 800,
+    minWidth: 940,
+    minHeight: 600,
     show: false,
+    frame: false,
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false
+      sandbox: false,
+      contextIsolation: true,
+      nodeIntegration: false
     }
   })
+
+  // 窗口控制 IPC（invoke/handle + maximized-changed 广播），契约见 contracts/ipc-window.md
+  registerWindowIpc(mainWindow)
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
@@ -27,8 +36,9 @@ function createWindow(): void {
   })
 
   // HMR for renderer base on electron-vite cli.
-  // Load the remote URL for development or the local html file for production.
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+  // Load the remote URL for development or the local html file in production.
+  // 仅以 ELECTRON_RENDERER_URL 判断（本机环境 app.isPackaged 异常返回 true，见调试记录）
+  if (process.env['ELECTRON_RENDERER_URL']) {
     mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
@@ -48,9 +58,6 @@ app.whenReady().then(() => {
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
-
-  // IPC test
-  ipcMain.on('ping', () => console.log('pong'))
 
   createWindow()
 

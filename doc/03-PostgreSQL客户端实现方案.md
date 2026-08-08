@@ -74,30 +74,30 @@ pnpm add @types/pg @types/uuid -D
 
 /** 连接配置 */
 interface ConnectionConfig {
-  id: string;                    // 唯一标识
-  name: string;                  // 连接名称
-  host: string;                  // 主机地址
-  port: number;                  // 端口，默认 5432
-  database: string;              // 数据库名
-  username: string;              // 用户名
-  password?: string;             // 密码（加密存储）
-  ssl?: boolean | SSLConfig;     // SSL 配置
-  connectionTimeout?: number;    // 连接超时（秒）
-  color?: string;                // 颜色标签
-  group?: string;                // 分组
-  createdAt: string;             // 创建时间
-  updatedAt: string;             // 更新时间
+  id: string // 唯一标识
+  name: string // 连接名称
+  host: string // 主机地址
+  port: number // 端口，默认 5432
+  database: string // 数据库名
+  username: string // 用户名
+  password?: string // 密码（加密存储）
+  ssl?: boolean | SSLConfig // SSL 配置
+  connectionTimeout?: number // 连接超时（秒）
+  color?: string // 颜色标签
+  group?: string // 分组
+  createdAt: string // 创建时间
+  updatedAt: string // 更新时间
 }
 
 /** 连接状态 */
-type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
+type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error'
 
 /** 连接测试结果 */
 interface TestResult {
-  success: boolean;
-  message: string;
-  serverVersion?: string;
-  latency?: number;             // 连接延迟（ms）
+  success: boolean
+  message: string
+  serverVersion?: string
+  latency?: number // 连接延迟（ms）
 }
 ```
 
@@ -106,15 +106,15 @@ interface TestResult {
 **文件：`src/main/db/adapters/postgresql.adapter.ts`**
 
 ```typescript
-import { Pool, PoolClient, QueryResult as PgQueryResult } from 'pg';
-import type { ConnectionConfig, TestResult, ConnectionStatus } from '../types';
+import { Pool, PoolClient, QueryResult as PgQueryResult } from 'pg'
+import type { ConnectionConfig, TestResult, ConnectionStatus } from '../types'
 
 export class PostgreSQLAdapter {
-  private pool: Pool | null = null;
-  private config: ConnectionConfig | null = null;
+  private pool: Pool | null = null
+  private config: ConnectionConfig | null = null
 
   async connect(config: ConnectionConfig): Promise<void> {
-    this.config = config;
+    this.config = config
     this.pool = new Pool({
       host: config.host,
       port: config.port,
@@ -123,17 +123,17 @@ export class PostgreSQLAdapter {
       password: config.password,
       ssl: config.ssl,
       connectionTimeoutMillis: (config.connectionTimeout ?? 30) * 1000,
-      max: 5,                       // 最大连接数
-      idleTimeoutMillis: 30000,     // 空闲超时
-    });
+      max: 5, // 最大连接数
+      idleTimeoutMillis: 30000 // 空闲超时
+    })
 
     // 测试连接
-    const client = await this.pool.connect();
-    client.release();
+    const client = await this.pool.connect()
+    client.release()
   }
 
   async testConnection(config: ConnectionConfig): Promise<TestResult> {
-    const startTime = Date.now();
+    const startTime = Date.now()
     const testPool = new Pool({
       host: config.host,
       port: config.port,
@@ -142,45 +142,45 @@ export class PostgreSQLAdapter {
       password: config.password,
       ssl: config.ssl,
       connectionTimeoutMillis: (config.connectionTimeout ?? 30) * 1000,
-      max: 1,
-    });
+      max: 1
+    })
 
     try {
-      const client = await testPool.connect();
-      const result = await client.query('SELECT version()');
-      client.release();
-      await testPool.end();
+      const client = await testPool.connect()
+      const result = await client.query('SELECT version()')
+      client.release()
+      await testPool.end()
 
       return {
         success: true,
         message: '连接成功',
         serverVersion: result.rows[0]?.version,
-        latency: Date.now() - startTime,
-      };
+        latency: Date.now() - startTime
+      }
     } catch (error: any) {
       return {
         success: false,
-        message: error.message || '连接失败',
-      };
+        message: error.message || '连接失败'
+      }
     }
   }
 
   async execute(sql: string, params?: unknown[]): Promise<PgQueryResult> {
-    if (!this.pool) throw new Error('未连接到数据库');
-    return this.pool.query(sql, params);
+    if (!this.pool) throw new Error('未连接到数据库')
+    return this.pool.query(sql, params)
   }
 
   async disconnect(): Promise<void> {
     if (this.pool) {
-      await this.pool.end();
-      this.pool = null;
-      this.config = null;
+      await this.pool.end()
+      this.pool = null
+      this.config = null
     }
   }
 
   getStatus(): ConnectionStatus {
-    if (!this.pool) return 'disconnected';
-    return this.pool.totalCount > 0 ? 'connected' : 'disconnected';
+    if (!this.pool) return 'disconnected'
+    return this.pool.totalCount > 0 ? 'connected' : 'disconnected'
   }
 }
 ```
@@ -188,52 +188,52 @@ export class PostgreSQLAdapter {
 **文件：`src/main/db/pool.ts`**
 
 ```typescript
-import { PostgreSQLAdapter } from './adapters/postgresql.adapter';
-import type { ConnectionConfig, TestResult } from './types';
+import { PostgreSQLAdapter } from './adapters/postgresql.adapter'
+import type { ConnectionConfig, TestResult } from './types'
 
 export class ConnectionManager {
-  private adapters: Map<string, PostgreSQLAdapter> = new Map();
-  private activeId: string | null = null;
+  private adapters: Map<string, PostgreSQLAdapter> = new Map()
+  private activeId: string | null = null
 
   async createConnection(config: ConnectionConfig): Promise<string> {
-    const adapter = new PostgreSQLAdapter();
-    await adapter.connect(config);
-    this.adapters.set(config.id, adapter);
-    this.activeId = config.id;
-    return config.id;
+    const adapter = new PostgreSQLAdapter()
+    await adapter.connect(config)
+    this.adapters.set(config.id, adapter)
+    this.activeId = config.id
+    return config.id
   }
 
   async testConnection(config: ConnectionConfig): Promise<TestResult> {
-    const adapter = new PostgreSQLAdapter();
-    return adapter.testConnection(config);
+    const adapter = new PostgreSQLAdapter()
+    return adapter.testConnection(config)
   }
 
   async disconnect(id: string): Promise<void> {
-    const adapter = this.adapters.get(id);
+    const adapter = this.adapters.get(id)
     if (adapter) {
-      await adapter.disconnect();
-      this.adapters.delete(id);
+      await adapter.disconnect()
+      this.adapters.delete(id)
       if (this.activeId === id) {
-        this.activeId = null;
+        this.activeId = null
       }
     }
   }
 
   getAdapter(id?: string): PostgreSQLAdapter | undefined {
-    const targetId = id ?? this.activeId;
-    return targetId ? this.adapters.get(targetId) : undefined;
+    const targetId = id ?? this.activeId
+    return targetId ? this.adapters.get(targetId) : undefined
   }
 
   async closeAll(): Promise<void> {
-    const promises = Array.from(this.adapters.values()).map(a => a.disconnect());
-    await Promise.all(promises);
-    this.adapters.clear();
-    this.activeId = null;
+    const promises = Array.from(this.adapters.values()).map((a) => a.disconnect())
+    await Promise.all(promises)
+    this.adapters.clear()
+    this.activeId = null
   }
 }
 
 // 全局单例
-export const connectionManager = new ConnectionManager();
+export const connectionManager = new ConnectionManager()
 ```
 
 ### 2.5 IPC 处理
@@ -241,10 +241,10 @@ export const connectionManager = new ConnectionManager();
 **文件：`src/main/ipc/db.ipc.ts`**
 
 ```typescript
-import { ipcMain } from 'electron';
-import { connectionManager } from '../db/pool';
-import { safeStorage } from 'electron';
-import type { ConnectionConfig } from '../db/types';
+import { ipcMain } from 'electron'
+import { connectionManager } from '../db/pool'
+import { safeStorage } from 'electron'
+import type { ConnectionConfig } from '../db/types'
 
 export function registerDbIpc(): void {
   // 连接数据库
@@ -252,37 +252,35 @@ export function registerDbIpc(): void {
     try {
       // 解密密码
       if (config.password) {
-        config.password = safeStorage.decryptString(
-          Buffer.from(config.password, 'base64')
-        );
+        config.password = safeStorage.decryptString(Buffer.from(config.password, 'base64'))
       }
-      return await connectionManager.createConnection(config);
+      return await connectionManager.createConnection(config)
     } catch (error: any) {
-      throw new Error(`连接失败: ${error.message}`);
+      throw new Error(`连接失败: ${error.message}`)
     }
-  });
+  })
 
   // 测试连接
   ipcMain.handle('db:test-connection', async (_event, config: ConnectionConfig) => {
-    return connectionManager.testConnection(config);
-  });
+    return connectionManager.testConnection(config)
+  })
 
   // 断开连接
   ipcMain.handle('db:disconnect', async (_event, id: string) => {
-    await connectionManager.disconnect(id);
-  });
+    await connectionManager.disconnect(id)
+  })
 
   // 执行查询
   ipcMain.handle('db:execute', async (_event, sql: string, params?: unknown[]) => {
-    const adapter = connectionManager.getAdapter();
-    if (!adapter) throw new Error('未连接到数据库');
-    return adapter.execute(sql, params);
-  });
+    const adapter = connectionManager.getAdapter()
+    if (!adapter) throw new Error('未连接到数据库')
+    return adapter.execute(sql, params)
+  })
 
   // 加密密码
   ipcMain.handle('db:encrypt-password', async (_event, password: string) => {
-    return safeStorage.encryptString(password).toString('base64');
-  });
+    return safeStorage.encryptString(password).toString('base64')
+  })
 }
 ```
 
@@ -291,20 +289,20 @@ export function registerDbIpc(): void {
 **文件：`src/renderer/src/store/connectionStore.ts`**
 
 ```typescript
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import type { ConnectionConfig, ConnectionStatus } from '../types/database';
+import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
+import type { ConnectionConfig, ConnectionStatus } from '../types/database'
 
 interface ConnectionStore {
-  connections: ConnectionConfig[];
-  activeId: string | null;
-  statuses: Record<string, ConnectionStatus>;
+  connections: ConnectionConfig[]
+  activeId: string | null
+  statuses: Record<string, ConnectionStatus>
 
-  addConnection: (config: ConnectionConfig) => void;
-  removeConnection: (id: string) => void;
-  updateConnection: (id: string, config: Partial<ConnectionConfig>) => void;
-  setActive: (id: string | null) => void;
-  setStatus: (id: string, status: ConnectionStatus) => void;
+  addConnection: (config: ConnectionConfig) => void
+  removeConnection: (id: string) => void
+  updateConnection: (id: string, config: Partial<ConnectionConfig>) => void
+  setActive: (id: string | null) => void
+  setStatus: (id: string, status: ConnectionStatus) => void
 }
 
 export const useConnectionStore = create<ConnectionStore>()(
@@ -318,31 +316,31 @@ export const useConnectionStore = create<ConnectionStore>()(
         set((state) => ({
           connections: [...state.connections, config],
           activeId: config.id,
-          statuses: { ...state.statuses, [config.id]: 'disconnected' },
+          statuses: { ...state.statuses, [config.id]: 'disconnected' }
         })),
 
       removeConnection: (id) =>
         set((state) => ({
           connections: state.connections.filter((c) => c.id !== id),
-          activeId: state.activeId === id ? null : state.activeId,
+          activeId: state.activeId === id ? null : state.activeId
         })),
 
       updateConnection: (id, config) =>
         set((state) => ({
           connections: state.connections.map((c) =>
             c.id === id ? { ...c, ...config, updatedAt: new Date().toISOString() } : c
-          ),
+          )
         })),
 
       setActive: (id) => set({ activeId: id }),
       setStatus: (id, status) =>
         set((state) => ({
-          statuses: { ...state.statuses, [id]: status },
-        })),
+          statuses: { ...state.statuses, [id]: status }
+        }))
     }),
     { name: 'db-connections' }
   )
-);
+)
 ```
 
 ---
@@ -382,67 +380,70 @@ pnpm add @monaco-editor/react sql-formatter
 **文件：`src/renderer/src/components/editor/SqlEditor.tsx`**
 
 ```tsx
-import { useRef, useCallback } from 'react';
-import Editor, { type OnMount } from '@monaco-editor/react';
-import type { editor } from 'monaco-editor';
-import { format } from 'sql-formatter';
+import { useRef, useCallback } from 'react'
+import Editor, { type OnMount } from '@monaco-editor/react'
+import type { editor } from 'monaco-editor'
+import { format } from 'sql-formatter'
 
 interface SqlEditorProps {
-  value: string;
-  onChange: (value: string) => void;
-  onExecute: () => void;
-  language?: string;
+  value: string
+  onChange: (value: string) => void
+  onExecute: () => void
+  language?: string
 }
 
 export function SqlEditor({ value, onChange, onExecute, language = 'pgsql' }: SqlEditorProps) {
-  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
 
   const handleMount: OnMount = (editor, monaco) => {
-    editorRef.current = editor;
+    editorRef.current = editor
 
     // 注册快捷键
     editor.addAction({
       id: 'execute-sql',
       label: '执行 SQL',
       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter],
-      run: onExecute,
-    });
+      run: onExecute
+    })
 
     editor.addAction({
       id: 'format-sql',
       label: '格式化 SQL',
       keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyF],
       run: () => {
-        const currentValue = editor.getValue();
+        const currentValue = editor.getValue()
         try {
           const formatted = format(currentValue, {
             language: 'postgresql',
             tabWidth: 2,
             keywordCase: 'upper',
-            linesBetweenQueries: 2,
-          });
-          editor.setValue(formatted);
+            linesBetweenQueries: 2
+          })
+          editor.setValue(formatted)
         } catch {
           // 格式化失败，保持原样
         }
-      },
-    });
+      }
+    })
 
     // 设置 PostgreSQL 语言配置
     monaco.languages.setLanguageConfiguration('pgsql', {
       comments: {
         lineComment: '--',
-        blockComment: ['/*', '*/'],
+        blockComment: ['/*', '*/']
       },
-      brackets: [['(', ')'], ['[', ']']],
+      brackets: [
+        ['(', ')'],
+        ['[', ']']
+      ],
       autoClosingPairs: [
         { open: '(', close: ')' },
         { open: '[', close: ']' },
         { open: "'", close: "'" },
-        { open: '"', close: '"' },
-      ],
-    });
-  };
+        { open: '"', close: '"' }
+      ]
+    })
+  }
 
   return (
     <Editor
@@ -464,12 +465,12 @@ export function SqlEditor({ value, onChange, onExecute, language = 'pgsql' }: Sq
         bracketPairColorization: { enabled: true },
         suggest: {
           showKeywords: true,
-          showSnippets: true,
+          showSnippets: true
         },
-        quickSuggestions: true,
+        quickSuggestions: true
       }}
     />
-  );
+  )
 }
 ```
 
@@ -478,25 +479,113 @@ export function SqlEditor({ value, onChange, onExecute, language = 'pgsql' }: Sq
 **文件：`src/renderer/src/components/editor/completionProvider.ts`**
 
 ```typescript
-import type { languages } from 'monaco-editor';
+import type { languages } from 'monaco-editor'
 
 // PostgreSQL 关键字
 const PG_KEYWORDS = [
-  'SELECT', 'FROM', 'WHERE', 'INSERT', 'UPDATE', 'DELETE', 'CREATE', 'ALTER',
-  'DROP', 'TABLE', 'INDEX', 'VIEW', 'JOIN', 'LEFT', 'RIGHT', 'INNER', 'OUTER',
-  'ON', 'AND', 'OR', 'NOT', 'IN', 'EXISTS', 'BETWEEN', 'LIKE', 'IS', 'NULL',
-  'ORDER', 'BY', 'ASC', 'DESC', 'GROUP', 'HAVING', 'LIMIT', 'OFFSET',
-  'UNION', 'ALL', 'DISTINCT', 'CASE', 'WHEN', 'THEN', 'ELSE', 'END',
-  'AS', 'INTO', 'VALUES', 'SET', 'DEFAULT', 'PRIMARY', 'KEY', 'FOREIGN',
-  'REFERENCES', 'CONSTRAINT', 'UNIQUE', 'CHECK', 'CASCADE', 'BEGIN',
-  'COMMIT', 'ROLLBACK', 'TRANSACTION', 'SERIALIZABLE', 'FUNCTION',
-  'RETURNS', 'LANGUAGE', 'IMMUTABLE', 'STABLE', 'VOLATILE', 'SCHEMA',
-  'GRANT', 'REVOKE', 'WITH', 'RECURSIVE', 'OVER', 'PARTITION', 'WINDOW',
-  'ROW_NUMBER', 'RANK', 'DENSE_RANK', 'LAG', 'LEAD', 'COALESCE',
-  'NULLIF', 'CAST', 'INTERVAL', 'ARRAY', 'JSON', 'JSONB', 'BOOLEAN',
-  'INTEGER', 'BIGINT', 'SERIAL', 'TEXT', 'VARCHAR', 'TIMESTAMP', 'DATE',
-  'NUMERIC', 'DECIMAL', 'FLOAT', 'DOUBLE', 'PRECISION', 'EXPLAIN', 'ANALYZE',
-];
+  'SELECT',
+  'FROM',
+  'WHERE',
+  'INSERT',
+  'UPDATE',
+  'DELETE',
+  'CREATE',
+  'ALTER',
+  'DROP',
+  'TABLE',
+  'INDEX',
+  'VIEW',
+  'JOIN',
+  'LEFT',
+  'RIGHT',
+  'INNER',
+  'OUTER',
+  'ON',
+  'AND',
+  'OR',
+  'NOT',
+  'IN',
+  'EXISTS',
+  'BETWEEN',
+  'LIKE',
+  'IS',
+  'NULL',
+  'ORDER',
+  'BY',
+  'ASC',
+  'DESC',
+  'GROUP',
+  'HAVING',
+  'LIMIT',
+  'OFFSET',
+  'UNION',
+  'ALL',
+  'DISTINCT',
+  'CASE',
+  'WHEN',
+  'THEN',
+  'ELSE',
+  'END',
+  'AS',
+  'INTO',
+  'VALUES',
+  'SET',
+  'DEFAULT',
+  'PRIMARY',
+  'KEY',
+  'FOREIGN',
+  'REFERENCES',
+  'CONSTRAINT',
+  'UNIQUE',
+  'CHECK',
+  'CASCADE',
+  'BEGIN',
+  'COMMIT',
+  'ROLLBACK',
+  'TRANSACTION',
+  'SERIALIZABLE',
+  'FUNCTION',
+  'RETURNS',
+  'LANGUAGE',
+  'IMMUTABLE',
+  'STABLE',
+  'VOLATILE',
+  'SCHEMA',
+  'GRANT',
+  'REVOKE',
+  'WITH',
+  'RECURSIVE',
+  'OVER',
+  'PARTITION',
+  'WINDOW',
+  'ROW_NUMBER',
+  'RANK',
+  'DENSE_RANK',
+  'LAG',
+  'LEAD',
+  'COALESCE',
+  'NULLIF',
+  'CAST',
+  'INTERVAL',
+  'ARRAY',
+  'JSON',
+  'JSONB',
+  'BOOLEAN',
+  'INTEGER',
+  'BIGINT',
+  'SERIAL',
+  'TEXT',
+  'VARCHAR',
+  'TIMESTAMP',
+  'DATE',
+  'NUMERIC',
+  'DECIMAL',
+  'FLOAT',
+  'DOUBLE',
+  'PRECISION',
+  'EXPLAIN',
+  'ANALYZE'
+]
 
 // SQL 片段
 const SQL_SNIPPETS: languages.CompletionItem[] = [
@@ -505,37 +594,38 @@ const SQL_SNIPPETS: languages.CompletionItem[] = [
     insertText: 'SELECT ${1:*} FROM ${2:table_name} WHERE ${3:condition};',
     insertTextRules: 4, // InsertAsSnippet
     kind: 27, // Snippet
-    documentation: 'SELECT 语句模板',
+    documentation: 'SELECT 语句模板'
   },
   {
     label: 'ins',
     insertText: 'INSERT INTO ${1:table_name} (${2:columns}) VALUES (${3:values});',
     insertTextRules: 4,
     kind: 27,
-    documentation: 'INSERT 语句模板',
+    documentation: 'INSERT 语句模板'
   },
   {
     label: 'upd',
     insertText: 'UPDATE ${1:table_name} SET ${2:column} = ${3:value} WHERE ${4:condition};',
     insertTextRules: 4,
     kind: 27,
-    documentation: 'UPDATE 语句模板',
+    documentation: 'UPDATE 语句模板'
   },
   {
     label: 'del',
     insertText: 'DELETE FROM ${1:table_name} WHERE ${2:condition};',
     insertTextRules: 4,
     kind: 27,
-    documentation: 'DELETE 语句模板',
+    documentation: 'DELETE 语句模板'
   },
   {
     label: 'cr',
-    insertText: 'CREATE TABLE ${1:table_name} (\n  ${2:id} SERIAL PRIMARY KEY,\n  ${3:column} ${4:TEXT}\n);',
+    insertText:
+      'CREATE TABLE ${1:table_name} (\n  ${2:id} SERIAL PRIMARY KEY,\n  ${3:column} ${4:TEXT}\n);',
     insertTextRules: 4,
     kind: 27,
-    documentation: 'CREATE TABLE 语句模板',
-  },
-];
+    documentation: 'CREATE TABLE 语句模板'
+  }
+]
 
 export function createCompletionProvider(
   getTables: () => string[],
@@ -544,15 +634,15 @@ export function createCompletionProvider(
   return {
     triggerCharacters: ['.', ' '],
     provideCompletionItems: (model, position) => {
-      const word = model.getWordUntilPosition(position);
+      const word = model.getWordUntilPosition(position)
       const range = {
         startLineNumber: position.lineNumber,
         endLineNumber: position.lineNumber,
         startColumn: word.startColumn,
-        endColumn: word.endColumn,
-      };
+        endColumn: word.endColumn
+      }
 
-      const suggestions: languages.CompletionItem[] = [];
+      const suggestions: languages.CompletionItem[] = []
 
       // 关键字补全
       for (const keyword of PG_KEYWORDS) {
@@ -560,8 +650,8 @@ export function createCompletionProvider(
           label: keyword,
           kind: 14, // Keyword
           insertText: keyword,
-          range,
-        });
+          range
+        })
       }
 
       // 表名补全
@@ -571,16 +661,16 @@ export function createCompletionProvider(
           kind: 1, // Field
           insertText: table,
           range,
-          detail: '表',
-        });
+          detail: '表'
+        })
       }
 
       // 代码片段
-      suggestions.push(...SQL_SNIPPETS);
+      suggestions.push(...SQL_SNIPPETS)
 
-      return { suggestions };
-    },
-  };
+      return { suggestions }
+    }
+  }
 }
 ```
 
@@ -589,25 +679,29 @@ export function createCompletionProvider(
 **文件：`src/renderer/src/components/editor/EditorToolbar.tsx`**
 
 ```tsx
-import { Button } from '@/components/ui/button';
-import {
-  Play, Square, Wand2, Download, FolderOpen, Save
-} from 'lucide-react';
+import { Button } from '@/components/ui/button'
+import { Play, Square, Wand2, Download, FolderOpen, Save } from 'lucide-react'
 
 interface EditorToolbarProps {
-  onExecute: () => void;
-  onStop: () => void;
-  onFormat: () => void;
-  onExport: () => void;
-  onOpen: () => void;
-  onSave: () => void;
-  isRunning: boolean;
-  isConnected: boolean;
+  onExecute: () => void
+  onStop: () => void
+  onFormat: () => void
+  onExport: () => void
+  onOpen: () => void
+  onSave: () => void
+  isRunning: boolean
+  isConnected: boolean
 }
 
 export function EditorToolbar({
-  onExecute, onStop, onFormat, onExport, onOpen, onSave,
-  isRunning, isConnected,
+  onExecute,
+  onStop,
+  onFormat,
+  onExport,
+  onOpen,
+  onSave,
+  isRunning,
+  isConnected
 }: EditorToolbarProps) {
   return (
     <div className="flex items-center gap-1 px-2 py-1 border-b bg-muted/30">
@@ -622,62 +716,36 @@ export function EditorToolbar({
         执行
       </Button>
 
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={onStop}
-        disabled={!isRunning}
-        title="停止查询"
-      >
+      <Button variant="ghost" size="sm" onClick={onStop} disabled={!isRunning} title="停止查询">
         <Square className="h-4 w-4 mr-1 text-red-500" />
         停止
       </Button>
 
       <div className="w-px h-5 bg-border mx-1" />
 
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={onFormat}
-        title="格式化 SQL (Ctrl+Shift+F)"
-      >
+      <Button variant="ghost" size="sm" onClick={onFormat} title="格式化 SQL (Ctrl+Shift+F)">
         <Wand2 className="h-4 w-4 mr-1" />
         格式化
       </Button>
 
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={onExport}
-        title="导出结果"
-      >
+      <Button variant="ghost" size="sm" onClick={onExport} title="导出结果">
         <Download className="h-4 w-4 mr-1" />
         导出
       </Button>
 
       <div className="w-px h-5 bg-border mx-1" />
 
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={onOpen}
-        title="打开 SQL 文件"
-      >
+      <Button variant="ghost" size="sm" onClick={onOpen} title="打开 SQL 文件">
         <FolderOpen className="h-4 w-4 mr-1" />
         打开
       </Button>
 
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={onSave}
-        title="保存 SQL 文件"
-      >
+      <Button variant="ghost" size="sm" onClick={onSave} title="保存 SQL 文件">
         <Save className="h-4 w-4 mr-1" />
         保存
       </Button>
     </div>
-  );
+  )
 }
 ```
 
@@ -722,47 +790,47 @@ queryService.execute(sql, connectionId)
 **文件：`src/renderer/src/services/queryService.ts`**
 
 ```typescript
-import { Parser } from 'node-sql-parser';
+import { Parser } from 'node-sql-parser'
 
 interface QueryResult {
-  columns: { name: string; dataType: string }[];
-  rows: Record<string, unknown>[];
-  rowCount: number;
-  duration: number;
-  sql: string;
+  columns: { name: string; dataType: string }[]
+  rows: Record<string, unknown>[]
+  rowCount: number
+  duration: number
+  sql: string
 }
 
 class QueryService {
-  private parser = new Parser();
-  private abortController: AbortController | null = null;
+  private parser = new Parser()
+  private abortController: AbortController | null = null
 
   /**
    * 解析 SQL 语句，检测危险操作
    */
   analyzeSQL(sql: string): { statements: string[]; hasDangerous: boolean; warnings: string[] } {
-    const warnings: string[] = [];
-    let hasDangerous = false;
+    const warnings: string[] = []
+    let hasDangerous = false
 
     try {
-      const ast = this.parser.astify(sql, { database: 'PostgreSQL' });
-      const statements = Array.isArray(ast) ? ast : [ast];
+      const ast = this.parser.astify(sql, { database: 'PostgreSQL' })
+      const statements = Array.isArray(ast) ? ast : [ast]
 
       for (const stmt of statements) {
-        const type = (stmt as any).type?.toUpperCase();
+        const type = (stmt as any).type?.toUpperCase()
         if (['DROP', 'TRUNCATE'].includes(type)) {
-          hasDangerous = true;
-          warnings.push(`检测到 ${type} 操作，此操作不可逆！`);
+          hasDangerous = true
+          warnings.push(`检测到 ${type} 操作，此操作不可逆！`)
         }
         if (type === 'DELETE' && !(stmt as any).where) {
-          hasDangerous = true;
-          warnings.push('DELETE 语句缺少 WHERE 条件，将删除所有数据！');
+          hasDangerous = true
+          warnings.push('DELETE 语句缺少 WHERE 条件，将删除所有数据！')
         }
       }
 
-      return { statements: statements.map(s => s as any), hasDangerous, warnings };
+      return { statements: statements.map((s) => s as any), hasDangerous, warnings }
     } catch {
       // 解析失败，返回原始 SQL
-      return { statements: [sql], hasDangerous: false, warnings: [] };
+      return { statements: [sql], hasDangerous: false, warnings: [] }
     }
   }
 
@@ -770,27 +838,27 @@ class QueryService {
    * 执行 SQL 查询
    */
   async execute(sql: string): Promise<QueryResult> {
-    this.abortController = new AbortController();
-    const startTime = performance.now();
+    this.abortController = new AbortController()
+    const startTime = performance.now()
 
     try {
-      const result = await window.electronAPI.db.execute(sql);
-      const duration = Math.round(performance.now() - startTime);
+      const result = await window.electronAPI.db.execute(sql)
+      const duration = Math.round(performance.now() - startTime)
 
       return {
         columns: result.fields.map((f: any) => ({
           name: f.name,
-          dataType: f.dataTypeID ? String(f.dataTypeID) : 'unknown',
+          dataType: f.dataTypeID ? String(f.dataTypeID) : 'unknown'
         })),
         rows: result.rows,
         rowCount: result.rowCount ?? result.rows.length,
         duration,
-        sql,
-      };
+        sql
+      }
     } catch (error: any) {
-      throw new Error(error.message || '查询执行失败');
+      throw new Error(error.message || '查询执行失败')
     } finally {
-      this.abortController = null;
+      this.abortController = null
     }
   }
 
@@ -798,27 +866,27 @@ class QueryService {
    * 取消正在执行的查询
    */
   async cancel(): Promise<void> {
-    this.abortController?.abort();
-    await window.electronAPI.db.cancel();
+    this.abortController?.abort()
+    await window.electronAPI.db.cancel()
   }
 
   /**
    * 执行多条 SQL 语句
    */
   async executeMultiple(sql: string): Promise<QueryResult[]> {
-    const { statements, warnings } = this.analyzeSQL(sql);
-    const results: QueryResult[] = [];
+    const { statements, warnings } = this.analyzeSQL(sql)
+    const results: QueryResult[] = []
 
     for (const stmt of statements) {
-      const result = await this.execute(stmt as string);
-      results.push(result);
+      const result = await this.execute(stmt as string)
+      results.push(result)
     }
 
-    return results;
+    return results
   }
 }
 
-export const queryService = new QueryService();
+export const queryService = new QueryService()
 ```
 
 ### 4.3 查询取消实现
@@ -891,7 +959,7 @@ pnpm add @tanstack/react-table @tanstack/react-virtual
 **文件：`src/renderer/src/components/result/ResultTable.tsx`**
 
 ```tsx
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef } from 'react'
 import {
   useReactTable,
   getCoreRowModel,
@@ -900,24 +968,31 @@ import {
   flexRender,
   type ColumnDef,
   type SortingState,
-  type ColumnFiltersState,
-} from '@tanstack/react-table';
-import { useVirtualizer } from '@tanstack/react-virtual';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Input } from '@/components/ui/input';
-import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+  type ColumnFiltersState
+} from '@tanstack/react-table'
+import { useVirtualizer } from '@tanstack/react-virtual'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table'
+import { Input } from '@/components/ui/input'
+import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
 
 interface ResultTableProps {
-  columns: { name: string; dataType: string }[];
-  rows: Record<string, unknown>[];
-  isLoading?: boolean;
+  columns: { name: string; dataType: string }[]
+  rows: Record<string, unknown>[]
+  isLoading?: boolean
 }
 
 export function ResultTable({ columns, rows, isLoading }: ResultTableProps) {
-  const [sorting, setSorting] = useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [globalFilter, setGlobalFilter] = useState('');
-  const tableContainerRef = useRef<HTMLDivElement>(null);
+  const [sorting, setSorting] = useState<SortingState>([])
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
+  const [globalFilter, setGlobalFilter] = useState('')
+  const tableContainerRef = useRef<HTMLDivElement>(null)
 
   // 定义列
   const columnDefs = useMemo<ColumnDef<Record<string, unknown>>[]>(
@@ -943,27 +1018,25 @@ export function ResultTable({ columns, rows, isLoading }: ResultTableProps) {
           </div>
         ),
         cell: ({ getValue }) => {
-          const value = getValue();
+          const value = getValue()
           if (value === null) {
-            return <span className="text-muted-foreground italic text-xs">NULL</span>;
+            return <span className="text-muted-foreground italic text-xs">NULL</span>
           }
           if (typeof value === 'boolean') {
             return (
-              <span className={value ? 'text-green-500' : 'text-red-500'}>
-                {value.toString()}
-              </span>
-            );
+              <span className={value ? 'text-green-500' : 'text-red-500'}>{value.toString()}</span>
+            )
           }
-          return <span className="text-sm">{String(value)}</span>;
+          return <span className="text-sm">{String(value)}</span>
         },
         size: 150,
         minSize: 80,
         maxSize: 400,
         enableSorting: true,
-        enableColumnFilter: true,
+        enableColumnFilter: true
       })),
     [columns]
-  );
+  )
 
   const table = useReactTable({
     data: rows,
@@ -975,32 +1048,30 @@ export function ResultTable({ columns, rows, isLoading }: ResultTableProps) {
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    globalFilterFn: 'includesString',
-  });
+    globalFilterFn: 'includesString'
+  })
 
   // 虚拟滚动
-  const { rows: tableRows } = table.getRowModel();
+  const { rows: tableRows } = table.getRowModel()
   const rowVirtualizer = useVirtualizer({
     count: tableRows.length,
     getScrollElement: () => tableContainerRef.current,
     estimateSize: () => 32,
-    overscan: 10,
-  });
+    overscan: 10
+  })
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground">
         正在加载...
       </div>
-    );
+    )
   }
 
   if (rows.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full text-muted-foreground">
-        暂无数据
-      </div>
-    );
+      <div className="flex items-center justify-center h-full text-muted-foreground">暂无数据</div>
+    )
   }
 
   return (
@@ -1038,7 +1109,7 @@ export function ResultTable({ columns, rows, isLoading }: ResultTableProps) {
           </TableHeader>
           <TableBody>
             {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-              const row = tableRows[virtualRow.index];
+              const row = tableRows[virtualRow.index]
               return (
                 <TableRow
                   key={row.id}
@@ -1058,7 +1129,7 @@ export function ResultTable({ columns, rows, isLoading }: ResultTableProps) {
                     </TableCell>
                   ))}
                 </TableRow>
-              );
+              )
             })}
           </TableBody>
         </Table>
@@ -1073,7 +1144,7 @@ export function ResultTable({ columns, rows, isLoading }: ResultTableProps) {
         <span>{columns.length} 列</span>
       </div>
     </div>
-  );
+  )
 }
 ```
 
@@ -1082,25 +1153,25 @@ export function ResultTable({ columns, rows, isLoading }: ResultTableProps) {
 **文件：`src/renderer/src/store/queryStore.ts`**
 
 ```typescript
-import { create } from 'zustand';
+import { create } from 'zustand'
 
 interface QueryResult {
-  columns: { name: string; dataType: string }[];
-  rows: Record<string, unknown>[];
-  rowCount: number;
-  duration: number;
-  sql: string;
+  columns: { name: string; dataType: string }[]
+  rows: Record<string, unknown>[]
+  rowCount: number
+  duration: number
+  sql: string
 }
 
 interface QueryState {
-  results: Record<string, QueryResult>;
-  isLoading: Record<string, boolean>;
-  errors: Record<string, string | null>;
+  results: Record<string, QueryResult>
+  isLoading: Record<string, boolean>
+  errors: Record<string, string | null>
 
-  setResult: (tabId: string, result: QueryResult) => void;
-  setLoading: (tabId: string, loading: boolean) => void;
-  setError: (tabId: string, error: string | null) => void;
-  clearResult: (tabId: string) => void;
+  setResult: (tabId: string, result: QueryResult) => void
+  setLoading: (tabId: string, loading: boolean) => void
+  setError: (tabId: string, error: string | null) => void
+  clearResult: (tabId: string) => void
 }
 
 export const useQueryStore = create<QueryState>((set) => ({
@@ -1112,27 +1183,27 @@ export const useQueryStore = create<QueryState>((set) => ({
     set((state) => ({
       results: { ...state.results, [tabId]: result },
       isLoading: { ...state.isLoading, [tabId]: false },
-      errors: { ...state.errors, [tabId]: null },
+      errors: { ...state.errors, [tabId]: null }
     })),
 
   setLoading: (tabId, loading) =>
     set((state) => ({
       isLoading: { ...state.isLoading, [tabId]: loading },
-      errors: loading ? { ...state.errors, [tabId]: null } : state.errors,
+      errors: loading ? { ...state.errors, [tabId]: null } : state.errors
     })),
 
   setError: (tabId, error) =>
     set((state) => ({
       errors: { ...state.errors, [tabId]: error },
-      isLoading: { ...state.isLoading, [tabId]: false },
+      isLoading: { ...state.isLoading, [tabId]: false }
     })),
 
   clearResult: (tabId) =>
     set((state) => ({
       results: { ...state.results, [tabId]: undefined as any },
-      errors: { ...state.errors, [tabId]: null },
-    })),
-}));
+      errors: { ...state.errors, [tabId]: null }
+    }))
+}))
 ```
 
 ---
@@ -1168,7 +1239,7 @@ const GET_SCHEMAS = `
   FROM information_schema.schemata
   WHERE schema_name NOT IN ('information_schema', 'pg_catalog')
   ORDER BY schema_name;
-`;
+`
 
 // 获取指定 Schema 下的所有表
 const GET_TABLES = `
@@ -1176,7 +1247,7 @@ const GET_TABLES = `
   FROM information_schema.tables
   WHERE table_schema = $1
   ORDER BY table_name;
-`;
+`
 
 // 获取指定表的列信息
 const GET_COLUMNS = `
@@ -1202,7 +1273,7 @@ const GET_COLUMNS = `
   WHERE c.table_schema = $1
     AND c.table_name = $2
   ORDER BY c.ordinal_position;
-`;
+`
 
 // 获取指定表的索引
 const GET_INDEXES = `
@@ -1213,7 +1284,7 @@ const GET_INDEXES = `
   WHERE schemaname = $1
     AND tablename = $2
   ORDER BY indexname;
-`;
+`
 
 // 获取指定 Schema 下的函数
 const GET_FUNCTIONS = `
@@ -1226,7 +1297,7 @@ const GET_FUNCTIONS = `
   WHERE n.nspname = $1
     AND p.prokind = 'f'
   ORDER BY p.proname;
-`;
+`
 ```
 
 ### 6.3 Schema 树组件
@@ -1234,149 +1305,157 @@ const GET_FUNCTIONS = `
 **文件：`src/renderer/src/components/schema/SchemaTree.tsx`**
 
 ```tsx
-import { useState, useEffect, useCallback } from 'react';
-import { ChevronRight, ChevronDown, Table, Key, Columns, FunctionSquare, Database } from 'lucide-react';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Skeleton } from '@/components/ui/skeleton';
+import { useState, useEffect, useCallback } from 'react'
+import {
+  ChevronRight,
+  ChevronDown,
+  Table,
+  Key,
+  Columns,
+  FunctionSquare,
+  Database
+} from 'lucide-react'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Skeleton } from '@/components/ui/skeleton'
 
 interface SchemaNode {
-  name: string;
-  type: 'schema' | 'table' | 'column' | 'function';
-  children?: SchemaNode[];
-  icon?: React.ReactNode;
-  metadata?: Record<string, unknown>;
+  name: string
+  type: 'schema' | 'table' | 'column' | 'function'
+  children?: SchemaNode[]
+  icon?: React.ReactNode
+  metadata?: Record<string, unknown>
 }
 
 interface SchemaTreeProps {
-  connectionId: string;
-  onSelectTable?: (schema: string, table: string) => void;
+  connectionId: string
+  onSelectTable?: (schema: string, table: string) => void
 }
 
 export function SchemaTree({ connectionId, onSelectTable }: SchemaTreeProps) {
-  const [tree, setTree] = useState<SchemaNode[]>([]);
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [loading, setLoading] = useState(false);
+  const [tree, setTree] = useState<SchemaNode[]>([])
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  const [loading, setLoading] = useState(false)
 
   // 加载 Schema 列表
   const loadSchemas = useCallback(async () => {
-    setLoading(true);
+    setLoading(true)
     try {
-      const schemas = await window.electronAPI.db.getSchemas(connectionId);
+      const schemas = await window.electronAPI.db.getSchemas(connectionId)
       const nodes: SchemaNode[] = schemas.map((s: string) => ({
         name: s,
         type: 'schema' as const,
         icon: <Database className="h-3.5 w-3.5 text-blue-400" />,
-        children: [],
-      }));
-      setTree(nodes);
+        children: []
+      }))
+      setTree(nodes)
     } catch (error) {
-      console.error('加载 Schema 失败:', error);
+      console.error('加载 Schema 失败:', error)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  }, [connectionId]);
+  }, [connectionId])
 
   // 加载 Schema 下的表和函数
-  const loadSchemaChildren = useCallback(async (schemaName: string) => {
-    try {
-      const [tables, functions] = await Promise.all([
-        window.electronAPI.db.getTables(connectionId, schemaName),
-        window.electronAPI.db.getFunctions(connectionId, schemaName),
-      ]);
+  const loadSchemaChildren = useCallback(
+    async (schemaName: string) => {
+      try {
+        const [tables, functions] = await Promise.all([
+          window.electronAPI.db.getTables(connectionId, schemaName),
+          window.electronAPI.db.getFunctions(connectionId, schemaName)
+        ])
 
-      const tableNodes: SchemaNode[] = Array.isArray(tables)
-        ? tables.map((t: any) => ({
-            name: t.table_name || t,
-            type: 'table' as const,
-            icon: <Table className="h-3.5 w-3.5 text-green-400" />,
-            children: [],
-          }))
-        : [];
+        const tableNodes: SchemaNode[] = Array.isArray(tables)
+          ? tables.map((t: any) => ({
+              name: t.table_name || t,
+              type: 'table' as const,
+              icon: <Table className="h-3.5 w-3.5 text-green-400" />,
+              children: []
+            }))
+          : []
 
-      const funcNodes: SchemaNode[] = Array.isArray(functions)
-        ? functions.map((f: any) => ({
-            name: f.function_name || f,
-            type: 'function' as const,
-            icon: <FunctionSquare className="h-3.5 w-3.5 text-purple-400" />,
-            metadata: f,
-          }))
-        : [];
+        const funcNodes: SchemaNode[] = Array.isArray(functions)
+          ? functions.map((f: any) => ({
+              name: f.function_name || f,
+              type: 'function' as const,
+              icon: <FunctionSquare className="h-3.5 w-3.5 text-purple-400" />,
+              metadata: f
+            }))
+          : []
 
-      return [...tableNodes, ...funcNodes];
-    } catch (error) {
-      console.error('加载 Schema 子节点失败:', error);
-      return [];
-    }
-  }, [connectionId]);
+        return [...tableNodes, ...funcNodes]
+      } catch (error) {
+        console.error('加载 Schema 子节点失败:', error)
+        return []
+      }
+    },
+    [connectionId]
+  )
 
   // 加载表的列
-  const loadTableColumns = useCallback(async (schemaName: string, tableName: string) => {
-    try {
-      const columns = await window.electronAPI.db.getColumns(
-        connectionId, schemaName, tableName
-      );
-      return Array.isArray(columns)
-        ? columns.map((c: any) => ({
-            name: c.column_name || c,
-            type: 'column' as const,
-            icon: c.is_primary_key ? (
-              <Key className="h-3 w-3 text-yellow-400" />
-            ) : (
-              <Columns className="h-3 w-3 text-muted-foreground" />
-            ),
-            metadata: c,
-          }))
-        : [];
-    } catch (error) {
-      console.error('加载列失败:', error);
-      return [];
-    }
-  }, [connectionId]);
+  const loadTableColumns = useCallback(
+    async (schemaName: string, tableName: string) => {
+      try {
+        const columns = await window.electronAPI.db.getColumns(connectionId, schemaName, tableName)
+        return Array.isArray(columns)
+          ? columns.map((c: any) => ({
+              name: c.column_name || c,
+              type: 'column' as const,
+              icon: c.is_primary_key ? (
+                <Key className="h-3 w-3 text-yellow-400" />
+              ) : (
+                <Columns className="h-3 w-3 text-muted-foreground" />
+              ),
+              metadata: c
+            }))
+          : []
+      } catch (error) {
+        console.error('加载列失败:', error)
+        return []
+      }
+    },
+    [connectionId]
+  )
 
   const handleToggle = async (node: SchemaNode, parentPath: string) => {
-    const path = `${parentPath}/${node.name}`;
+    const path = `${parentPath}/${node.name}`
 
     if (expanded.has(path)) {
       setExpanded((prev) => {
-        const next = new Set(prev);
-        next.delete(path);
-        return next;
-      });
-      return;
+        const next = new Set(prev)
+        next.delete(path)
+        return next
+      })
+      return
     }
 
-    setExpanded((prev) => new Set(prev).add(path));
+    setExpanded((prev) => new Set(prev).add(path))
 
     // 懒加载子节点
     if (node.type === 'schema' && (!node.children || node.children.length === 0)) {
-      const children = await loadSchemaChildren(node.name);
-      setTree((prev) =>
-        prev.map((n) => (n.name === node.name ? { ...n, children } : n))
-      );
+      const children = await loadSchemaChildren(node.name)
+      setTree((prev) => prev.map((n) => (n.name === node.name ? { ...n, children } : n)))
     } else if (node.type === 'table' && (!node.children || node.children.length === 0)) {
-      const parentSchema = parentPath;
-      const children = await loadTableColumns(parentSchema, node.name);
+      const parentSchema = parentPath
+      const children = await loadTableColumns(parentSchema, node.name)
       setTree((prev) =>
         prev.map((s) => ({
           ...s,
-          children: s.children?.map((t) =>
-            t.name === node.name ? { ...t, children } : t
-          ),
+          children: s.children?.map((t) => (t.name === node.name ? { ...t, children } : t))
         }))
-      );
+      )
     }
-  };
+  }
 
   const handleDoubleClick = (node: SchemaNode, parentPath: string) => {
     if (node.type === 'table') {
-      onSelectTable?.(parentPath, node.name);
+      onSelectTable?.(parentPath, node.name)
     }
-  };
+  }
 
   const renderNode = (node: SchemaNode, parentPath: string, level: number) => {
-    const path = `${parentPath}/${node.name}`;
-    const isExpanded = expanded.has(path);
-    const hasChildren = node.type === 'schema' || node.type === 'table';
+    const path = `${parentPath}/${node.name}`
+    const isExpanded = expanded.has(path)
+    const hasChildren = node.type === 'schema' || node.type === 'table'
 
     return (
       <div key={path}>
@@ -1404,25 +1483,21 @@ export function SchemaTree({ connectionId, onSelectTable }: SchemaTreeProps) {
           )}
         </div>
 
-        {isExpanded && node.children?.map((child) =>
-          renderNode(child, path, level + 1)
-        )}
+        {isExpanded && node.children?.map((child) => renderNode(child, path, level + 1))}
       </div>
-    );
-  };
+    )
+  }
 
   useEffect(() => {
     if (connectionId) {
-      loadSchemas();
+      loadSchemas()
     }
-  }, [connectionId, loadSchemas]);
+  }, [connectionId, loadSchemas])
 
   return (
     <ScrollArea className="h-full">
       <div className="p-2">
-        <div className="text-xs font-semibold text-muted-foreground mb-2 px-1">
-          数据库结构
-        </div>
+        <div className="text-xs font-semibold text-muted-foreground mb-2 px-1">数据库结构</div>
         {loading ? (
           <div className="space-y-2 px-2">
             <Skeleton className="h-4 w-3/4" />
@@ -1434,7 +1509,7 @@ export function SchemaTree({ connectionId, onSelectTable }: SchemaTreeProps) {
         )}
       </div>
     </ScrollArea>
-  );
+  )
 }
 ```
 
@@ -1507,16 +1582,16 @@ pnpm add exceljs json2csv
 **文件：`src/renderer/src/services/exportService.ts`**
 
 ```typescript
-import ExcelJS from 'exceljs';
+import ExcelJS from 'exceljs'
 
-export type ExportFormat = 'csv' | 'json' | 'excel' | 'sql';
+export type ExportFormat = 'csv' | 'json' | 'excel' | 'sql'
 
 interface ExportOptions {
-  format: ExportFormat;
-  encoding?: string;
-  includeHeaders?: boolean;
-  tableName?: string;       // SQL 导出时需要
-  delimiter?: string;       // CSV 分隔符
+  format: ExportFormat
+  encoding?: string
+  includeHeaders?: boolean
+  tableName?: string // SQL 导出时需要
+  delimiter?: string // CSV 分隔符
 }
 
 class ExportService {
@@ -1530,15 +1605,15 @@ class ExportService {
   ): Promise<Blob> {
     switch (options.format) {
       case 'csv':
-        return this.exportCSV(columns, rows, options);
+        return this.exportCSV(columns, rows, options)
       case 'json':
-        return this.exportJSON(rows);
+        return this.exportJSON(rows)
       case 'excel':
-        return this.exportExcel(columns, rows);
+        return this.exportExcel(columns, rows)
       case 'sql':
-        return this.exportSQL(columns, rows, options.tableName || 'table');
+        return this.exportSQL(columns, rows, options.tableName || 'table')
       default:
-        throw new Error(`不支持的导出格式: ${options.format}`);
+        throw new Error(`不支持的导出格式: ${options.format}`)
     }
   }
 
@@ -1550,35 +1625,35 @@ class ExportService {
     rows: Record<string, unknown>[],
     options: ExportOptions
   ): Blob {
-    const delimiter = options.delimiter || ',';
-    const lines: string[] = [];
+    const delimiter = options.delimiter || ','
+    const lines: string[] = []
 
     if (options.includeHeaders !== false) {
-      lines.push(columns.map((c) => this.escapeCSV(c.name, delimiter)).join(delimiter));
+      lines.push(columns.map((c) => this.escapeCSV(c.name, delimiter)).join(delimiter))
     }
 
     for (const row of rows) {
       lines.push(
         columns
           .map((c) => {
-            const value = row[c.name];
-            if (value === null || value === undefined) return '';
-            return this.escapeCSV(String(value), delimiter);
+            const value = row[c.name]
+            if (value === null || value === undefined) return ''
+            return this.escapeCSV(String(value), delimiter)
           })
           .join(delimiter)
-      );
+      )
     }
 
-    const bom = '\uFEFF'; // UTF-8 BOM
-    return new Blob([bom + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+    const bom = '\uFEFF' // UTF-8 BOM
+    return new Blob([bom + lines.join('\n')], { type: 'text/csv;charset=utf-8' })
   }
 
   /**
    * 导出为 JSON
    */
   private exportJSON(rows: Record<string, unknown>[]): Blob {
-    const json = JSON.stringify(rows, null, 2);
-    return new Blob([json], { type: 'application/json;charset=utf-8' });
+    const json = JSON.stringify(rows, null, 2)
+    return new Blob([json], { type: 'application/json;charset=utf-8' })
   }
 
   /**
@@ -1588,34 +1663,34 @@ class ExportService {
     columns: { name: string }[],
     rows: Record<string, unknown>[]
   ): Promise<Blob> {
-    const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet('Data');
+    const workbook = new ExcelJS.Workbook()
+    const sheet = workbook.addWorksheet('Data')
 
     // 添加表头
     sheet.columns = columns.map((col) => ({
       header: col.name,
       key: col.name,
-      width: 20,
-    }));
+      width: 20
+    }))
 
     // 表头样式
-    const headerRow = sheet.getRow(1);
-    headerRow.font = { bold: true };
+    const headerRow = sheet.getRow(1)
+    headerRow.font = { bold: true }
     headerRow.fill = {
       type: 'pattern',
       pattern: 'solid',
-      fgColor: { argb: 'FFE0E0E0' },
-    };
+      fgColor: { argb: 'FFE0E0E0' }
+    }
 
     // 添加数据
     for (const row of rows) {
-      sheet.addRow(row);
+      sheet.addRow(row)
     }
 
-    const buffer = await workbook.xlsx.writeBuffer();
+    const buffer = await workbook.xlsx.writeBuffer()
     return new Blob([buffer], {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    });
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    })
   }
 
   /**
@@ -1626,50 +1701,50 @@ class ExportService {
     rows: Record<string, unknown>[],
     tableName: string
   ): Blob {
-    const colNames = columns.map((c) => `"${c.name}"`).join(', ');
-    const lines: string[] = [];
+    const colNames = columns.map((c) => `"${c.name}"`).join(', ')
+    const lines: string[] = []
 
     for (const row of rows) {
       const values = columns
         .map((c) => {
-          const value = row[c.name];
-          if (value === null || value === undefined) return 'NULL';
-          if (typeof value === 'number') return String(value);
-          if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE';
+          const value = row[c.name]
+          if (value === null || value === undefined) return 'NULL'
+          if (typeof value === 'number') return String(value)
+          if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE'
           // 字符串转义
-          return `'${String(value).replace(/'/g, "''")}'`;
+          return `'${String(value).replace(/'/g, "''")}'`
         })
-        .join(', ');
+        .join(', ')
 
-      lines.push(`INSERT INTO "${tableName}" (${colNames}) VALUES (${values});`);
+      lines.push(`INSERT INTO "${tableName}" (${colNames}) VALUES (${values});`)
     }
 
-    return new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+    return new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' })
   }
 
   private escapeCSV(value: string, delimiter: string): string {
     if (value.includes(delimiter) || value.includes('"') || value.includes('\n')) {
-      return `"${value.replace(/"/g, '""')}"`;
+      return `"${value.replace(/"/g, '""')}"`
     }
-    return value;
+    return value
   }
 
   /**
    * 触发文件下载
    */
   async downloadBlob(blob: Blob, filename: string): Promise<void> {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
   }
 }
 
-export const exportService = new ExportService();
+export const exportService = new ExportService()
 ```
 
 ### 7.4 导入服务实现
@@ -1678,22 +1753,22 @@ export const exportService = new ExportService();
 
 ```typescript
 interface ImportOptions {
-  tableName: string;
-  schema: string;
-  hasHeader: boolean;
-  delimiter: string;
-  quoteChar: string;
-  escapeChar: string;
-  onConflict: 'skip' | 'update' | 'error';
-  onProgress?: (imported: number, total: number) => void;
+  tableName: string
+  schema: string
+  hasHeader: boolean
+  delimiter: string
+  quoteChar: string
+  escapeChar: string
+  onConflict: 'skip' | 'update' | 'error'
+  onProgress?: (imported: number, total: number) => void
 }
 
 interface ImportResult {
-  totalRows: number;
-  importedRows: number;
-  skippedRows: number;
-  errorRows: number;
-  errors: string[];
+  totalRows: number
+  importedRows: number
+  skippedRows: number
+  errorRows: number
+  errors: string[]
 }
 
 class ImportService {
@@ -1701,118 +1776,115 @@ class ImportService {
    * 解析 CSV 文件内容
    */
   parseCSV(content: string, options: ImportOptions): Record<string, unknown>[] {
-    const lines = content.split(/\r?\n/).filter((line) => line.trim());
-    if (lines.length === 0) return [];
+    const lines = content.split(/\r?\n/).filter((line) => line.trim())
+    if (lines.length === 0) return []
 
     const parseLine = (line: string): string[] => {
-      const result: string[] = [];
-      let current = '';
-      let inQuotes = false;
+      const result: string[] = []
+      let current = ''
+      let inQuotes = false
 
       for (let i = 0; i < line.length; i++) {
-        const char = line[i];
+        const char = line[i]
         if (char === options.quoteChar) {
           if (inQuotes && line[i + 1] === options.quoteChar) {
-            current += options.quoteChar;
-            i++;
+            current += options.quoteChar
+            i++
           } else {
-            inQuotes = !inQuotes;
+            inQuotes = !inQuotes
           }
         } else if (char === options.delimiter && !inQuotes) {
-          result.push(current.trim());
-          current = '';
+          result.push(current.trim())
+          current = ''
         } else {
-          current += char;
+          current += char
         }
       }
-      result.push(current.trim());
-      return result;
-    };
+      result.push(current.trim())
+      return result
+    }
 
     const headers = options.hasHeader
       ? parseLine(lines[0])
-      : parseLine(lines[0]).map((_, i) => `column_${i + 1}`);
+      : parseLine(lines[0]).map((_, i) => `column_${i + 1}`)
 
-    const dataLines = options.hasHeader ? lines.slice(1) : lines;
+    const dataLines = options.hasHeader ? lines.slice(1) : lines
 
     return dataLines.map((line) => {
-      const values = parseLine(line);
-      const row: Record<string, unknown> = {};
+      const values = parseLine(line)
+      const row: Record<string, unknown> = {}
       headers.forEach((header, i) => {
-        const value = values[i] || '';
+        const value = values[i] || ''
         // 尝试类型推断
         if (value === '' || value === 'NULL' || value === 'null') {
-          row[header] = null;
+          row[header] = null
         } else if (/^\d+$/.test(value)) {
-          row[header] = parseInt(value, 10);
+          row[header] = parseInt(value, 10)
         } else if (/^\d+\.\d+$/.test(value)) {
-          row[header] = parseFloat(value);
+          row[header] = parseFloat(value)
         } else if (value === 'true' || value === 'TRUE') {
-          row[header] = true;
+          row[header] = true
         } else if (value === 'false' || value === 'FALSE') {
-          row[header] = false;
+          row[header] = false
         } else {
-          row[header] = value;
+          row[header] = value
         }
-      });
-      return row;
-    });
+      })
+      return row
+    })
   }
 
   /**
    * 导入数据到数据库表
    */
-  async importData(
-    fileContent: string,
-    options: ImportOptions
-  ): Promise<ImportResult> {
-    const rows = this.parseCSV(fileContent, options);
+  async importData(fileContent: string, options: ImportOptions): Promise<ImportResult> {
+    const rows = this.parseCSV(fileContent, options)
     const result: ImportResult = {
       totalRows: rows.length,
       importedRows: 0,
       skippedRows: 0,
       errorRows: 0,
-      errors: [],
-    };
-
-    const columns = Object.keys(rows[0] || {});
-    if (columns.length === 0) {
-      throw new Error('文件中没有数据');
+      errors: []
     }
 
-    const placeholders = columns.map((_, i) => `$${i + 1}`).join(', ');
-    const colNames = columns.map((c) => `"${c}"`).join(', ');
+    const columns = Object.keys(rows[0] || {})
+    if (columns.length === 0) {
+      throw new Error('文件中没有数据')
+    }
+
+    const placeholders = columns.map((_, i) => `$${i + 1}`).join(', ')
+    const colNames = columns.map((c) => `"${c}"`).join(', ')
 
     const onConflictClause =
       options.onConflict === 'update'
         ? ` ON CONFLICT DO UPDATE SET ${columns.map((c) => `"${c}" = EXCLUDED."${c}"`).join(', ')}`
         : options.onConflict === 'skip'
-        ? ' ON CONFLICT DO NOTHING'
-        : '';
+          ? ' ON CONFLICT DO NOTHING'
+          : ''
 
     for (let i = 0; i < rows.length; i++) {
       try {
-        const values = columns.map((c) => rows[i][c]);
-        const sql = `INSERT INTO "${options.schema}"."${options.tableName}" (${colNames}) VALUES (${placeholders})${onConflictClause}`;
-        await window.electronAPI.db.execute(sql, values);
-        result.importedRows++;
+        const values = columns.map((c) => rows[i][c])
+        const sql = `INSERT INTO "${options.schema}"."${options.tableName}" (${colNames}) VALUES (${placeholders})${onConflictClause}`
+        await window.electronAPI.db.execute(sql, values)
+        result.importedRows++
       } catch (error: any) {
         if (options.onConflict === 'error') {
-          result.errorRows++;
-          result.errors.push(`第 ${i + 1} 行: ${error.message}`);
+          result.errorRows++
+          result.errors.push(`第 ${i + 1} 行: ${error.message}`)
         } else {
-          result.skippedRows++;
+          result.skippedRows++
         }
       }
 
-      options.onProgress?.(i + 1, rows.length);
+      options.onProgress?.(i + 1, rows.length)
     }
 
-    return result;
+    return result
   }
 }
 
-export const importService = new ImportService();
+export const importService = new ImportService()
 ```
 
 ---
@@ -1858,23 +1930,23 @@ export const importService = new ImportService();
 **文件：`src/renderer/src/components/layout/AppShell.tsx`**
 
 ```tsx
-import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import { Sidebar } from './Sidebar';
-import { TabBar } from './TabBar';
-import { StatusBar } from './StatusBar';
-import { SqlEditor } from '../editor/SqlEditor';
-import { ResultTable } from '../result/ResultTable';
-import { SchemaTree } from '../schema/SchemaTree';
-import { useEditorStore } from '@/store/editorStore';
-import { useQueryStore } from '@/store/queryStore';
-import { useConnectionStore } from '@/store/connectionStore';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels'
+import { Sidebar } from './Sidebar'
+import { TabBar } from './TabBar'
+import { StatusBar } from './StatusBar'
+import { SqlEditor } from '../editor/SqlEditor'
+import { ResultTable } from '../result/ResultTable'
+import { SchemaTree } from '../schema/SchemaTree'
+import { useEditorStore } from '@/store/editorStore'
+import { useQueryStore } from '@/store/queryStore'
+import { useConnectionStore } from '@/store/connectionStore'
 
 export function AppShell() {
-  const { tabs, activeTabId, updateTabContent } = useEditorStore();
-  const { results, isLoading, errors } = useQueryStore();
-  const { activeId } = useConnectionStore();
+  const { tabs, activeTabId, updateTabContent } = useEditorStore()
+  const { results, isLoading, errors } = useQueryStore()
+  const { activeId } = useConnectionStore()
 
-  const activeTab = tabs.find((t) => t.id === activeTabId);
+  const activeTab = tabs.find((t) => t.id === activeTabId)
 
   return (
     <div className="flex flex-col h-screen">
@@ -1895,9 +1967,7 @@ export function AppShell() {
             <Panel defaultSize={50} minSize={20}>
               <SqlEditor
                 value={activeTab?.content ?? ''}
-                onChange={(value) =>
-                  activeTabId && updateTabContent(activeTabId, value)
-                }
+                onChange={(value) => activeTabId && updateTabContent(activeTabId, value)}
                 onExecute={() => {
                   // 执行查询逻辑
                 }}
@@ -1938,7 +2008,7 @@ export function AppShell() {
       {/* 底部状态栏 */}
       <StatusBar />
     </div>
-  );
+  )
 }
 ```
 
@@ -1949,32 +2019,32 @@ export function AppShell() {
 **文件：`src/renderer/src/store/editorStore.ts`**
 
 ```typescript
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { v4 as uuidv4 } from 'uuid';
+import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
+import { v4 as uuidv4 } from 'uuid'
 
 interface EditorTab {
-  id: string;
-  title: string;
-  content: string;
-  connectionId?: string;
-  filePath?: string;
-  isDirty: boolean;
-  createdAt: string;
+  id: string
+  title: string
+  content: string
+  connectionId?: string
+  filePath?: string
+  isDirty: boolean
+  createdAt: string
 }
 
 interface EditorStore {
-  tabs: EditorTab[];
-  activeTabId: string | null;
+  tabs: EditorTab[]
+  activeTabId: string | null
 
-  addTab: (tab?: Partial<EditorTab>) => string;
-  removeTab: (id: string) => void;
-  setActiveTab: (id: string) => void;
-  updateTabContent: (id: string, content: string) => void;
-  updateTabTitle: (id: string, title: string) => void;
-  markTabClean: (id: string) => void;
-  setTabFilePath: (id: string, filePath: string) => void;
-  getActiveTab: () => EditorTab | undefined;
+  addTab: (tab?: Partial<EditorTab>) => string
+  removeTab: (id: string) => void
+  setActiveTab: (id: string) => void
+  updateTabContent: (id: string, content: string) => void
+  updateTabTitle: (id: string, title: string) => void
+  markTabClean: (id: string) => void
+  setTabFilePath: (id: string, filePath: string) => void
+  getActiveTab: () => EditorTab | undefined
 }
 
 export const useEditorStore = create<EditorStore>()(
@@ -1984,7 +2054,7 @@ export const useEditorStore = create<EditorStore>()(
       activeTabId: null,
 
       addTab: (tab) => {
-        const id = uuidv4();
+        const id = uuidv4()
         const newTab: EditorTab = {
           id,
           title: tab?.title ?? `查询 ${get().tabs.length + 1}`,
@@ -1992,54 +2062,52 @@ export const useEditorStore = create<EditorStore>()(
           connectionId: tab?.connectionId,
           filePath: tab?.filePath,
           isDirty: false,
-          createdAt: new Date().toISOString(),
-        };
+          createdAt: new Date().toISOString()
+        }
         set((state) => ({
           tabs: [...state.tabs, newTab],
-          activeTabId: id,
-        }));
-        return id;
+          activeTabId: id
+        }))
+        return id
       },
 
       removeTab: (id) =>
         set((state) => {
-          const newTabs = state.tabs.filter((t) => t.id !== id);
-          let newActiveId = state.activeTabId;
+          const newTabs = state.tabs.filter((t) => t.id !== id)
+          let newActiveId = state.activeTabId
           if (state.activeTabId === id) {
-            const idx = state.tabs.findIndex((t) => t.id === id);
-            newActiveId = newTabs[Math.min(idx, newTabs.length - 1)]?.id ?? null;
+            const idx = state.tabs.findIndex((t) => t.id === id)
+            newActiveId = newTabs[Math.min(idx, newTabs.length - 1)]?.id ?? null
           }
-          return { tabs: newTabs, activeTabId: newActiveId };
+          return { tabs: newTabs, activeTabId: newActiveId }
         }),
 
       setActiveTab: (id) => set({ activeTabId: id }),
 
       updateTabContent: (id, content) =>
         set((state) => ({
-          tabs: state.tabs.map((t) =>
-            t.id === id ? { ...t, content, isDirty: true } : t
-          ),
+          tabs: state.tabs.map((t) => (t.id === id ? { ...t, content, isDirty: true } : t))
         })),
 
       updateTabTitle: (id, title) =>
         set((state) => ({
-          tabs: state.tabs.map((t) => (t.id === id ? { ...t, title } : t)),
+          tabs: state.tabs.map((t) => (t.id === id ? { ...t, title } : t))
         })),
 
       markTabClean: (id) =>
         set((state) => ({
-          tabs: state.tabs.map((t) => (t.id === id ? { ...t, isDirty: false } : t)),
+          tabs: state.tabs.map((t) => (t.id === id ? { ...t, isDirty: false } : t))
         })),
 
       setTabFilePath: (id, filePath) =>
         set((state) => ({
-          tabs: state.tabs.map((t) => (t.id === id ? { ...t, filePath } : t)),
+          tabs: state.tabs.map((t) => (t.id === id ? { ...t, filePath } : t))
         })),
 
       getActiveTab: () => {
-        const { tabs, activeTabId } = get();
-        return tabs.find((t) => t.id === activeTabId);
-      },
+        const { tabs, activeTabId } = get()
+        return tabs.find((t) => t.id === activeTabId)
+      }
     }),
     {
       name: 'editor-tabs',
@@ -2047,13 +2115,13 @@ export const useEditorStore = create<EditorStore>()(
         tabs: state.tabs.map((t) => ({
           ...t,
           // 不持久化大内容，仅保留标题和路径
-          content: t.filePath ? '' : t.content,
+          content: t.filePath ? '' : t.content
         })),
-        activeTabId: state.activeTabId,
-      }),
+        activeTabId: state.activeTabId
+      })
     }
   )
-);
+)
 ```
 
 ---
@@ -2135,6 +2203,7 @@ pnpm add eventsource-parser                # SSE 解析
 ```
 
 每个步骤完成后应确保：
+
 - 代码可编译通过 (`pnpm run typecheck`)
 - 应用可正常启动 (`pnpm run dev`)
 - 核心功能可手动验证

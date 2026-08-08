@@ -74,33 +74,33 @@ UI 层遵循组件化架构，每个组件职责单一：
 
 ### 强制技术栈（不可变更）
 
-| 类别 | 技术 | 约束 |
-|------|------|------|
-| 运行时 | Electron 39+ | 跨平台桌面应用框架，不可替换 |
-| UI 框架 | React 19 | 渲染进程唯一框架，不可混用 Vue/Svelte 等 |
-| 语言 | TypeScript 5.9+ | 唯一开发语言，strict 模式 |
-| 样式方案 | Tailwind CSS 4 | 原子化 CSS，不可混用 CSS Modules / styled-components |
-| 组件库 | shadcn/ui (Radix UI) | 无头组件基础，不可引入 MUI / Ant Design 等重量级组件库 |
-| 状态管理 | Zustand 5 | 渲染进程全局状态方案，不可混用 Redux / MobX |
-| 构建工具 | electron-vite 5 | 多入口构建工具，不可替换为 Webpack / electron-forge |
-| 打包工具 | electron-builder | 安装包构建，不可替换 |
-| 包管理器 | pnpm | 唯一包管理器，不可混用 npm / yarn |
+| 类别     | 技术                 | 约束                                                   |
+| -------- | -------------------- | ------------------------------------------------------ |
+| 运行时   | Electron 39+         | 跨平台桌面应用框架，不可替换                           |
+| UI 框架  | React 19             | 渲染进程唯一框架，不可混用 Vue/Svelte 等               |
+| 语言     | TypeScript 5.9+      | 唯一开发语言，strict 模式                              |
+| 样式方案 | Tailwind CSS 4       | 原子化 CSS，不可混用 CSS Modules / styled-components   |
+| 组件库   | shadcn/ui (Radix UI) | 无头组件基础，不可引入 MUI / Ant Design 等重量级组件库 |
+| 状态管理 | Zustand 5            | 渲染进程全局状态方案，不可混用 Redux / MobX            |
+| 构建工具 | electron-vite 5      | 多入口构建工具，不可替换为 Webpack / electron-forge    |
+| 打包工具 | electron-builder     | 安装包构建，不可替换                                   |
+| 包管理器 | pnpm                 | 唯一包管理器，不可混用 npm / yarn                      |
 
 ### 推荐技术栈（优先选择）
 
-| 类别 | 推荐 | 备选 |
-|------|------|------|
-| 数据库驱动 | `pg` | — |
-| 代码编辑器 | `@monaco-editor/react` | `react-codemirror` |
-| 数据表格 | `@tanstack/react-table` | — |
-| 虚拟滚动 | `@tanstack/react-virtual` | — |
-| 面板布局 | `react-resizable-panels` | — |
-| SQL 解析 | `node-sql-parser` | — |
-| SQL 格式化 | `sql-formatter` | — |
-| 数据可视化 | `recharts` | `echarts`（大数据量场景） |
-| 日志 | `electron-log` | — |
-| 持久化 | `electron-store` | — |
-| AI 集成 | `openai` | `@anthropic-ai/sdk` |
+| 类别       | 推荐                      | 备选                      |
+| ---------- | ------------------------- | ------------------------- |
+| 数据库驱动 | `pg`                      | —                         |
+| 代码编辑器 | `@monaco-editor/react`    | `react-codemirror`        |
+| 数据表格   | `@tanstack/react-table`   | —                         |
+| 虚拟滚动   | `@tanstack/react-virtual` | —                         |
+| 面板布局   | `react-resizable-panels`  | —                         |
+| SQL 解析   | `node-sql-parser`         | —                         |
+| SQL 格式化 | `sql-formatter`           | —                         |
+| 数据可视化 | `recharts`                | `echarts`（大数据量场景） |
+| 日志       | `electron-log`            | —                         |
+| 持久化     | `electron-store`          | —                         |
+| AI 集成    | `openai`                  | `@anthropic-ai/sdk`       |
 
 ## 代码质量标准
 
