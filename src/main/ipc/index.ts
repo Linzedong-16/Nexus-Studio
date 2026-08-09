@@ -11,6 +11,6 @@ import { registerConfigIPC } from './config'
  */
 export function registerAllIPC(mainWindow: BrowserWindow): void {
   registerWindowIpc(mainWindow)
-  registerDbIPC()
+  registerDbIPC(mainWindow)
   registerConfigIPC()
 }

@@ -27,13 +27,13 @@ function NavItem({ item, collapsed }: { item: MenuItem; collapsed: boolean }): R
       {!collapsed && <span className="truncate">{item.label}</span>}
     </>
   )
-  // path 非空 → 路由链接；为 null → 占位按钮，仅视觉反馈（FR-021）
+  // path 非空 → 路由链接；为 null → 占位按钮，触发 onClick 回调
   const element = item.path ? (
     <NavLink to={item.path} className={({ isActive }) => itemClass(isActive, collapsed)}>
       {content}
     </NavLink>
   ) : (
-    <button type="button" className={itemClass(false, collapsed)}>
+    <button type="button" className={itemClass(false, collapsed)} onClick={item.onClick}>
       {content}
     </button>
   )

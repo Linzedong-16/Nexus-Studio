@@ -56,34 +56,24 @@ export const configService = {
   },
 
   /**
-   * 获取所有连接配置（密码已加密）
+   * 获取所有连接配置（密码已解密）
    */
   async getConnections(): Promise<ConnectionConfig[]> {
-    const connections = await window.api.config.get('connections')
-    return (connections as ConnectionConfig[]) || []
+    return window.api.config.getConnections()
   },
 
   /**
    * 保存连接配置
    */
   async saveConnection(config: ConnectionConfig): Promise<void> {
-    const connections = await this.getConnections()
-    const existingIndex = connections.findIndex((c) => c.id === config.id)
-    if (existingIndex >= 0) {
-      connections[existingIndex] = config
-    } else {
-      connections.push(config)
-    }
-    return window.api.config.set('connections', connections)
+    return window.api.config.saveConnection(config)
   },
 
   /**
    * 删除连接配置
    */
   async removeConnection(id: string): Promise<void> {
-    const connections = await this.getConnections()
-    const filtered = connections.filter((c) => c.id !== id)
-    return window.api.config.set('connections', filtered)
+    return window.api.config.removeConnection(id)
   },
 
   /**

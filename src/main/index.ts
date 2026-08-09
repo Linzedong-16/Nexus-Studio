@@ -3,6 +3,7 @@ import { join } from 'path'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { registerAllIPC } from './ipc'
+import { driverManager } from './db/core/DriverManager'
 
 function createWindow(): void {
   // 无边框窗口：自定义标题栏（顶栏拖拽区 + 窗口控制按钮在渲染进程实现）
@@ -66,6 +67,13 @@ app.whenReady().then(() => {
     // dock icon is clicked and there are no other windows open.
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
+})
+
+// 应用退出前优雅关闭所有数据库连接
+app.on('before-quit', async (event) => {
+  event.preventDefault()
+  await driverManager.disconnectAll()
+  app.quit()
 })
 
 // Quit when all windows are closed, except on macOS. There, it's common

@@ -2,6 +2,13 @@ import { contextBridge } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import { createInvoke, createListener } from './utils'
 import type { Api } from './index.d'
+import type {
+  QueryResult,
+  DatabaseInfo,
+  RoutineInfo,
+  IndexInfo,
+  TriggerInfo
+} from '../renderer/src/types/ipc'
 
 /**
  * 渲染进程可用 API —— 使用工厂函数创建，声明式定义
@@ -22,15 +29,20 @@ const api: Api = {
     onMaximizedChange: createListener<boolean>('window:maximized-changed')
   },
 
-  // ─── 数据库操作（占位） ───
+  // ─── 数据库操作 ───
   db: {
     testConnection: createInvoke('db:test-connection'),
     connect: createInvoke('db:connect'),
     disconnect: createInvoke('db:disconnect'),
-    query: createInvoke('db:query'),
+    getDatabases: createInvoke<[string], DatabaseInfo[]>('db:get-databases'),
+    query: createInvoke<[string, string, string, unknown[]?], QueryResult>('db:query'),
     getSchemas: createInvoke('db:get-schemas'),
     getTables: createInvoke('db:get-tables'),
     getColumns: createInvoke('db:get-columns'),
+    getIndexes: createInvoke<[string, string, string, string], IndexInfo[]>('db:get-indexes'),
+    getTriggers: createInvoke<[string, string, string, string], TriggerInfo[]>('db:get-triggers'),
+    getFunctions: createInvoke<[string, string, string], RoutineInfo[]>('db:get-functions'),
+    getProcedures: createInvoke<[string, string, string], RoutineInfo[]>('db:get-procedures'),
     onStatusChange: createListener('db:status-changed')
   },
 
@@ -39,7 +51,10 @@ const api: Api = {
     get: createInvoke('config:get'),
     set: createInvoke('config:set'),
     getAll: createInvoke('config:get-all'),
-    delete: createInvoke('config:delete')
+    delete: createInvoke('config:delete'),
+    getConnections: createInvoke('config:get-connections'),
+    saveConnection: createInvoke('config:save-connection'),
+    removeConnection: createInvoke('config:remove-connection')
   }
 }
 

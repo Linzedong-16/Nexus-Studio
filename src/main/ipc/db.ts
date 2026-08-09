@@ -1,147 +1,126 @@
+import type { BrowserWindow } from 'electron'
 import { createIPCHandler } from './utils'
+import { driverManager } from '../db/core/DriverManager'
+import { PostgreSQLDriver } from '../db/driver/pg'
+import { configStore } from '../config/store'
+import { decryptPassword } from '../config/crypto'
+import type { StoredConnection } from '../../renderer/src/types/ipc'
+import type {
+  ConnectionConfig,
+  ConnectionResult,
+  QueryResult,
+  DatabaseInfo,
+  SchemaInfo,
+  TableInfo,
+  ColumnInfo,
+  IndexInfo,
+  TriggerInfo,
+  RoutineInfo,
+  TestResult
+} from '../../renderer/src/types/ipc'
 
 /**
- * 数据库 IPC 处理器 —— 占位实现
+ * 从持久化存储中加载连接配置并解密密码
  *
- * 宪法 IV：采用适配器模式，当前为 PostgreSQL 适配器占位
- * Phase 2 接入 pg 后替换 TODO 处的实现
+ * 用于 DriverManager 的自动重连机制：当查询时发现连接不在内存中，
+ * 会通过此函数从 electron-store 读取配置并重新建立连接。
  *
- * 通道命名：db:xxx（宪法 V：模块:操作 格式）
+ * @param connectionId - 连接的唯一标识符
+ * @returns 解密后的连接配置，若不存在则返回 null
  */
-
-// ─── 类型定义（Phase 2 迁移到 src/renderer/src/types/ipc.ts） ───
-
-export interface ConnectionConfig {
-  id: string
-  name: string
-  host: string
-  port: number
-  database: string
-  username: string
-  password: string
-  ssl?: {
-    enabled: boolean
-    ca?: string
-    cert?: string
-    key?: string
+function loadConnectionConfig(connectionId: string): ConnectionConfig | null {
+  const stored = configStore.get('connections') as StoredConnection[]
+  const found = stored.find((c) => c.id === connectionId)
+  if (!found) return null
+  const { encryptedPassword, ...rest } = found
+  return {
+    ...rest,
+    password: encryptedPassword ? decryptPassword(encryptedPassword) : ''
   }
 }
 
-export interface ConnectionResult {
-  success: boolean
-  message: string
-  connectionId?: string
-}
+/**
+ * 数据库 IPC 处理器
+ *
+ * 宪法 IV：采用驱动模式，IPC 层只负责调用 DriverManager，
+ * 不直接依赖任何具体数据库驱动。
+ */
+export function registerDbIPC(mainWindow: BrowserWindow): void {
+  // 注入配置加载器，使 DriverManager 支持自动重连
+  driverManager.setConfigLoader(loadConnectionConfig)
+  driverManager.onStatusChange((status) => {
+    mainWindow.webContents.send('db:status-changed', status)
+  })
 
-export interface TestResult {
-  success: boolean
-  message: string
-  serverVersion?: string
-  latencyMs?: number
-}
-
-export interface QueryResult {
-  fields: Array<{ name: string; dataType: string; nullable: boolean }>
-  rows: Record<string, unknown>[]
-  rowCount: number
-  durationMs: number
-}
-
-export interface SchemaInfo {
-  name: string
-  owner: string
-}
-
-export interface TableInfo {
-  schema: string
-  name: string
-  type: 'table' | 'view'
-  comment?: string
-}
-
-export interface ColumnInfo {
-  name: string
-  dataType: string
-  nullable: boolean
-  isPrimaryKey: boolean
-  defaultValue?: string
-  comment?: string
-}
-
-export interface ConnectionStatus {
-  id: string
-  state: 'connected' | 'disconnected' | 'connecting' | 'error'
-  error?: string
-}
-
-// ─── 注册 IPC 处理器 ───
-
-export function registerDbIPC(): void {
-  // 测试连接
   createIPCHandler<[ConnectionConfig], TestResult>('db:test-connection', async (config) => {
-    // TODO: Phase 2 — 接入 pg，调用 PostgreSQLAdapter.testConnection(config)
-    console.log('[db:test-connection]', config.name)
-    return {
-      success: true,
-      message: '占位：连接测试功能将在 Phase 2 实现',
-      serverVersion: 'PostgreSQL 16.2 (placeholder)',
-      latencyMs: 1
-    }
+    return PostgreSQLDriver.testConnection(config)
   })
 
-  // 建立连接
   createIPCHandler<[ConnectionConfig], ConnectionResult>('db:connect', async (config) => {
-    // TODO: Phase 2 — 接入 pg，创建 Pool 并存入 ConnectionManager
-    console.log('[db:connect]', config.name)
-    return {
-      success: true,
-      message: '占位：连接功能将在 Phase 2 实现',
-      connectionId: config.id
-    }
+    return driverManager.connect(config)
   })
 
-  // 断开连接
   createIPCHandler<[string], void>('db:disconnect', async (connectionId) => {
-    // TODO: Phase 2 — ConnectionManager 释放连接池
-    console.log('[db:disconnect]', connectionId)
+    await driverManager.disconnect(connectionId)
   })
 
-  // 执行 SQL 查询
-  createIPCHandler<[string, string], QueryResult>('db:query', async (connectionId, sql) => {
-    // TODO: Phase 2 — 调用适配器执行 SQL（宪法 I：使用参数化查询）
-    console.log('[db:query]', connectionId, sql.substring(0, 50))
-    return {
-      fields: [{ name: 'id', dataType: 'integer', nullable: false }],
-      rows: [{ id: 1 }],
-      rowCount: 1,
-      durationMs: 0
+  createIPCHandler<[string], DatabaseInfo[]>('db:get-databases', async (connectionId) => {
+    return driverManager.getDatabases(connectionId)
+  })
+
+  createIPCHandler<[string, string, string, unknown[]?], QueryResult>(
+    'db:query',
+    async (connectionId, database, sql, params) => {
+      return driverManager.query(connectionId, database, sql, params)
     }
-  })
+  )
 
-  // 获取 Schema 列表
-  createIPCHandler<[string], SchemaInfo[]>('db:get-schemas', async (connectionId) => {
-    // TODO: Phase 2 — 查询 pg_catalog.pg_namespace
-    console.log('[db:get-schemas]', connectionId)
-    return [{ name: 'public', owner: 'postgres' }]
-  })
+  createIPCHandler<[string, string], SchemaInfo[]>(
+    'db:get-schemas',
+    async (connectionId, database) => {
+      return driverManager.getSchemas(connectionId, database)
+    }
+  )
 
-  // 获取表列表
-  createIPCHandler<[string, string], TableInfo[]>('db:get-tables', async (connectionId, schema) => {
-    // TODO: Phase 2 — 查询 information_schema.tables
-    console.log('[db:get-tables]', connectionId, schema)
-    return [
-      { schema: 'public', name: 'users', type: 'table' },
-      { schema: 'public', name: 'orders', type: 'table' }
-    ]
-  })
+  createIPCHandler<[string, string, string], TableInfo[]>(
+    'db:get-tables',
+    async (connectionId, database, schema) => {
+      return driverManager.getTables(connectionId, database, schema)
+    }
+  )
 
-  // 获取列信息
-  createIPCHandler<[string, string, string], ColumnInfo[]>(
+  createIPCHandler<[string, string, string, string], ColumnInfo[]>(
     'db:get-columns',
-    async (connectionId, schema, table) => {
-      // TODO: Phase 2 — 查询 information_schema.columns
-      console.log('[db:get-columns]', connectionId, schema, table)
-      return [{ name: 'id', dataType: 'integer', nullable: false, isPrimaryKey: true }]
+    async (connectionId, database, schema, table) => {
+      return driverManager.getColumns(connectionId, database, schema, table)
+    }
+  )
+
+  createIPCHandler<[string, string, string, string], IndexInfo[]>(
+    'db:get-indexes',
+    async (connectionId, database, schema, table) => {
+      return driverManager.getIndexes(connectionId, database, schema, table)
+    }
+  )
+
+  createIPCHandler<[string, string, string, string], TriggerInfo[]>(
+    'db:get-triggers',
+    async (connectionId, database, schema, table) => {
+      return driverManager.getTriggers(connectionId, database, schema, table)
+    }
+  )
+
+  createIPCHandler<[string, string, string], RoutineInfo[]>(
+    'db:get-functions',
+    async (connectionId, database, schema) => {
+      return driverManager.getFunctions(connectionId, database, schema)
+    }
+  )
+
+  createIPCHandler<[string, string, string], RoutineInfo[]>(
+    'db:get-procedures',
+    async (connectionId, database, schema) => {
+      return driverManager.getProcedures(connectionId, database, schema)
     }
   )
 }

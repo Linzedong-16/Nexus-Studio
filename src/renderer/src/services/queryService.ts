@@ -3,9 +3,13 @@ import type {
   TestResult,
   ConnectionResult,
   QueryResult,
+  DatabaseInfo,
   SchemaInfo,
   TableInfo,
-  ColumnInfo
+  ColumnInfo,
+  IndexInfo,
+  TriggerInfo,
+  RoutineInfo
 } from '../types/ipc'
 
 /**
@@ -13,8 +17,6 @@ import type {
  *
  * 宪法 III：组件不直接调用 window.api，通过 Service 层封装
  * 好处：统一错误处理、性能计时、日志记录
- *
- * 当前为占位实现，Phase 2 接入真实 pg 后替换
  */
 
 export const queryService = {
@@ -29,59 +31,126 @@ export const queryService = {
   },
 
   /**
-   * 建立数据库连接
+   * 建立服务器级数据库连接
    */
   async connect(config: ConnectionConfig): Promise<ConnectionResult> {
     return window.api.db.connect(config)
   },
 
   /**
-   * 断开数据库连接
+   * 断开数据库连接（关闭该连接下全部数据库池）
    */
   async disconnect(connectionId: string): Promise<void> {
     return window.api.db.disconnect(connectionId)
   },
 
   /**
-   * 执行 SQL 查询，自动计时
+   * 获取当前账号在服务器上有权限访问的全部数据库
    */
-  async execute(connectionId: string, sql: string): Promise<QueryResult> {
+  async getDatabases(connectionId: string): Promise<DatabaseInfo[]> {
+    return window.api.db.getDatabases(connectionId)
+  },
+
+  /**
+   * 在指定数据库上执行 SQL 查询，自动计时
+   */
+  async execute(
+    connectionId: string,
+    database: string,
+    sql: string,
+    params?: unknown[]
+  ): Promise<QueryResult> {
     const startTime = performance.now()
-    const result = await window.api.db.query(connectionId, sql)
+    const result = await window.api.db.query(connectionId, database, sql, params)
     const durationMs = Math.round(performance.now() - startTime)
     return { ...result, durationMs }
   },
 
   /**
-   * 批量执行多条 SQL 语句
+   * 在指定数据库上批量执行多条 SQL 语句
    */
-  async executeMultiple(connectionId: string, statements: string[]): Promise<QueryResult[]> {
+  async executeMultiple(
+    connectionId: string,
+    database: string,
+    statements: string[]
+  ): Promise<QueryResult[]> {
     const results: QueryResult[] = []
     for (const sql of statements) {
-      const result = await this.execute(connectionId, sql)
+      const result = await this.execute(connectionId, database, sql)
       results.push(result)
     }
     return results
   },
 
   /**
-   * 获取 Schema 列表
+   * 获取指定数据库下的 Schema 列表
    */
-  async getSchemas(connectionId: string): Promise<SchemaInfo[]> {
-    return window.api.db.getSchemas(connectionId)
+  async getSchemas(connectionId: string, database: string): Promise<SchemaInfo[]> {
+    return window.api.db.getSchemas(connectionId, database)
   },
 
   /**
-   * 获取表列表
+   * 获取指定 Schema 下的表/视图列表
    */
-  async getTables(connectionId: string, schema: string): Promise<TableInfo[]> {
-    return window.api.db.getTables(connectionId, schema)
+  async getTables(connectionId: string, database: string, schema: string): Promise<TableInfo[]> {
+    return window.api.db.getTables(connectionId, database, schema)
   },
 
   /**
-   * 获取列信息
+   * 获取指定表的列信息
    */
-  async getColumns(connectionId: string, schema: string, table: string): Promise<ColumnInfo[]> {
-    return window.api.db.getColumns(connectionId, schema, table)
+  async getColumns(
+    connectionId: string,
+    database: string,
+    schema: string,
+    table: string
+  ): Promise<ColumnInfo[]> {
+    return window.api.db.getColumns(connectionId, database, schema, table)
+  },
+
+  /**
+   * 获取指定表的索引列表
+   */
+  async getIndexes(
+    connectionId: string,
+    database: string,
+    schema: string,
+    table: string
+  ): Promise<IndexInfo[]> {
+    return window.api.db.getIndexes(connectionId, database, schema, table)
+  },
+
+  /**
+   * 获取指定表的触发器列表
+   */
+  async getTriggers(
+    connectionId: string,
+    database: string,
+    schema: string,
+    table: string
+  ): Promise<TriggerInfo[]> {
+    return window.api.db.getTriggers(connectionId, database, schema, table)
+  },
+
+  /**
+   * 获取指定 Schema 下的函数列表（PostgreSQL 专属模块）
+   */
+  async getFunctions(
+    connectionId: string,
+    database: string,
+    schema: string
+  ): Promise<RoutineInfo[]> {
+    return window.api.db.getFunctions(connectionId, database, schema)
+  },
+
+  /**
+   * 获取指定 Schema 下的存储过程列表（PostgreSQL 专属模块）
+   */
+  async getProcedures(
+    connectionId: string,
+    database: string,
+    schema: string
+  ): Promise<RoutineInfo[]> {
+    return window.api.db.getProcedures(connectionId, database, schema)
   }
 }

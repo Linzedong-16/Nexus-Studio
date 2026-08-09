@@ -9,6 +9,7 @@ import {
   Timer
 } from 'lucide-react'
 import type { MenuGroup, ModeConfig } from '@/types/shell'
+import { useWorkspaceStore } from '@/store/workspaceStore'
 import WorkHomePage from '@/pages/work/WorkHomePage'
 import CodeHomePage from '@/pages/code/CodeHomePage'
 import DesignHomePage from '@/pages/design/DesignHomePage'
@@ -19,7 +20,39 @@ import DesignHomePage from '@/pages/design/DesignHomePage'
  * 本期三模式菜单组同构（spec Assumptions），复刻 TRAE 截图结构
  */
 
-/** 本期三模式共用的占位菜单组（后续按模式差异化） */
+/** Work 模式专用菜单组（差异化：新建连接打开工作区标签页） */
+function buildWorkMenuGroups(): MenuGroup[] {
+  return [
+    {
+      id: 'actions',
+      title: null,
+      headerActions: [],
+      items: [
+        {
+          id: 'new-task',
+          label: '新建连接',
+          icon: CirclePlus,
+          path: null,
+          onClick: () => useWorkspaceStore.getState().addConnectionTab()
+        },
+        { id: 'plugins', label: '插件市场', icon: Blocks, path: null },
+        { id: 'automation', label: '自动化', icon: Timer, path: null },
+        { id: 'templates', label: '模板库', icon: LayoutTemplate, path: null }
+      ]
+    },
+    {
+      id: 'task-list',
+      title: '连接管理',
+      headerActions: [
+        { icon: ListCollapse, label: '收起全部' },
+        { icon: ListFilter, label: '筛选' }
+      ],
+      items: [{ id: 'sample-project', label: '示例项目', icon: Folder, path: null }]
+    }
+  ]
+}
+
+/** 本期 Code/Design 模式共用的占位菜单组 */
 function buildPlaceholderMenuGroups(): MenuGroup[] {
   return [
     {
@@ -27,7 +60,7 @@ function buildPlaceholderMenuGroups(): MenuGroup[] {
       title: null,
       headerActions: [],
       items: [
-        { id: 'new-task', label: '新建任务', icon: CirclePlus, path: null },
+        { id: 'new-task', label: '新建连接', icon: CirclePlus, path: null },
         { id: 'plugins', label: '插件市场', icon: Blocks, path: null },
         { id: 'automation', label: '自动化', icon: Timer, path: null },
         { id: 'templates', label: '模板库', icon: LayoutTemplate, path: null }
@@ -52,7 +85,7 @@ export const MODES: readonly ModeConfig[] = [
     icon: null,
     basePath: '/work',
     routes: [{ path: '', title: 'Work', Component: WorkHomePage }],
-    menuGroups: buildPlaceholderMenuGroups()
+    menuGroups: buildWorkMenuGroups()
   },
   {
     id: 'code',

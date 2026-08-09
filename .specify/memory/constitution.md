@@ -61,7 +61,44 @@ UI 层遵循组件化架构，每个组件职责单一：
 - **每阶段可独立交付**：任意阶段完成后，应用应可正常构建、运行和使用，下一阶段功能作为增量添加
 - **预留接口不空转**：AI 接口在 Phase 1-3 中定义但不实现，Phase 4 实现时直接填充，不修改已有接口签名
 
-### VII. 依赖最小化 (Minimal Dependencies)
+### VII. 中文文档与注释规范 (Chinese Documentation & Comments)
+
+**所有思考过程、规划讨论、总结文档以及代码注释必须使用简体中文**，确保团队协作和 AI 辅助开发的一致性：
+
+- **AI 辅助开发输出语言**：AI 在编写代码时的中间思考过程（thinking）、开发规划（planning）、任务总结（summary）**必须使用简体中文描述**，不得使用英文。这确保了中文开发者能够清晰理解所有决策背景和实现意图
+- **JSDoc 强制要求**：所有**导出函数、类方法、类型定义、接口**必须附带严格的 JSDoc 注释，JSDoc 描述必须使用**简体中文**，包含以下必要标签：
+  - `@param` — 参数说明（每个参数逐一描述，含类型和用途）
+  - `@returns` — 返回值说明（含类型和含义）
+  - `@throws` — 可能抛出的异常说明（如有）
+  - `@example` — 简要使用示例（对外暴露的公共 API 必须包含）
+  - `@description` — 函数功能概述（复杂逻辑必须包含）
+- **JSDoc 示例格式**：
+
+````typescript
+/**
+ * 根据连接 ID 获取数据库连接，若连接不存在则抛出异常
+ *
+ * @param connectionId - 连接的唯一标识符
+ * @param options - 连接选项配置
+ * @param options.timeout - 连接超时时间（毫秒），默认 5000
+ * @returns 活跃的数据库连接实例
+ * @throws {ConnectionNotFoundError} 当指定 ID 的连接不存在时抛出
+ * @example
+ * ```typescript
+ * const conn = await connectionManager.getConnection('conn-001', { timeout: 10000 })
+ * const result = await conn.execute('SELECT * FROM users')
+ * ```
+ */
+async getConnection(connectionId: string, options?: ConnectOptions): Promise<Connection> {
+  // ...
+}
+````
+
+- **内联注释**：复杂逻辑、算法实现、非显而易见的代码必须在关键行上方添加中文注释说明意图
+- **类型定义注释**：接口和类型别名的每个字段必须有中文 JSDoc 注释，说明字段含义和约束
+- **例外情况**：变量名、函数名、类名、文件名等**标识符**使用英文（遵循命名规范），仅注释和文档使用中文
+
+### VIII. 依赖最小化 (Minimal Dependencies)
 
 推崇零依赖或轻依赖，避免依赖膨胀：
 
@@ -174,4 +211,4 @@ src/
 5. **技术债务跟踪**：如果因紧急情况不得不违反宪法（如临时绕过预加载脚本），必须创建 ISSUE 跟踪修复，并在下一阶段优先处理
 6. **复杂度需证明必要性**：任何超出推荐技术栈的方案或引入新依赖，必须提供充分的理由说明
 
-**Version**: 1.0.0 | **Ratified**: 2026-08-08 | **Last Amended**: 2026-08-08
+**Version**: 1.1.0 | **Ratified**: 2026-08-08 | **Last Amended**: 2026-08-08

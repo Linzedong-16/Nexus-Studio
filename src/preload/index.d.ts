@@ -4,9 +4,13 @@ import type {
   ConnectionResult,
   TestResult,
   QueryResult,
+  DatabaseInfo,
   SchemaInfo,
   TableInfo,
   ColumnInfo,
+  IndexInfo,
+  TriggerInfo,
+  RoutineInfo,
   ConnectionStatus,
   ConfigStore
 } from '../renderer/src/types/ipc'
@@ -28,10 +32,35 @@ export interface DatabaseApi {
   testConnection(config: ConnectionConfig): Promise<TestResult>
   connect(config: ConnectionConfig): Promise<ConnectionResult>
   disconnect(connectionId: string): Promise<void>
-  query(connectionId: string, sql: string): Promise<QueryResult>
-  getSchemas(connectionId: string): Promise<SchemaInfo[]>
-  getTables(connectionId: string, schema: string): Promise<TableInfo[]>
-  getColumns(connectionId: string, schema: string, table: string): Promise<ColumnInfo[]>
+  getDatabases(connectionId: string): Promise<DatabaseInfo[]>
+  query(
+    connectionId: string,
+    database: string,
+    sql: string,
+    params?: unknown[]
+  ): Promise<QueryResult>
+  getSchemas(connectionId: string, database: string): Promise<SchemaInfo[]>
+  getTables(connectionId: string, database: string, schema: string): Promise<TableInfo[]>
+  getColumns(
+    connectionId: string,
+    database: string,
+    schema: string,
+    table: string
+  ): Promise<ColumnInfo[]>
+  getIndexes(
+    connectionId: string,
+    database: string,
+    schema: string,
+    table: string
+  ): Promise<IndexInfo[]>
+  getTriggers(
+    connectionId: string,
+    database: string,
+    schema: string,
+    table: string
+  ): Promise<TriggerInfo[]>
+  getFunctions(connectionId: string, database: string, schema: string): Promise<RoutineInfo[]>
+  getProcedures(connectionId: string, database: string, schema: string): Promise<RoutineInfo[]>
   /** 订阅连接状态变化；返回取消订阅函数 */
   onStatusChange(callback: (status: ConnectionStatus) => void): () => void
 }
@@ -43,6 +72,12 @@ export interface ConfigApi {
   set(key: string, value: unknown): Promise<void>
   getAll(): Promise<ConfigStore>
   delete(key: string): Promise<void>
+  /** 获取所有连接配置（主进程已解密密码） */
+  getConnections(): Promise<ConnectionConfig[]>
+  /** 保存连接配置（主进程会加密密码） */
+  saveConnection(config: ConnectionConfig): Promise<void>
+  /** 删除指定连接配置 */
+  removeConnection(id: string): Promise<void>
 }
 
 // ─── 全局 API ───

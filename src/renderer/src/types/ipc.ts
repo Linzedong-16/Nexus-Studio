@@ -7,18 +7,25 @@
  * 宪法 II：IPC 接口类型化，确保三个进程的类型一致
  */
 
+// ─── 数据库类型 ───
+
+export type DatabaseType = 'postgresql'
+
 // ─── 数据库连接 ───
 
 export interface ConnectionConfig {
   id: string
   name: string
+  type: DatabaseType
   host: string
   port: number
-  database: string
+  /** 服务器级连接下可选：留空时驱动使用该数据库类型的默认管理数据库 */
+  database?: string
   username: string
   password: string
   ssl?: {
     enabled: boolean
+    rejectUnauthorized?: boolean
     ca?: string
     cert?: string
     key?: string
@@ -29,6 +36,8 @@ export interface ConnectionResult {
   success: boolean
   message: string
   connectionId?: string
+  serverVersion?: string
+  latencyMs?: number
 }
 
 export interface TestResult {
@@ -59,6 +68,13 @@ export interface QueryResult {
   durationMs: number
 }
 
+// ─── 数据库信息 ───
+
+export interface DatabaseInfo {
+  name: string
+  owner?: string
+}
+
 // ─── Schema 信息 ───
 
 export interface SchemaInfo {
@@ -82,16 +98,57 @@ export interface ColumnInfo {
   comment?: string
 }
 
+export interface IndexInfo {
+  schema: string
+  table: string
+  name: string
+  /** 索引覆盖的列名（按顺序） */
+  columns: string[]
+  unique: boolean
+  isPrimary: boolean
+  /** 索引访问方法，如 btree */
+  method: string
+}
+
+export interface TriggerInfo {
+  schema: string
+  table: string
+  name: string
+  /** pg_get_triggerdef 生成的完整定义 */
+  definition: string
+  enabled: boolean
+}
+
+// ─── 函数 / 存储过程信息（PostgreSQL 专属模块）───
+
+export interface RoutineInfo {
+  schema: string
+  name: string
+  kind: 'function' | 'procedure'
+  argumentsSignature?: string
+  returnType?: string
+  comment?: string
+}
+
 // ─── 配置 ───
 
 export interface StoredConnection {
   id: string
   name: string
+  type: DatabaseType
   host: string
   port: number
-  database: string
+  /** 服务器级连接下可选，见 ConnectionConfig.database */
+  database?: string
   username: string
   encryptedPassword?: string
+  ssl?: {
+    enabled: boolean
+    rejectUnauthorized?: boolean
+    ca?: string
+    cert?: string
+    key?: string
+  }
 }
 
 export interface ConfigStore {
@@ -119,10 +176,35 @@ export interface DatabaseApi {
   testConnection(config: ConnectionConfig): Promise<TestResult>
   connect(config: ConnectionConfig): Promise<ConnectionResult>
   disconnect(connectionId: string): Promise<void>
-  query(connectionId: string, sql: string): Promise<QueryResult>
-  getSchemas(connectionId: string): Promise<SchemaInfo[]>
-  getTables(connectionId: string, schema: string): Promise<TableInfo[]>
-  getColumns(connectionId: string, schema: string, table: string): Promise<ColumnInfo[]>
+  getDatabases(connectionId: string): Promise<DatabaseInfo[]>
+  query(
+    connectionId: string,
+    database: string,
+    sql: string,
+    params?: unknown[]
+  ): Promise<QueryResult>
+  getSchemas(connectionId: string, database: string): Promise<SchemaInfo[]>
+  getTables(connectionId: string, database: string, schema: string): Promise<TableInfo[]>
+  getColumns(
+    connectionId: string,
+    database: string,
+    schema: string,
+    table: string
+  ): Promise<ColumnInfo[]>
+  getIndexes(
+    connectionId: string,
+    database: string,
+    schema: string,
+    table: string
+  ): Promise<IndexInfo[]>
+  getTriggers(
+    connectionId: string,
+    database: string,
+    schema: string,
+    table: string
+  ): Promise<TriggerInfo[]>
+  getFunctions(connectionId: string, database: string, schema: string): Promise<RoutineInfo[]>
+  getProcedures(connectionId: string, database: string, schema: string): Promise<RoutineInfo[]>
   onStatusChange(callback: (status: ConnectionStatus) => void): () => void
 }
 
@@ -133,6 +215,11 @@ export interface ConfigApi {
   set(key: string, value: unknown): Promise<void>
   getAll(): Promise<ConfigStore>
   delete(key: string): Promise<void>
+
+  // 连接配置专用方法（主进程内部处理 safeStorage 加解密）
+  getConnections(): Promise<ConnectionConfig[]>
+  saveConnection(config: ConnectionConfig): Promise<void>
+  removeConnection(id: string): Promise<void>
 }
 
 // ─── 全局 API ───

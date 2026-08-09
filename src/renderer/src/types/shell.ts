@@ -30,8 +30,10 @@ export interface MenuItem {
   label: string
   /** 必填 —— 侧边栏折叠为图标窄栏时仅显示图标（FR-013） */
   icon: LucideIcon
-  /** 目标路由绝对路径（如 '/code'）；占位项为 null，点击仅视觉反馈（FR-021） */
+  /** 目标路由绝对路径（如 '/code'）；占位项为 null */
   path: string | null
+  /** 占位项的点击回调；有 path 时通常不配置 */
+  onClick?: () => void
 }
 
 /** 侧边栏菜单分组（如"任务列表"） */
