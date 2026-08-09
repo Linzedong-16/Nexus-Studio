@@ -2,7 +2,7 @@ import { app, shell, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
-import { registerWindowIpc } from './ipc/window'
+import { registerAllIPC } from './ipc'
 
 function createWindow(): void {
   // 无边框窗口：自定义标题栏（顶栏拖拽区 + 窗口控制按钮在渲染进程实现）
@@ -23,8 +23,8 @@ function createWindow(): void {
     }
   })
 
-  // 窗口控制 IPC（invoke/handle + maximized-changed 广播），契约见 contracts/ipc-window.md
-  registerWindowIpc(mainWindow)
+  // 注册所有 IPC 处理器（窗口控制 + 数据库 + 配置）
+  registerAllIPC(mainWindow)
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()

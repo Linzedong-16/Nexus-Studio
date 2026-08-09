@@ -1,29 +1,49 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
+import { createInvoke, createListener } from './utils'
 import type { Api } from './index.d'
 
 /**
- * 渲染进程可用 API —— 契约见 specs/001-app-shell-ui/contracts/ipc-window.md
+ * 渲染进程可用 API —— 使用工厂函数创建，声明式定义
+ *
  * 宪法 I：只暴露封装后的有限 API，禁止透出原始 ipcRenderer
+ * 宪法 V：invoke/handle 双向通信，send/on 单向推送
+ *
+ * 新增通道只需在此添加一行 createInvoke / createListener，无需手写 ipcRenderer 调用
+ * 类型定义在 index.d.ts 中，与 src/renderer/src/types/ipc.ts 共享
  */
 const api: Api = {
+  // ─── 窗口控制 ───
   windowControls: {
-    minimize: () => ipcRenderer.invoke('window:minimize'),
-    toggleMaximize: () => ipcRenderer.invoke('window:toggle-maximize'),
-    close: () => ipcRenderer.invoke('window:close'),
-    isMaximized: () => ipcRenderer.invoke('window:is-maximized'),
-    onMaximizedChange: (callback) => {
-      const listener = (_event: Electron.IpcRendererEvent, maximized: boolean): void =>
-        callback(maximized)
-      ipcRenderer.on('window:maximized-changed', listener)
-      return () => ipcRenderer.removeListener('window:maximized-changed', listener)
-    }
+    minimize: createInvoke('window:minimize'),
+    toggleMaximize: createInvoke<[], boolean>('window:toggle-maximize'),
+    close: createInvoke('window:close'),
+    isMaximized: createInvoke<[], boolean>('window:is-maximized'),
+    onMaximizedChange: createListener<boolean>('window:maximized-changed')
+  },
+
+  // ─── 数据库操作（占位） ───
+  db: {
+    testConnection: createInvoke('db:test-connection'),
+    connect: createInvoke('db:connect'),
+    disconnect: createInvoke('db:disconnect'),
+    query: createInvoke('db:query'),
+    getSchemas: createInvoke('db:get-schemas'),
+    getTables: createInvoke('db:get-tables'),
+    getColumns: createInvoke('db:get-columns'),
+    onStatusChange: createListener('db:status-changed')
+  },
+
+  // ─── 配置读写 ───
+  config: {
+    get: createInvoke('config:get'),
+    set: createInvoke('config:set'),
+    getAll: createInvoke('config:get-all'),
+    delete: createInvoke('config:delete')
   }
 }
 
-// Use `contextBridge` APIs to expose Electron APIs to
-// renderer only if context isolation is enabled, otherwise
-// just add to the DOM global.
+// 通过 contextBridge 安全暴露到渲染进程的 window 对象
 if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld('electron', electronAPI)
