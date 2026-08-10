@@ -60,6 +60,19 @@ export function registerConfigIPC(): void {
   createIPCHandler<[ConnectionConfig], void>('config:save-connection', async (config) => {
     const stored = configStore.get('connections') as StoredConnection[]
     const index = stored.findIndex((c) => c.id === config.id)
+    // 同一服务器/账号的连接不应重复建立，无论是新建还是改后与其它连接撞车都要拦截
+    const duplicate = stored.find(
+      (c, i) =>
+        i !== index &&
+        c.type === config.type &&
+        c.host === config.host &&
+        c.port === config.port &&
+        c.username === config.username &&
+        (c.database ?? '') === (config.database ?? '')
+    )
+    if (duplicate) {
+      throw new Error(`已存在相同的连接「${duplicate.name}」，请直接使用该连接，无需重复创建`)
+    }
     const next = toStored(config)
     if (index >= 0) {
       stored[index] = next

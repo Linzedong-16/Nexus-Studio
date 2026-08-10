@@ -17,16 +17,12 @@ export function createIPCHandler<TArgs extends unknown[], TResult>(
     try {
       return await handler(...args)
     } catch (error) {
-      // 确保 Error 对象能被 Electron IPC 序列化
-      // 普通 Error 的 name/message/stack 都是可序列化的字符串属性
+      // Electron 原生支持转发 Error 实例的 message 到渲染进程的 rejected promise，
+      // 转成普通对象反而会丢失这个转发机制，渲染进程只能拿到 "[object Object]"
       if (error instanceof Error) {
-        throw {
-          name: error.name,
-          message: error.message,
-          stack: error.stack
-        }
+        throw error
       }
-      throw { message: String(error) }
+      throw new Error(String(error))
     }
   })
 }

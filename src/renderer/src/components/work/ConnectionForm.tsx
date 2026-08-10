@@ -54,7 +54,7 @@ export default function ConnectionForm({ tab }: ConnectionFormProps): React.JSX.
   const setConnected = useConnectionStore((s) => s.setConnected)
   const setConnectingStatus = useConnectionStore((s) => s.setConnecting)
   const setError = useConnectionStore((s) => s.setError)
-  const updateTabTitle = useWorkspaceStore((s) => s.updateTabTitle)
+  const closeTab = useWorkspaceStore((s) => s.closeTab)
   const loadDatabases = useConnectionStore((s) => s.loadDatabases)
 
   const update = <K extends keyof ConnectionConfig>(key: K, value: ConnectionConfig[K]): void => {
@@ -83,7 +83,7 @@ export default function ConnectionForm({ tab }: ConnectionFormProps): React.JSX.
     setSaveError(null)
     try {
       await configService.saveConnection(config)
-      updateTabTitle(tab.id, config.name || '未命名连接')
+      closeTab(tab.id)
     } catch (error) {
       setSaveError(error instanceof Error ? error.message : '保存失败')
     } finally {
@@ -94,13 +94,13 @@ export default function ConnectionForm({ tab }: ConnectionFormProps): React.JSX.
   const handleSaveAndConnect = async (): Promise<void> => {
     setConnecting(true)
     setConnectError(null)
-    setConnectingStatus(config)
     try {
       await configService.saveConnection(config)
+      setConnectingStatus(config)
       const result = await queryService.connect(config)
       if (result.success) {
         setConnected(config, result)
-        updateTabTitle(tab.id, config.name || '未命名连接')
+        closeTab(tab.id)
         await loadDatabases(config.id)
       } else {
         const msg = result.message
