@@ -3,8 +3,12 @@ import { Outlet, useLocation } from 'react-router'
 import TitleBar from './TitleBar'
 import Sidebar from './Sidebar'
 import SearchPalette from './SearchPalette'
+import SettingsPanel from '@/components/settings/SettingsPanel'
 import { resolveModeByPath } from '@/config/modes'
 import { useShellStore } from '@/store/shellStore'
+import { useKeybindingStore } from '@/store/keybindingStore'
+import { useConnectionStore } from '@/store/connectionStore'
+import { installGlobalKeybindingDispatcher } from '@/lib/keybinding/dispatcher'
 
 /**
  * 外壳布局容器（FR-001）：TitleBar 置顶，下方 Sidebar + 内容视图
@@ -19,6 +23,15 @@ export default function AppShell(): React.JSX.Element {
     setLastMode(resolveModeByPath(location.pathname).id)
   }, [location.pathname, setLastMode])
 
+  useEffect(() => {
+    void useKeybindingStore.getState().loadFromDisk()
+    return installGlobalKeybindingDispatcher()
+  }, [])
+
+  useEffect(() => {
+    void useConnectionStore.getState().hydrateSavedConnections()
+  }, [])
+
   return (
     <div className="flex h-full flex-col">
       <TitleBar />
@@ -29,6 +42,7 @@ export default function AppShell(): React.JSX.Element {
         </main>
       </div>
       <SearchPalette />
+      <SettingsPanel />
     </div>
   )
 }

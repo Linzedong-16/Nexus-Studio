@@ -66,10 +66,17 @@ export interface ShellUIState {
   lastMode: ModeId
   /** 搜索面板开关（瞬态，FR-017） */
   searchOpen: boolean
+  /** 设置面板开关（瞬态） */
+  settingsOpen: boolean
+  /** 结构树面板折叠态（瞬态，Ctrl+Shift+B） */
+  schemaTreeCollapsed: boolean
   /** 镜像主进程窗口最大化状态（瞬态） */
   windowMaximized: boolean
   toggleSidebar: () => void
   setSearchOpen: (open: boolean) => void
+  setSettingsOpen: (open: boolean) => void
+  toggleSchemaTree: () => void
+  setSchemaTreeCollapsed: (collapsed: boolean) => void
   setLastMode: (mode: ModeId) => void
   setWindowMaximized: (maximized: boolean) => void
 }

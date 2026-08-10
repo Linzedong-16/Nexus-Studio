@@ -10,6 +10,7 @@ import type {
   TriggerInfo,
   RoleInfo
 } from '../renderer/src/types/ipc'
+import type { KeybindingEntry } from '../renderer/src/types/keybinding'
 
 /**
  * 渲染进程可用 API —— 使用工厂函数创建，声明式定义
@@ -57,6 +58,13 @@ const api: Api = {
     getConnections: createInvoke('config:get-connections'),
     saveConnection: createInvoke('config:save-connection'),
     removeConnection: createInvoke('config:remove-connection')
+  },
+
+  // ─── 快捷键配置 ───
+  keybindings: {
+    getAll: createInvoke('keybindings:get-all'),
+    saveAll: createInvoke<[KeybindingEntry[]], KeybindingEntry[]>('keybindings:save-all'),
+    resetDefaults: createInvoke('keybindings:reset-defaults')
   }
 }
 

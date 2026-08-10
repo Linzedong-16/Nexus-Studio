@@ -23,6 +23,7 @@ const menuTriggerClass =
 export default function TitleBar(): React.JSX.Element {
   const toggleSidebar = useShellStore((s) => s.toggleSidebar)
   const setSearchOpen = useShellStore((s) => s.setSearchOpen)
+  const setSettingsOpen = useShellStore((s) => s.setSettingsOpen)
 
   return (
     <header className="flex h-10 shrink-0 items-center justify-between border-b border-border bg-background [-webkit-app-region:drag]">
@@ -73,7 +74,7 @@ export default function TitleBar(): React.JSX.Element {
             帮助(H)
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-44">
-            <DropdownMenuItem>快捷键</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setSettingsOpen(true)}>快捷键</DropdownMenuItem>
             <DropdownMenuItem>检查更新</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem>关于 DB Client</DropdownMenuItem>

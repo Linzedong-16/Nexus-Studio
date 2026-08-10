@@ -64,7 +64,7 @@ export default function ModeSwitcher({ collapsed = false }: ModeSwitcherProps): 
       <span
         aria-hidden
         className={cn(
-          'absolute rounded-md bg-background shadow-sm transition-[transform,width,height] duration-200 ease-out will-change-transform',
+          'absolute rounded-md bg-background shadow-sm transition-[transform,width,height] duration-150 ease-out will-change-transform',
           collapsed ? 'inset-x-0.5 top-0' : 'inset-y-0.5 left-0'
         )}
         style={

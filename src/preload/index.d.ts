@@ -15,6 +15,7 @@ import type {
   ConnectionStatus,
   ConfigStore
 } from '../renderer/src/types/ipc'
+import type { KeybindingEntry } from '../renderer/src/types/keybinding'
 
 // ─── 窗口控制 API ───
 
@@ -83,12 +84,21 @@ export interface ConfigApi {
   removeConnection(id: string): Promise<void>
 }
 
+// ─── 快捷键 API ───
+
+export interface KeybindingsApi {
+  getAll(): Promise<KeybindingEntry[]>
+  saveAll(entries: KeybindingEntry[]): Promise<KeybindingEntry[]>
+  resetDefaults(): Promise<KeybindingEntry[]>
+}
+
 // ─── 全局 API ───
 
 export interface Api {
   windowControls: WindowControlsApi
   db: DatabaseApi
   config: ConfigApi
+  keybindings: KeybindingsApi
 }
 
 declare global {

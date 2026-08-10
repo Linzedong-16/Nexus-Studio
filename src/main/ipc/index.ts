@@ -2,6 +2,7 @@ import type { BrowserWindow } from 'electron'
 import { registerWindowIpc } from './window'
 import { registerDbIPC } from './db'
 import { registerConfigIPC } from './config'
+import { registerKeybindingsIPC } from './keybindings'
 
 /**
  * IPC 统一注册入口
@@ -13,4 +14,5 @@ export function registerAllIPC(mainWindow: BrowserWindow): void {
   registerWindowIpc(mainWindow)
   registerDbIPC(mainWindow)
   registerConfigIPC()
+  registerKeybindingsIPC()
 }

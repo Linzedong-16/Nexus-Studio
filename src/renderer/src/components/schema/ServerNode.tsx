@@ -76,10 +76,12 @@ export default function ServerNode({ connectionId }: ServerNodeProps): React.JSX
             className="size-3 text-muted-foreground hover:text-foreground"
             onClick={handleRefresh}
           />
-          <Unplug
-            className="size-3 text-muted-foreground hover:text-destructive"
-            onClick={handleDisconnect}
-          />
+          <span title="断开并删除该连接">
+            <Unplug
+              className="size-3 text-muted-foreground hover:text-destructive"
+              onClick={handleDisconnect}
+            />
+          </span>
         </div>
       </button>
 

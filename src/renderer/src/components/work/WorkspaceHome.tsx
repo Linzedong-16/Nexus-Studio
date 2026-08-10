@@ -1,19 +1,51 @@
+import { useEffect, useRef } from 'react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
+import type { PanelImperativeHandle } from 'react-resizable-panels'
 import { cn } from '@/lib/utils'
 import SchemaTree from '@/components/schema/SchemaTree'
 import WorkspaceTabs from './WorkspaceTabs'
 import WorkspacePanel from './WorkspacePanel'
+import { useShellStore } from '@/store/shellStore'
 
 /**
  * Work 模式核心视图
  *
  * 左侧 Schema 树 + 右侧标签页工作区，可拖拽调整宽度。
+ * schemaTreeCollapsed（Ctrl+Shift+B）与 Panel 的折叠态双向同步：
+ * 快捷键触发的折叠通过 panelRef 命令式调用；手动拖拽折叠通过 onResize 回写 store。
  */
 export default function WorkspaceHome(): React.JSX.Element {
+  const panelRef = useRef<PanelImperativeHandle>(null)
+  const schemaTreeCollapsed = useShellStore((s) => s.schemaTreeCollapsed)
+  const setSchemaTreeCollapsed = useShellStore((s) => s.setSchemaTreeCollapsed)
+
+  useEffect(() => {
+    const panel = panelRef.current
+    if (!panel) return
+    if (schemaTreeCollapsed && !panel.isCollapsed()) {
+      panel.collapse()
+    } else if (!schemaTreeCollapsed && panel.isCollapsed()) {
+      panel.expand()
+    }
+  }, [schemaTreeCollapsed])
+
   return (
     <div className="flex h-full min-w-0 flex-col overflow-hidden bg-background">
       <Group orientation="horizontal" className="min-h-0 flex-1">
-        <Panel id="schema-tree" defaultSize="22" minSize="12" maxSize="40" collapsible>
+        <Panel
+          id="schema-tree"
+          defaultSize="22"
+          minSize="12"
+          maxSize="40"
+          collapsible
+          panelRef={panelRef}
+          onResize={() => {
+            const collapsed = panelRef.current?.isCollapsed() ?? false
+            if (collapsed !== schemaTreeCollapsed) {
+              setSchemaTreeCollapsed(collapsed)
+            }
+          }}
+        >
           <SchemaTree />
         </Panel>
         <Separator

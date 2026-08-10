@@ -19,6 +19,7 @@ import type {
   TableNodeState
 } from '@/types/database'
 import { queryService } from '@/services/queryService'
+import { configService } from '@/services/configService'
 
 export type ConnectionStatus = 'connecting' | 'connected' | 'error'
 
@@ -47,8 +48,11 @@ interface ConnectionStoreState {
   setConnecting: (config: ConnectionConfig) => void
   setConnected: (config: ConnectionConfig, result: ConnectionResult) => void
   setError: (id: string, error: string) => void
-  /** 断开服务器连接并清空该连接下全部数据库运行态（FR-004） */
+  /** 断开服务器连接、清空该连接下全部数据库运行态，并删除持久化配置，防止下次启动被自动重连（FR-004） */
   disconnect: (id: string) => Promise<void>
+
+  /** 应用启动时读取全部已保存的连接配置并逐一自动重连（各连接互不阻塞） */
+  hydrateSavedConnections: () => Promise<void>
 
   /** 加载服务器上全部可访问数据库；已有缓存且无错误时默认跳过 */
   loadDatabases: (id: string, options?: { force?: boolean }) => Promise<void>
@@ -248,10 +252,32 @@ export const useConnectionStore = create<ConnectionStoreState>()((set, get) => {
         return { connections: { ...state.connections, [id]: { ...conn, status: 'error', error } } }
       }),
 
+    hydrateSavedConnections: async () => {
+      const configs = await configService.getConnections()
+      await Promise.all(
+        configs.map(async (config) => {
+          get().setConnecting(config)
+          try {
+            const result = await queryService.connect(config)
+            if (result.success) {
+              get().setConnected(config, result)
+              await get().loadDatabases(config.id)
+            } else {
+              get().setError(config.id, result.message)
+            }
+          } catch (error) {
+            get().setError(config.id, error instanceof Error ? error.message : '连接失败')
+          }
+        })
+      )
+    },
+
     disconnect: async (id) => {
       try {
         await queryService.disconnect(id)
       } finally {
+        // 手动断开即视为放弃该连接，同时删除持久化配置，避免下次启动时被自动重连（FR-004）
+        void configService.removeConnection(id)
         set((state) => {
           if (!(id in state.connections)) return state
           const next = { ...state.connections }
