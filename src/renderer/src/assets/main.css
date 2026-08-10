@@ -42,6 +42,8 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.909 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --scrollbar-thumb: rgb(0 0 0 / 16%);
+  --scrollbar-thumb-hover: rgb(0 0 0 / 28%);
 }
 
 /* 暗色主题令牌覆盖：镜像 :root 的全部变量，见 specs/003-theme-toggle-transition/data-model.md */
@@ -77,6 +79,8 @@
   --sidebar-accent-foreground: oklch(0.94 0 0);
   --sidebar-border: oklch(0.32 0 0);
   --sidebar-ring: oklch(0.55 0 0);
+  --scrollbar-thumb: rgb(255 255 255 / 18%);
+  --scrollbar-thumb-hover: rgb(255 255 255 / 30%);
 }
 
 @theme inline {
@@ -139,6 +143,43 @@
   [contenteditable='true'] {
     user-select: text;
   }
+}
+
+/*
+ * 统一细长滚动条样式：轨道透明（融入所在容器背景），滑块浅灰半透明，
+ * 暗色模式下改为浅白半透明；同时覆盖 Firefox 的标准滚动条属性作为兜底。
+ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 9999px;
+  background-color: var(--scrollbar-thumb);
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* 需要完全隐藏滚动条的场景（如横向标签栏），用它代替失效的 tailwind-scrollbar 类名 */
+.scrollbar-hidden {
+  scrollbar-width: none;
+}
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
 }
 
 /* 主题切换扩散动画：禁用浏览器默认的交叉淡入淡出，避免与自定义 clip-path 动画叠加冲突 */

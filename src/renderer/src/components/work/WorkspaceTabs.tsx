@@ -93,10 +93,7 @@ export default function WorkspaceTabs(): React.JSX.Element {
           <div
             ref={scrollRef}
             onWheel={handleWheel}
-            className={cn(
-              'flex min-w-0 flex-1 items-end overflow-x-auto',
-              'scrollbar-thin scrollbar-track-transparent scrollbar-thumb-transparent'
-            )}
+            className={cn('flex min-w-0 flex-1 items-end overflow-x-auto', 'scrollbar-hidden')}
           >
             {tabs.map((tab) => (
               <WorkspaceTab
