@@ -63,7 +63,7 @@ export default function ServerNode({ connectionId }: ServerNodeProps): React.JSX
         ) : (
           <ChevronRight className="size-3 shrink-0 text-muted-foreground" />
         )}
-        <Server className="size-3.5 shrink-0 text-blue-600" />
+        <Server className="size-3.5 shrink-0 text-blue-600 dark:text-blue-400" />
         <span className="truncate font-medium">{conn.config.name}</span>
         <Badge
           variant={conn.status === 'error' ? 'destructive' : 'secondary'}

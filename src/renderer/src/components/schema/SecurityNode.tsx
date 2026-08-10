@@ -37,9 +37,7 @@ export default function SecurityNode({
   const toggleSecurityNode = useConnectionStore((s) => s.toggleSecurityNode)
   const loadRoles = useConnectionStore((s) => s.loadRoles)
   const activeDatabase = useConnectionStore((s) => s.connections[connectionId]?.activeDatabase)
-  const firstDatabase = useConnectionStore(
-    (s) => s.connections[connectionId]?.databases?.[0]?.name
-  )
+  const firstDatabase = useConnectionStore((s) => s.connections[connectionId]?.databases?.[0]?.name)
   const configDatabase = useConnectionStore((s) => s.connections[connectionId]?.config.database)
   const database = activeDatabase ?? firstDatabase ?? configDatabase
 
@@ -66,7 +64,7 @@ export default function SecurityNode({
         ) : (
           <ChevronRight className="size-3 shrink-0 text-muted-foreground" />
         )}
-        <Shield className="size-3.5 shrink-0 text-rose-500" />
+        <Shield className="size-3.5 shrink-0 text-rose-500 dark:text-rose-400" />
         <span className="truncate">Security</span>
         {expanded && (
           <RefreshCw
@@ -163,12 +161,10 @@ function SecurityGroup({
         ) : (
           <ChevronRight className="size-3 shrink-0 text-muted-foreground" />
         )}
-        <Icon className="size-3.5 shrink-0 text-amber-500" />
+        <Icon className="size-3.5 shrink-0 text-amber-500 dark:text-amber-400" />
         <span className="truncate">{label}</span>
         {roles.length > 0 && (
-          <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">
-            {roles.length}
-          </span>
+          <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">{roles.length}</span>
         )}
       </button>
 
@@ -219,12 +215,14 @@ function RoleRow({
   const content = (
     <>
       {role.canLogin ? (
-        <User className="size-3.5 shrink-0 text-blue-500" />
+        <User className="size-3.5 shrink-0 text-blue-500 dark:text-blue-400" />
       ) : (
         <Users className="size-3.5 shrink-0 text-muted-foreground" />
       )}
       <span className="truncate">{role.name}</span>
-      {role.isSuperuser && <KeyRound className="size-3 shrink-0 text-amber-500" />}
+      {role.isSuperuser && (
+        <KeyRound className="size-3 shrink-0 text-amber-500 dark:text-amber-400" />
+      )}
     </>
   )
 

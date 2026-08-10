@@ -1,4 +1,5 @@
 import './assets/main.css'
+import './lib/theme/applyThemeClass'
 
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'

@@ -1,8 +1,12 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
+/* dark: 变体由 .dark class 驱动（手动切换），而非跟随系统 prefers-color-scheme */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /*
- * TRAE 风格浅色主题令牌（本期仅浅色，见 specs/001-app-shell-ui/spec.md Assumptions）
+ * TRAE 风格浅色主题令牌（见 specs/001-app-shell-ui/spec.md Assumptions；
+ * 暗色令牌见下方 .dark 覆盖块，见 specs/003-theme-toggle-transition/spec.md）
  * 观感目标：近白背景、侧边栏与内容区近色系弱分割、低对比边框、中性灰文字层级
  */
 :root {
@@ -38,6 +42,41 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.909 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+}
+
+/* 暗色主题令牌覆盖：镜像 :root 的全部变量，见 specs/003-theme-toggle-transition/data-model.md */
+.dark {
+  --background: oklch(0.19 0 0);
+  --foreground: oklch(0.94 0 0);
+  --card: oklch(0.23 0 0);
+  --card-foreground: oklch(0.94 0 0);
+  --popover: oklch(0.23 0 0);
+  --popover-foreground: oklch(0.94 0 0);
+  --primary: oklch(0.92 0 0);
+  --primary-foreground: oklch(0.21 0 0);
+  --secondary: oklch(0.29 0 0);
+  --secondary-foreground: oklch(0.94 0 0);
+  --muted: oklch(0.27 0 0);
+  --muted-foreground: oklch(0.65 0 0);
+  --accent: oklch(0.32 0 0);
+  --accent-foreground: oklch(0.94 0 0);
+  --destructive: oklch(0.65 0.2 27.325);
+  --border: oklch(0.32 0 0);
+  --input: oklch(0.32 0 0);
+  --ring: oklch(0.55 0 0);
+  --chart-1: oklch(0.55 0.22 41.116);
+  --chart-2: oklch(0.55 0.118 184.704);
+  --chart-3: oklch(0.6 0.13 227.392);
+  --chart-4: oklch(0.65 0.19 84.429);
+  --chart-5: oklch(0.62 0.2 70.08);
+  --sidebar: oklch(0.21 0 0);
+  --sidebar-foreground: oklch(0.94 0 0);
+  --sidebar-primary: oklch(0.92 0 0);
+  --sidebar-primary-foreground: oklch(0.21 0 0);
+  --sidebar-accent: oklch(0.3 0 0);
+  --sidebar-accent-foreground: oklch(0.94 0 0);
+  --sidebar-border: oklch(0.32 0 0);
+  --sidebar-ring: oklch(0.55 0 0);
 }
 
 @theme inline {
@@ -100,4 +139,11 @@
   [contenteditable='true'] {
     user-select: text;
   }
+}
+
+/* 主题切换扩散动画：禁用浏览器默认的交叉淡入淡出，避免与自定义 clip-path 动画叠加冲突 */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
 }

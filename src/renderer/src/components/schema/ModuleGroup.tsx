@@ -86,7 +86,7 @@ export default function ModuleGroup({
         title="打开查询标签页"
         className="flex w-full items-center gap-1.5 px-2 py-0.5 pl-6 text-left text-[13px] text-muted-foreground hover:bg-accent/50 hover:text-foreground"
       >
-        <Icon className="size-3.5 shrink-0 text-purple-500" />
+        <Icon className="size-3.5 shrink-0 text-purple-500 dark:text-purple-400" />
         <span className="truncate">{label}</span>
       </button>
     )
@@ -117,7 +117,7 @@ export default function ModuleGroup({
         ) : (
           <ChevronRight className="size-3 shrink-0 text-muted-foreground" />
         )}
-        <Icon className="size-3.5 shrink-0 text-green-500" />
+        <Icon className="size-3.5 shrink-0 text-green-500 dark:text-green-400" />
         <span className="truncate">{label}</span>
         {items && items.length > 0 && (
           <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">{items.length}</span>

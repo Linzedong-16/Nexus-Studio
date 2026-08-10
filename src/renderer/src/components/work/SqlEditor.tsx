@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import Editor, { type OnMount } from '@monaco-editor/react'
 import '@/lib/monaco'
+import { useThemeStore } from '@/store/themeStore'
 
 interface SqlEditorProps {
   value: string
@@ -19,6 +20,7 @@ export default function SqlEditor({
   onChange,
   onExecute
 }: SqlEditorProps): React.JSX.Element {
+  const mode = useThemeStore((s) => s.mode)
   const executeRef = useRef(onExecute)
 
   useEffect(() => {
@@ -38,6 +40,7 @@ export default function SqlEditor({
     <Editor
       height="100%"
       language="pgsql"
+      theme={mode === 'dark' ? 'vs-dark' : 'vs'}
       value={value}
       onChange={(val) => onChange(val ?? '')}
       onMount={handleMount}

@@ -92,9 +92,9 @@ export default function TableNode({
           className="flex min-w-0 flex-1 items-center gap-1.5 text-muted-foreground hover:text-foreground"
         >
           {table.type === 'view' ? (
-            <View className="size-3.5 shrink-0 text-green-500" />
+            <View className="size-3.5 shrink-0 text-green-500 dark:text-green-400" />
           ) : (
-            <Table2 className="size-3.5 shrink-0 text-green-500" />
+            <Table2 className="size-3.5 shrink-0 text-green-500 dark:text-green-400" />
           )}
           <span className="truncate">{table.name}</span>
         </button>
@@ -185,7 +185,7 @@ function TableModule({
         ) : (
           <ChevronRight className="size-3 shrink-0 text-muted-foreground" />
         )}
-        <Icon className="size-3.5 shrink-0 text-sky-500" />
+        <Icon className="size-3.5 shrink-0 text-sky-500 dark:text-sky-400" />
         <span className="truncate">{label}</span>
         {items && items.length > 0 && (
           <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">{items.length}</span>
@@ -251,18 +251,20 @@ function ColumnRow({ column }: { column: ColumnInfo }): React.JSX.Element {
       title={column.comment}
       className={cn(
         'flex w-full items-center gap-1.5 px-2 py-0.5 pl-16 text-left text-[13px]',
-        column.isPrimaryKey ? 'text-amber-700' : 'text-muted-foreground'
+        column.isPrimaryKey ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'
       )}
     >
       {column.isPrimaryKey ? (
-        <KeyRound className="size-3.5 shrink-0 text-amber-500" />
+        <KeyRound className="size-3.5 shrink-0 text-amber-500 dark:text-amber-400" />
       ) : (
         <ListTree className="size-3.5 shrink-0 text-muted-foreground/60" />
       )}
       <span className={cn('truncate', column.isPrimaryKey && 'font-medium')}>{column.name}</span>
       <span className="truncate text-xs text-muted-foreground/70">{column.dataType}</span>
       {column.isPrimaryKey && (
-        <span className="shrink-0 rounded bg-amber-500/15 px-1 text-[10px] text-amber-600">PK</span>
+        <span className="shrink-0 rounded bg-amber-500/15 px-1 text-[10px] text-amber-600 dark:bg-amber-500/20 dark:text-amber-400">
+          PK
+        </span>
       )}
     </div>
   )
@@ -274,16 +276,20 @@ function IndexRow({ index }: { index: IndexInfo }): React.JSX.Element {
       title={index.columns.join(', ')}
       className="flex w-full items-center gap-1.5 px-2 py-0.5 pl-16 text-left text-[13px] text-muted-foreground"
     >
-      <ListTree className="size-3.5 shrink-0 text-sky-500" />
+      <ListTree className="size-3.5 shrink-0 text-sky-500 dark:text-sky-400" />
       <span className="truncate">{index.name}</span>
       <span className="truncate text-xs text-muted-foreground/70">
         {index.method} ({index.columns.join(', ')})
       </span>
       {index.unique && (
-        <span className="shrink-0 rounded bg-sky-500/15 px-1 text-[10px] text-sky-600">UNIQUE</span>
+        <span className="shrink-0 rounded bg-sky-500/15 px-1 text-[10px] text-sky-600 dark:bg-sky-500/20 dark:text-sky-400">
+          UNIQUE
+        </span>
       )}
       {index.isPrimary && (
-        <span className="shrink-0 rounded bg-amber-500/15 px-1 text-[10px] text-amber-600">PK</span>
+        <span className="shrink-0 rounded bg-amber-500/15 px-1 text-[10px] text-amber-600 dark:bg-amber-500/20 dark:text-amber-400">
+          PK
+        </span>
       )}
     </div>
   )
@@ -295,7 +301,7 @@ function TriggerRow({ trigger }: { trigger: TriggerInfo }): React.JSX.Element {
       title={trigger.definition}
       className="flex w-full items-center gap-1.5 px-2 py-0.5 pl-16 text-left text-[13px] text-muted-foreground"
     >
-      <Zap className="size-3.5 shrink-0 text-orange-500" />
+      <Zap className="size-3.5 shrink-0 text-orange-500 dark:text-orange-400" />
       <span className="truncate">{trigger.name}</span>
       {!trigger.enabled && (
         <span className="shrink-0 rounded bg-muted px-1 text-[10px] text-muted-foreground">

@@ -63,7 +63,7 @@ export default function DatabaseNode({
         ) : (
           <ChevronRight className="size-3 shrink-0 text-muted-foreground" />
         )}
-        <Database className="size-3.5 shrink-0 text-blue-500" />
+        <Database className="size-3.5 shrink-0 text-blue-500 dark:text-blue-400" />
         <span className="truncate">{database.name}</span>
         {expanded && (
           <RefreshCw

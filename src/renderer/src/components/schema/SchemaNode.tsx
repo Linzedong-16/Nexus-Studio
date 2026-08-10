@@ -61,7 +61,7 @@ export default function SchemaNode({
         ) : (
           <ChevronRight className="size-3 shrink-0 text-muted-foreground" />
         )}
-        <FolderTree className="size-3.5 shrink-0 text-amber-500" />
+        <FolderTree className="size-3.5 shrink-0 text-amber-500 dark:text-amber-400" />
         <span className="truncate">{schema.name}</span>
         {expanded && (
           <RefreshCw

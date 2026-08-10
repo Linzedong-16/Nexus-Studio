@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import WindowControls from './WindowControls'
+import ThemeToggleButton from './ThemeToggleButton'
 import { useShellStore } from '@/store/shellStore'
 
 const noDrag = '[-webkit-app-region:no-drag]'
@@ -44,6 +45,7 @@ export default function TitleBar(): React.JSX.Element {
         >
           <Search className="size-4" />
         </button>
+        <ThemeToggleButton className={`${iconBtnClass} ${noDrag}`} />
 
         <DropdownMenu>
           <DropdownMenuTrigger className={`${menuTriggerClass} ${noDrag}`}>
