@@ -16,20 +16,6 @@ import type {
   WorkspaceTab
 } from '@/types/workspace'
 
-const WELCOME_TAB: WorkspaceTab = {
-  id: 'welcome',
-  type: 'welcome',
-  title: '开始',
-  closable: false
-}
-
-function ensureWelcomeTab(tabs: WorkspaceTab[]): WorkspaceTab[] {
-  if (tabs.length === 0 || !tabs.some((t) => t.id === 'welcome')) {
-    return [WELCOME_TAB, ...tabs]
-  }
-  return tabs
-}
-
 /** 提取表名用于标签标题 */
 function extractTableName(sql: string): string {
   const match = sql.match(/FROM\s+"?([^"\s.]+)"?"?\.?"?([^"\s;]+)"?/i)
@@ -38,7 +24,7 @@ function extractTableName(sql: string): string {
 
 /** 持久化时剥离瞬时状态（SQL 内容、结果、加载态） */
 function sanitizeForPersist(tabs: WorkspaceTab[]): WorkspaceTab[] {
-  return ensureWelcomeTab(tabs).map((tab) => {
+  return tabs.map((tab) => {
     if (tab.type === 'query') {
       return {
         ...tab,
@@ -64,8 +50,8 @@ function sanitizeForPersist(tabs: WorkspaceTab[]): WorkspaceTab[] {
 export const useWorkspaceStore = create<WorkspaceState>()(
   persist(
     (set) => ({
-      tabs: [WELCOME_TAB],
-      activeTabId: WELCOME_TAB.id,
+      tabs: [],
+      activeTabId: null,
 
       addConnectionTab: () => {
         set((state) => {
@@ -78,7 +64,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
             closable: true
           }
           return {
-            tabs: ensureWelcomeTab([...state.tabs, newTab]),
+            tabs: [...state.tabs, newTab],
             activeTabId: newTab.id
           }
         })
@@ -116,7 +102,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
             loading: false
           }
           return {
-            tabs: ensureWelcomeTab([...state.tabs, newTab]),
+            tabs: [...state.tabs, newTab],
             activeTabId: newId
           }
         })
@@ -133,7 +119,8 @@ export const useWorkspaceStore = create<WorkspaceState>()(
               s?.connectionId === payload.connectionId &&
               s?.database === payload.database &&
               s?.schema === payload.schema &&
-              s?.table === payload.table
+              s?.table === payload.table &&
+              s?.filter === payload.filter
             )
           })
           if (existing) {
@@ -144,7 +131,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
           const newTab: WorkspaceTab = {
             id: newId,
             type: 'table',
-            title: `${payload.connectionName} · ${payload.schema}.${payload.table}`,
+            title: `${payload.connectionName} · ${payload.breadcrumb ?? `${payload.schema}.${payload.table}`}`,
             closable: true,
             state: {
               connectionId: payload.connectionId,
@@ -152,6 +139,8 @@ export const useWorkspaceStore = create<WorkspaceState>()(
               database: payload.database,
               schema: payload.schema,
               table: payload.table,
+              filter: payload.filter,
+              breadcrumb: payload.breadcrumb,
               pageSize: 100,
               page: 1
             },
@@ -160,7 +149,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
             loading: false
           }
           return {
-            tabs: ensureWelcomeTab([...state.tabs, newTab]),
+            tabs: [...state.tabs, newTab],
             activeTabId: newId
           }
         })
@@ -215,11 +204,11 @@ export const useWorkspaceStore = create<WorkspaceState>()(
 
           if (state.activeTabId === id) {
             const neighbor = nextTabs[index] ?? nextTabs[index - 1] ?? nextTabs[0]
-            nextActiveId = neighbor?.id ?? WELCOME_TAB.id
+            nextActiveId = neighbor?.id ?? null
           }
 
           return {
-            tabs: ensureWelcomeTab(nextTabs),
+            tabs: nextTabs,
             activeTabId: nextActiveId
           }
         })
@@ -252,7 +241,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
           const keep = state.tabs.find((t) => t.id === id)
           if (!keep) return state
           return {
-            tabs: ensureWelcomeTab([keep]),
+            tabs: [keep],
             activeTabId: keep.id
           }
         })
@@ -260,8 +249,8 @@ export const useWorkspaceStore = create<WorkspaceState>()(
 
       closeAllTabs: () => {
         set({
-          tabs: [WELCOME_TAB],
-          activeTabId: WELCOME_TAB.id
+          tabs: [],
+          activeTabId: null
         })
       }
     }),
@@ -271,22 +260,21 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         tabs: sanitizeForPersist(state.tabs),
         activeTabId: state.activeTabId
       }),
-      version: 1,
+      version: 2,
       migrate: (persistedState: unknown) => {
-        const state = persistedState as { tabs?: WorkspaceTab[]; activeTabId?: string | null }
-        return {
-          tabs: sanitizeForPersist(state?.tabs ?? []),
-          activeTabId: state?.activeTabId ?? WELCOME_TAB.id
+        const state = persistedState as {
+          tabs?: Array<Omit<WorkspaceTab, 'type'> & { type: string }>
+          activeTabId?: string | null
         }
+        const tabs = sanitizeForPersist(
+          (state?.tabs ?? []).filter((t) => t.type !== 'welcome') as WorkspaceTab[]
+        )
+        const activeTabId =
+          state?.activeTabId && tabs.some((t) => t.id === state.activeTabId)
+            ? state.activeTabId
+            : (tabs[0]?.id ?? null)
+        return { tabs, activeTabId }
       }
     }
   )
 )
-
-// 重新水合后确保欢迎页存在
-useWorkspaceStore.persist.onFinishHydration?.((state) => {
-  const tabs = ensureWelcomeTab(state.tabs)
-  if (tabs !== state.tabs) {
-    useWorkspaceStore.setState({ tabs })
-  }
-})

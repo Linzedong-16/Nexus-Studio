@@ -10,6 +10,7 @@ import type { DatabaseCapability } from '@/types/database'
 
 export const DATABASE_CAPABILITIES: Record<DatabaseType, DatabaseCapability> = {
   postgresql: {
+    hasSecurityModule: true,
     databaseLevelModules: ['query'],
     schemaLevelModules: ['query', 'tables', 'views', 'functions', 'procedures']
   }

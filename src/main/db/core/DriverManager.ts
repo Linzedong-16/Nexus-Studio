@@ -20,7 +20,8 @@ import type {
   ColumnInfo,
   IndexInfo,
   TriggerInfo,
-  RoutineInfo
+  RoutineInfo,
+  RoleInfo
 } from '../../../renderer/src/types/ipc'
 import type { IDatabaseDriver } from './IDatabaseDriver'
 import { createDriver } from '../factory'
@@ -86,6 +87,13 @@ export class DriverManager extends EventEmitter {
   async getDatabases(connectionId: string): Promise<DatabaseInfo[]> {
     const driver = await this.ensureConnection(connectionId)
     return driver.getDatabases()
+  }
+
+  /** 驱动未实现 getRoles 时返回空数组而非抛错，见 contracts/db-ipc.md 错误契约 */
+  async getRoles(connectionId: string): Promise<RoleInfo[]> {
+    const driver = await this.ensureConnection(connectionId)
+    if (typeof driver.getRoles !== 'function') return []
+    return driver.getRoles()
   }
 
   async query(

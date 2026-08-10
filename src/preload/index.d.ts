@@ -11,6 +11,7 @@ import type {
   IndexInfo,
   TriggerInfo,
   RoutineInfo,
+  RoleInfo,
   ConnectionStatus,
   ConfigStore
 } from '../renderer/src/types/ipc'
@@ -33,6 +34,8 @@ export interface DatabaseApi {
   connect(config: ConnectionConfig): Promise<ConnectionResult>
   disconnect(connectionId: string): Promise<void>
   getDatabases(connectionId: string): Promise<DatabaseInfo[]>
+  /** 获取服务器上全部角色（集群级，PostgreSQL 专属） */
+  getRoles(connectionId: string): Promise<RoleInfo[]>
   query(
     connectionId: string,
     database: string,

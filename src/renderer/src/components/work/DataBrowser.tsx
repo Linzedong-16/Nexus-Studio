@@ -48,7 +48,8 @@ export default function DataBrowser({ tab }: DataBrowserProps): React.JSX.Elemen
       if (tab.loading) return
       const seq = ++requestSeqRef.current
       const offset = (page - 1) * pageSize
-      const sql = `SELECT * FROM "${state.schema}"."${state.table}" LIMIT ${pageSize} OFFSET ${offset};`
+      const whereClause = state.filter ? ` WHERE ${state.filter}` : ''
+      const sql = `SELECT * FROM "${state.schema}"."${state.table}"${whereClause} LIMIT ${pageSize} OFFSET ${offset};`
       setQueryLoading(tab.id, true)
       try {
         const result = await queryService.execute(connectionId, state.database, sql)
@@ -65,6 +66,7 @@ export default function DataBrowser({ tab }: DataBrowserProps): React.JSX.Elemen
       state.database,
       state.schema,
       state.table,
+      state.filter,
       tab.id,
       tab.loading,
       setQueryLoading,
@@ -77,10 +79,11 @@ export default function DataBrowser({ tab }: DataBrowserProps): React.JSX.Elemen
     void loadPage(1, state.pageSize)
     void (async () => {
       try {
+        const whereClause = state.filter ? ` WHERE ${state.filter}` : ''
         const result = await queryService.execute(
           connectionId,
           state.database,
-          `SELECT COUNT(*) AS "count" FROM "${state.schema}"."${state.table}";`
+          `SELECT COUNT(*) AS "count" FROM "${state.schema}"."${state.table}"${whereClause};`
         )
         const count = Number(result.rows[0]?.count ?? 0)
         const totalPages = count === 0 ? 0 : Math.ceil(count / state.pageSize)
@@ -112,8 +115,13 @@ export default function DataBrowser({ tab }: DataBrowserProps): React.JSX.Elemen
           {state.connectionName}
         </Badge>
         <Badge variant="outline" className="shrink-0">
-          {state.database} · {state.schema}.{state.table}
+          {state.breadcrumb ?? `${state.database} · ${state.schema}.${state.table}`}
         </Badge>
+        {state.filter && (
+          <Badge variant="outline" className="shrink-0 font-mono text-[11px]">
+            WHERE {state.filter}
+          </Badge>
+        )}
         <div className="flex-1" />
         {tab.loading && (
           <span className="flex items-center gap-1.5 text-xs text-muted-foreground">

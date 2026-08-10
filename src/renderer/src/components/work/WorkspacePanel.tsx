@@ -15,22 +15,13 @@ export default function WorkspacePanel(): React.JSX.Element {
 
   const activeTab = tabs.find((t) => t.id === activeTabId)
 
-  if (!activeTab) {
-    return (
-      <div className="flex h-full items-center justify-center text-muted-foreground">
-        未选择标签页
-      </div>
-    )
-  }
-
   return (
     <div className="h-full overflow-hidden bg-background">
-      {activeTab.type === 'welcome' && <WelcomeView />}
-      {activeTab.type === 'connection' && <ConnectionForm tab={activeTab} />}
-      {activeTab.type === 'query' && <QueryPanel tab={activeTab} />}
-      {activeTab.type === 'table' && <DataBrowser tab={activeTab} />}
-      {/* 新增标签页类型时在此补充渲染分支；TypeScript 的 WorkspaceTabType 联合类型
-          会确保所有分支都被覆盖，遗漏时将触发 typecheck 错误 */}
+      {!activeTab && <WelcomeView />}
+      {activeTab?.type === 'connection' && <ConnectionForm tab={activeTab} />}
+      {activeTab?.type === 'query' && <QueryPanel tab={activeTab} />}
+      {activeTab?.type === 'table' && <DataBrowser tab={activeTab} />}
+      {/* 新增标签页类型时在此补充渲染分支 */}
     </div>
   )
 }

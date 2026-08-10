@@ -41,6 +41,9 @@ importers:
       lucide-react:
         specifier: ^1.30.0
         version: 1.30.0(react@19.2.8)
+      monaco-editor:
+        specifier: 0.56.0
+        version: 0.56.0
       pg:
         specifier: ^8.23.0
         version: 8.23.0

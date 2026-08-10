@@ -2,8 +2,10 @@ import { useState } from 'react'
 import { ChevronDown, ChevronRight, Loader2, RefreshCw, Server, Unplug } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { DATABASE_CAPABILITIES } from '@/config/databaseCapabilities'
 import { useConnectionStore } from '@/store/connectionStore'
 import DatabaseNode from './DatabaseNode'
+import SecurityNode from './SecurityNode'
 
 interface ServerNodeProps {
   connectionId: string
@@ -83,6 +85,9 @@ export default function ServerNode({ connectionId }: ServerNodeProps): React.JSX
 
       {expanded && conn.status === 'connected' && (
         <div>
+          {DATABASE_CAPABILITIES[conn.config.type].hasSecurityModule && (
+            <SecurityNode connectionId={connectionId} connectionName={conn.config.name} />
+          )}
           {conn.databasesLoading && (
             <div className="flex items-center gap-1.5 px-2 py-1 pl-6 text-xs text-muted-foreground">
               <Loader2 className="size-3 animate-spin" />

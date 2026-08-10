@@ -9,7 +9,8 @@ import type {
   ColumnInfo,
   IndexInfo,
   TriggerInfo,
-  RoutineInfo
+  RoutineInfo,
+  RoleInfo
 } from '../types/ipc'
 
 /**
@@ -49,6 +50,13 @@ export const queryService = {
    */
   async getDatabases(connectionId: string): Promise<DatabaseInfo[]> {
     return window.api.db.getDatabases(connectionId)
+  },
+
+  /**
+   * 获取服务器上全部角色（集群级安全对象，PostgreSQL 专属）
+   */
+  async getRoles(connectionId: string): Promise<RoleInfo[]> {
+    return window.api.db.getRoles(connectionId)
   },
 
   /**

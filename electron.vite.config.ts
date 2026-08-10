@@ -13,6 +13,9 @@ export default defineConfig({
         '@': resolve('src/renderer/src')
       }
     },
+    worker: {
+      format: 'es'
+    },
     plugins: [react(), tailwindcss()]
   }
 })

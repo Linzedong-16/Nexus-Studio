@@ -7,7 +7,8 @@ import type {
   DatabaseInfo,
   RoutineInfo,
   IndexInfo,
-  TriggerInfo
+  TriggerInfo,
+  RoleInfo
 } from '../renderer/src/types/ipc'
 
 /**
@@ -35,6 +36,7 @@ const api: Api = {
     connect: createInvoke('db:connect'),
     disconnect: createInvoke('db:disconnect'),
     getDatabases: createInvoke<[string], DatabaseInfo[]>('db:get-databases'),
+    getRoles: createInvoke<[string], RoleInfo[]>('db:get-roles'),
     query: createInvoke<[string, string, string, unknown[]?], QueryResult>('db:query'),
     getSchemas: createInvoke('db:get-schemas'),
     getTables: createInvoke('db:get-tables'),

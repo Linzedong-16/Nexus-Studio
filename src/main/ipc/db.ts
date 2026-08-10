@@ -16,6 +16,7 @@ import type {
   IndexInfo,
   TriggerInfo,
   RoutineInfo,
+  RoleInfo,
   TestResult
 } from '../../renderer/src/types/ipc'
 
@@ -66,6 +67,10 @@ export function registerDbIPC(mainWindow: BrowserWindow): void {
 
   createIPCHandler<[string], DatabaseInfo[]>('db:get-databases', async (connectionId) => {
     return driverManager.getDatabases(connectionId)
+  })
+
+  createIPCHandler<[string], RoleInfo[]>('db:get-roles', async (connectionId) => {
+    return driverManager.getRoles(connectionId)
   })
 
   createIPCHandler<[string, string, string, unknown[]?], QueryResult>(

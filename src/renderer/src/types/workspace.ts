@@ -6,7 +6,7 @@
 import type { ConnectionConfig, QueryResult } from './ipc'
 
 /** 标签页类型 */
-export type WorkspaceTabType = 'welcome' | 'connection' | 'query' | 'table'
+export type WorkspaceTabType = 'connection' | 'query' | 'table'
 
 /** 查询标签页载荷 */
 export interface QueryTabState {
@@ -27,6 +27,14 @@ export interface TableTabState {
   database: string
   schema: string
   table: string
+  /** 附加 WHERE 条件（不含 WHERE 关键字），用于按条件过滤同一张表/视图，如角色权限查询 */
+  filter?: string
+  /**
+   * 面包屑展示文案覆盖（如 "Security · Users · postgres"）。
+   * 省略时回退为 `schema.table`；用于并非直接从"数据库 → Schema → 表"路径打开的标签页
+   * （如从 Security 树节点打开的系统目录查询），避免面包屑与用户实际点击路径不一致。
+   */
+  breadcrumb?: string
   /** 每页记录数，默认 100 */
   pageSize: number
   /** 当前页码（1 起） */
@@ -72,6 +80,10 @@ export interface OpenTableTabPayload {
   database: string
   schema: string
   table: string
+  /** 附加 WHERE 条件（不含 WHERE 关键字） */
+  filter?: string
+  /** 面包屑展示文案覆盖，语义同 {@link TableTabState.breadcrumb} */
+  breadcrumb?: string
 }
 
 /** 工作区状态 */

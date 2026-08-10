@@ -5,7 +5,15 @@
  * 用于驱动结构树组件的渲染与按需加载状态机
  */
 
-import type { RoutineInfo, SchemaInfo, TableInfo, ColumnInfo, IndexInfo, TriggerInfo } from './ipc'
+import type {
+  RoutineInfo,
+  SchemaInfo,
+  TableInfo,
+  ColumnInfo,
+  IndexInfo,
+  TriggerInfo,
+  RoleInfo
+} from './ipc'
 
 // ─── 模块类型 ───
 
@@ -18,6 +26,8 @@ export type TableModuleKind = 'columns' | 'indexes' | 'triggers'
 // ─── 数据库类型能力配置 ───
 
 export interface DatabaseCapability {
+  /** 服务器节点下是否展示 Security（Users/Roles）分组，集群级对象，与数据库列表平级 */
+  hasSecurityModule: boolean
   /** 数据库节点下直接展示的模块（如 PostgreSQL 的快捷 Query 入口） */
   databaseLevelModules: ModuleKind[]
   /** Schema 节点下展示的模块，数组顺序即渲染顺序 */
@@ -58,4 +68,16 @@ export interface DatabaseNodeState {
   schemasLoading?: boolean
   schemasError?: string
   schemaNodes?: Record<string, SchemaNodeState>
+}
+
+// ─── 服务器级安全节点运行态（Security：Users / Roles）───
+
+export interface SecurityNodeState {
+  expanded: boolean
+  /** 服务器全部角色，Users/Roles 分组均从此列表按 canLogin 分流，不重复请求 */
+  roles?: RoleInfo[]
+  rolesLoading?: boolean
+  rolesError?: string
+  usersGroupExpanded?: boolean
+  rolesGroupExpanded?: boolean
 }

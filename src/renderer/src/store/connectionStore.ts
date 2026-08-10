@@ -13,6 +13,7 @@ import type {
   ModuleKind,
   ModuleState,
   SchemaNodeState,
+  SecurityNodeState,
   TableModuleKind,
   TableModuleState,
   TableNodeState
@@ -34,6 +35,8 @@ export interface ConnectedConnection {
   activeDatabase?: string
   /** 结构树运行态，key 为数据库名 */
   databaseNodes?: Record<string, DatabaseNodeState>
+  /** Security（Users/Roles）节点运行态，集群级对象，与数据库列表平级 */
+  security?: SecurityNodeState
 }
 
 interface ConnectionStoreState {
@@ -51,6 +54,12 @@ interface ConnectionStoreState {
   loadDatabases: (id: string, options?: { force?: boolean }) => Promise<void>
   /** 切换当前浏览/查询作用的数据库 */
   setActiveDatabase: (id: string, database: string) => void
+
+  /** 展开/收起 Security 节点；首次展开时按需加载全部角色 */
+  toggleSecurityNode: (id: string) => void
+  loadRoles: (id: string, options?: { force?: boolean }) => Promise<void>
+  /** 展开/收起 Security 下的 Users/Roles 子分组（不触发加载，数据已随 loadRoles 一次性获取） */
+  toggleSecurityGroup: (id: string, group: 'users' | 'roles') => void
 
   /** 展开/收起数据库节点；首次展开时按需加载其 Schema 列表 */
   toggleDatabaseNode: (id: string, database: string) => void
@@ -112,6 +121,17 @@ export const useConnectionStore = create<ConnectionStoreState>()((set, get) => {
       const nodes = conn.databaseNodes ?? {}
       const current = nodes[database] ?? { expanded: false }
       return { ...conn, databaseNodes: { ...nodes, [database]: updater(current) } }
+    })
+  }
+
+  /** 对 Security 节点做不可变更新；节点不存在时以默认态创建 */
+  const updateSecurityNode = (
+    id: string,
+    updater: (node: SecurityNodeState) => SecurityNodeState
+  ): void => {
+    updateConn(id, (conn) => {
+      const current = conn.security ?? { expanded: false }
+      return { ...conn, security: updater(current) }
     })
   }
 
@@ -284,6 +304,44 @@ export const useConnectionStore = create<ConnectionStoreState>()((set, get) => {
       updateConn(id, (c) => ({ ...c, activeDatabase: database }))
       // 确保该数据库存在对应的结构树节点（首次选中时创建默认态）
       updateDatabaseNode(id, database, (node) => node)
+    },
+
+    toggleSecurityNode: (id) => {
+      const current = get().connections[id]?.security
+      const nextExpanded = !(current?.expanded ?? false)
+      updateSecurityNode(id, (node) => ({ ...node, expanded: nextExpanded }))
+      if (nextExpanded && !current?.roles) {
+        void get().loadRoles(id)
+      }
+    },
+
+    loadRoles: async (id, options) => {
+      const current = get().connections[id]?.security
+      if (!options?.force && current?.roles && !current.rolesError) return
+
+      updateSecurityNode(id, (node) => ({ ...node, rolesLoading: true, rolesError: undefined }))
+      try {
+        const roles = await queryService.getRoles(id)
+        updateSecurityNode(id, (node) => ({
+          ...node,
+          roles,
+          rolesLoading: false,
+          rolesError: undefined
+        }))
+      } catch (error) {
+        updateSecurityNode(id, (node) => ({
+          ...node,
+          rolesLoading: false,
+          rolesError: error instanceof Error ? error.message : '加载角色列表失败'
+        }))
+      }
+    },
+
+    toggleSecurityGroup: (id, group) => {
+      const key = group === 'users' ? 'usersGroupExpanded' : 'rolesGroupExpanded'
+      const current = get().connections[id]?.security
+      const nextExpanded = !(current?.[key] ?? false)
+      updateSecurityNode(id, (node) => ({ ...node, [key]: nextExpanded }))
     },
 
     toggleDatabaseNode: (id, database) => {

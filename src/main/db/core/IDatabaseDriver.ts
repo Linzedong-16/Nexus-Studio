@@ -16,6 +16,7 @@ import type {
   IndexInfo,
   TriggerInfo,
   RoutineInfo,
+  RoleInfo,
   TestResult
 } from '../../../renderer/src/types/ipc'
 import type { DatabaseType } from './types'
@@ -30,6 +31,8 @@ export interface IDatabaseDriver {
   disconnect(): Promise<void>
   /** 获取当前账号在服务器上有权限访问的全部数据库 */
   getDatabases(): Promise<DatabaseInfo[]>
+  /** 获取服务器上全部角色（集群级安全对象）；不支持角色概念的类型可不实现 */
+  getRoles?(): Promise<RoleInfo[]>
 
   query(database: string, sql: string, params?: unknown[]): Promise<QueryResult>
   getSchemas(database: string): Promise<SchemaInfo[]>

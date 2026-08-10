@@ -22,6 +22,7 @@ import type {
   IndexInfo,
   TriggerInfo,
   RoutineInfo,
+  RoleInfo,
   TestResult
 } from '../../../../renderer/src/types/ipc'
 import type { IDatabaseDriver } from '../../core/IDatabaseDriver'
@@ -123,6 +124,26 @@ export class PostgreSQLDriver implements IDatabaseDriver {
 
   async query(database: string, sql: string, params?: unknown[]): Promise<QueryResult> {
     return this.runQuery(this.getPool(database), sql, params)
+  }
+
+  async getRoles(): Promise<RoleInfo[]> {
+    const result = await this.runQuery(
+      this.getPool(this.managementDatabase),
+      `
+        SELECT
+          rolname AS name,
+          rolsuper AS "isSuperuser",
+          rolcanlogin AS "canLogin",
+          rolcreatedb AS "canCreateDb",
+          rolcreaterole AS "canCreateRole",
+          rolreplication AS "isReplication",
+          rolconnlimit AS "connectionLimit",
+          rolvaliduntil::text AS "validUntil"
+        FROM pg_catalog.pg_roles
+        ORDER BY rolname
+      `
+    )
+    return result.rows as unknown as RoleInfo[]
   }
 
   async getSchemas(database: string): Promise<SchemaInfo[]> {
