@@ -23,7 +23,10 @@ import type {
   TriggerInfo,
   RoutineInfo,
   RoleInfo,
-  TestResult
+  TestResult,
+  ErDiagramData,
+  ErDiagramTable,
+  ForeignKeyInfo
 } from '../../../../renderer/src/types/ipc'
 import type { IDatabaseDriver } from '../../core/IDatabaseDriver'
 
@@ -222,6 +225,80 @@ export class PostgreSQLDriver implements IDatabaseDriver {
     return this.getRoutines(database, schema, 'PROCEDURE', 'procedure')
   }
 
+  async getErDiagramData(database: string, schemas: string[]): Promise<ErDiagramData> {
+    const [tablesResult, foreignKeysResult] = await Promise.all([
+      this.query(
+        database,
+        `
+          SELECT
+            c.table_schema  AS schema,
+            c.table_name    AS name,
+            c.column_name   AS "columnName",
+            c.data_type     AS "dataType",
+            (c.is_nullable = 'YES') AS nullable,
+            c.column_default AS "defaultValue",
+            c.ordinal_position AS "ordinalPosition",
+            t.table_type    AS "tableType",
+            obj_description(pgc.oid, 'pg_class') AS "tableComment",
+            pgd.description AS "columnComment",
+            EXISTS (
+              SELECT 1 FROM information_schema.table_constraints tc
+              JOIN information_schema.key_column_usage kcu
+                ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
+              WHERE tc.constraint_type = 'PRIMARY KEY'
+                AND tc.table_schema = c.table_schema
+                AND tc.table_name = c.table_name
+                AND kcu.column_name = c.column_name
+            ) AS "isPrimaryKey"
+          FROM information_schema.columns c
+          JOIN information_schema.tables t
+            ON t.table_schema = c.table_schema AND t.table_name = c.table_name
+          LEFT JOIN pg_catalog.pg_class pgc
+            ON pgc.relname = c.table_name
+            AND pgc.relnamespace = (SELECT oid FROM pg_catalog.pg_namespace WHERE nspname = c.table_schema)
+          LEFT JOIN pg_catalog.pg_description pgd
+            ON pgd.objoid = pgc.oid AND pgd.objsubid = c.ordinal_position
+          WHERE c.table_schema = ANY($1)
+          ORDER BY c.table_schema, c.table_name, c.ordinal_position
+        `,
+        [schemas]
+      ),
+      this.query(
+        database,
+        `
+          SELECT
+            tc.constraint_name AS "constraintName",
+            tc.table_schema     AS "sourceSchema",
+            tc.table_name       AS "sourceTable",
+            kcu.column_name     AS "sourceColumn",
+            kcu.ordinal_position AS "ordinalPosition",
+            ccu.table_schema    AS "targetSchema",
+            ccu.table_name      AS "targetTable",
+            ccu.column_name     AS "targetColumn",
+            rc.update_rule      AS "updateRule",
+            rc.delete_rule      AS "deleteRule"
+          FROM information_schema.table_constraints tc
+          JOIN information_schema.key_column_usage kcu
+            ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
+          JOIN information_schema.referential_constraints rc
+            ON tc.constraint_name = rc.constraint_name AND tc.constraint_schema = rc.constraint_schema
+          JOIN information_schema.constraint_column_usage ccu
+            ON rc.unique_constraint_name = ccu.constraint_name
+            AND rc.unique_constraint_schema = ccu.constraint_schema
+          WHERE tc.constraint_type = 'FOREIGN KEY'
+            AND tc.table_schema = ANY($1)
+          ORDER BY tc.constraint_name, kcu.ordinal_position
+        `,
+        [schemas]
+      )
+    ])
+
+    return {
+      tables: this.aggregateErDiagramTables(tablesResult.rows),
+      foreignKeys: this.aggregateForeignKeys(foreignKeysResult.rows)
+    }
+  }
+
   async getIndexes(database: string, schema: string, table: string): Promise<IndexInfo[]> {
     const result = await this.query(
       database,
@@ -317,6 +394,60 @@ export class PostgreSQLDriver implements IDatabaseDriver {
     } finally {
       await pool.end()
     }
+  }
+
+  /** 将 getErDiagramData 查询1的行（每列一行）按 schema.table 聚合为 ErDiagramTable[] */
+  private aggregateErDiagramTables(rows: Record<string, unknown>[]): ErDiagramTable[] {
+    const tables = new Map<string, ErDiagramTable>()
+    for (const row of rows) {
+      const key = `${row.schema as string}.${row.name as string}`
+      let table = tables.get(key)
+      if (!table) {
+        table = {
+          schema: row.schema as string,
+          name: row.name as string,
+          type: row.tableType === 'VIEW' ? 'view' : 'table',
+          comment: (row.tableComment as string) ?? undefined,
+          columns: []
+        }
+        tables.set(key, table)
+      }
+      table.columns.push({
+        name: row.columnName as string,
+        dataType: row.dataType as string,
+        nullable: row.nullable as boolean,
+        defaultValue: (row.defaultValue as string) ?? undefined,
+        comment: (row.columnComment as string) ?? undefined,
+        isPrimaryKey: row.isPrimaryKey as boolean
+      })
+    }
+    return Array.from(tables.values())
+  }
+
+  /** 将 getErDiagramData 查询2的行（每个外键列一行）按 constraintName 聚合为 ForeignKeyInfo[] */
+  private aggregateForeignKeys(rows: Record<string, unknown>[]): ForeignKeyInfo[] {
+    const foreignKeys = new Map<string, ForeignKeyInfo>()
+    for (const row of rows) {
+      const key = row.constraintName as string
+      let fk = foreignKeys.get(key)
+      if (!fk) {
+        fk = {
+          constraintName: key,
+          sourceSchema: row.sourceSchema as string,
+          sourceTable: row.sourceTable as string,
+          sourceColumns: [],
+          targetSchema: row.targetSchema as string,
+          targetTable: row.targetTable as string,
+          targetColumns: [],
+          updateRule: (row.updateRule as string) ?? undefined,
+          deleteRule: (row.deleteRule as string) ?? undefined
+        }
+        foreignKeys.set(key, fk)
+      }
+      fk.sourceColumns.push(row.sourceColumn as string)
+      fk.targetColumns.push(row.targetColumn as string)
+    }
+    return Array.from(foreignKeys.values())
   }
 
   /** 按需获取或创建目标数据库的连接池；同一数据库的池会被复用 */

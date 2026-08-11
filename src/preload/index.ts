@@ -8,7 +8,8 @@ import type {
   RoutineInfo,
   IndexInfo,
   TriggerInfo,
-  RoleInfo
+  RoleInfo,
+  ErDiagramData
 } from '../renderer/src/types/ipc'
 import type { KeybindingEntry } from '../renderer/src/types/keybinding'
 
@@ -46,6 +47,9 @@ const api: Api = {
     getTriggers: createInvoke<[string, string, string, string], TriggerInfo[]>('db:get-triggers'),
     getFunctions: createInvoke<[string, string, string], RoutineInfo[]>('db:get-functions'),
     getProcedures: createInvoke<[string, string, string], RoutineInfo[]>('db:get-procedures'),
+    getErDiagramData: createInvoke<[string, string, string[]], ErDiagramData>(
+      'db:get-er-diagram-data'
+    ),
     onStatusChange: createListener('db:status-changed')
   },
 

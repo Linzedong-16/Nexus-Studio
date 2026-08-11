@@ -10,7 +10,8 @@ import type {
   IndexInfo,
   TriggerInfo,
   RoutineInfo,
-  RoleInfo
+  RoleInfo,
+  ErDiagramData
 } from '../types/ipc'
 
 /**
@@ -160,5 +161,16 @@ export const queryService = {
     schema: string
   ): Promise<RoutineInfo[]> {
     return window.api.db.getProcedures(connectionId, database, schema)
+  },
+
+  /**
+   * 获取 ER 图分析所需的表结构与外键数据
+   */
+  async getErDiagramData(
+    connectionId: string,
+    database: string,
+    schemas: string[]
+  ): Promise<ErDiagramData> {
+    return window.api.db.getErDiagramData(connectionId, database, schemas)
   }
 }

@@ -132,6 +132,36 @@ export interface TriggerInfo {
   enabled: boolean
 }
 
+// ─── ER 图分析 ───
+
+/** ER 图中的一张表（含全部列） */
+export interface ErDiagramTable {
+  schema: string
+  name: string
+  type: 'table' | 'view'
+  comment?: string
+  columns: ColumnInfo[]
+}
+
+/** 外键约束（聚合多列外键为单条记录） */
+export interface ForeignKeyInfo {
+  constraintName: string
+  sourceSchema: string
+  sourceTable: string
+  sourceColumns: string[]
+  targetSchema: string
+  targetTable: string
+  targetColumns: string[]
+  updateRule?: string
+  deleteRule?: string
+}
+
+/** ER 图分析所需的完整数据 */
+export interface ErDiagramData {
+  tables: ErDiagramTable[]
+  foreignKeys: ForeignKeyInfo[]
+}
+
 // ─── 函数 / 存储过程信息（PostgreSQL 专属模块）───
 
 export interface RoutineInfo {
@@ -220,6 +250,12 @@ export interface DatabaseApi {
   ): Promise<TriggerInfo[]>
   getFunctions(connectionId: string, database: string, schema: string): Promise<RoutineInfo[]>
   getProcedures(connectionId: string, database: string, schema: string): Promise<RoutineInfo[]>
+  /** 获取 ER 图分析所需的表结构与外键数据（固定 2 次数据库往返，见 contracts/ipc-er-diagram.md） */
+  getErDiagramData(
+    connectionId: string,
+    database: string,
+    schemas: string[]
+  ): Promise<ErDiagramData>
   onStatusChange(callback: (status: ConnectionStatus) => void): () => void
 }
 

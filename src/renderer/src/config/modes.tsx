@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import type { MenuGroup, ModeConfig } from '@/types/shell'
 import { useWorkspaceStore } from '@/store/workspaceStore'
+import { useErStore } from '@/store/erStore'
 import WorkHomePage from '@/pages/work/WorkHomePage'
 import CodeHomePage from '@/pages/code/CodeHomePage'
 import DesignHomePage from '@/pages/design/DesignHomePage'
@@ -37,7 +38,13 @@ function buildWorkMenuGroups(): MenuGroup[] {
         },
         { id: 'plugins', label: '插件市场', icon: Blocks, path: null },
         { id: 'automation', label: '自动化', icon: Timer, path: null },
-        { id: 'templates', label: '模板库', icon: LayoutTemplate, path: null }
+        {
+          id: 'er-analysis',
+          label: 'ER 分析',
+          icon: LayoutTemplate,
+          path: null,
+          onClick: () => useErStore.getState().setPickerOpen(true)
+        }
       ]
     },
     {

@@ -21,7 +21,8 @@ import type {
   IndexInfo,
   TriggerInfo,
   RoutineInfo,
-  RoleInfo
+  RoleInfo,
+  ErDiagramData
 } from '../../../renderer/src/types/ipc'
 import type { IDatabaseDriver } from './IDatabaseDriver'
 import { createDriver } from '../factory'
@@ -168,6 +169,19 @@ export class DriverManager extends EventEmitter {
     const driver = await this.ensureConnection(connectionId)
     if (typeof driver.getProcedures !== 'function') return []
     return driver.getProcedures(database, schema)
+  }
+
+  /** 驱动未实现 getErDiagramData 时抛出明确的不支持提示，见 contracts/ipc-er-diagram.md */
+  async getErDiagramData(
+    connectionId: string,
+    database: string,
+    schemas: string[]
+  ): Promise<ErDiagramData> {
+    const driver = await this.ensureConnection(connectionId)
+    if (typeof driver.getErDiagramData !== 'function') {
+      throw new Error('当前数据库类型暂不支持 ER 分析')
+    }
+    return driver.getErDiagramData(database, schemas)
   }
 
   getStatus(connectionId: string): ConnectionStatus {

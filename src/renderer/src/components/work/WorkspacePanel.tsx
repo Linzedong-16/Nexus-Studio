@@ -1,5 +1,6 @@
 import { Sparkles } from 'lucide-react'
 import { useWorkspaceStore } from '@/store/workspaceStore'
+import ERDiagram from '../er/ERDiagram'
 import ConnectionForm from './ConnectionForm'
 import DataBrowser from './DataBrowser'
 import QueryPanel from './QueryPanel'
@@ -21,6 +22,7 @@ export default function WorkspacePanel(): React.JSX.Element {
       {activeTab?.type === 'connection' && <ConnectionForm tab={activeTab} />}
       {activeTab?.type === 'query' && <QueryPanel tab={activeTab} />}
       {activeTab?.type === 'table' && <DataBrowser tab={activeTab} />}
+      {activeTab?.type === 'er-analysis' && <ERDiagram tab={activeTab} />}
       {/* 新增标签页类型时在此补充渲染分支 */}
     </div>
   )

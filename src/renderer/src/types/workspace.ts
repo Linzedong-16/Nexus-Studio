@@ -6,7 +6,7 @@
 import type { ConnectionConfig, QueryResult } from './ipc'
 
 /** 标签页类型 */
-export type WorkspaceTabType = 'connection' | 'query' | 'table'
+export type WorkspaceTabType = 'connection' | 'query' | 'table' | 'er-analysis'
 
 /** 查询标签页载荷 */
 export interface QueryTabState {
@@ -50,14 +50,28 @@ export interface ConnectionTabState {
   savedId?: string
 }
 
+/** ER 分析标签页载荷 */
+export interface ErAnalysisTabState {
+  connectionId: string
+  connectionName: string
+  database: string
+}
+
+/** 打开 ER 分析标签页的参数 */
+export interface OpenErAnalysisTabPayload {
+  connectionId: string
+  connectionName: string
+  database: string
+}
+
 /** 工作区标签页 */
 export interface WorkspaceTab {
   id: string
   type: WorkspaceTabType
   title: string
   closable: boolean
-  /** 连接/查询/表标签页各自的载荷 */
-  state?: ConnectionTabState | QueryTabState | TableTabState
+  /** 连接/查询/表/ER 分析标签页各自的载荷 */
+  state?: ConnectionTabState | QueryTabState | TableTabState | ErAnalysisTabState
   /** 查询标签页的瞬时结果（不持久化） */
   result?: QueryResult | null
   error?: string
@@ -97,6 +111,8 @@ export interface WorkspaceState {
   openQueryTab: (payload: OpenQueryTabPayload) => string
   /** 打开一个表数据浏览标签页（同表去重） */
   openTableTab: (payload: OpenTableTabPayload) => string
+  /** 打开一个 ER 分析标签页（同连接 + 同数据库去重） */
+  openErAnalysisTab: (payload: OpenErAnalysisTabPayload) => string
   /** 更新表标签页的分页状态 */
   updateTableTab: (
     id: string,

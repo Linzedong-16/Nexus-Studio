@@ -1,9 +1,24 @@
-import { ChevronDown, ChevronRight, Database, Loader2, RefreshCw } from 'lucide-react'
+import {
+  ChevronDown,
+  ChevronRight,
+  Database,
+  GitFork,
+  Loader2,
+  MoreHorizontal,
+  RefreshCw
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import { DATABASE_CAPABILITIES } from '@/config/databaseCapabilities'
 import type { DatabaseInfo, DatabaseType } from '@/types/ipc'
 import { useConnectionStore } from '@/store/connectionStore'
+import { useWorkspaceStore } from '@/store/workspaceStore'
 import ModuleGroup from './ModuleGroup'
 import SchemaNode from './SchemaNode'
 
@@ -48,30 +63,61 @@ export default function DatabaseNode({
     void loadSchemas(connectionId, database.name, { force: true })
   }
 
+  const handleErAnalysis = (): void => {
+    useWorkspaceStore.getState().openErAnalysisTab({
+      connectionId,
+      connectionName,
+      database: database.name
+    })
+  }
+
   return (
     <div>
-      <button
-        type="button"
-        onClick={handleClick}
+      <div
         className={cn(
-          'group flex w-full items-center gap-1 px-2 py-0.5 text-left text-[13px]',
+          'group flex w-full items-center gap-1 px-2 py-0.5 text-[13px]',
           isActive ? 'bg-accent/70 text-accent-foreground' : 'hover:bg-accent/50'
         )}
       >
-        {expanded ? (
-          <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
-        ) : (
-          <ChevronRight className="size-3 shrink-0 text-muted-foreground" />
-        )}
-        <Database className="size-3.5 shrink-0 text-blue-500 dark:text-blue-400" />
-        <span className="truncate">{database.name}</span>
+        <button
+          type="button"
+          onClick={handleClick}
+          className="flex min-w-0 flex-1 items-center gap-1 text-left"
+        >
+          {expanded ? (
+            <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="size-3 shrink-0 text-muted-foreground" />
+          )}
+          <Database className="size-3.5 shrink-0 text-blue-500 dark:text-blue-400" />
+          <span className="truncate">{database.name}</span>
+        </button>
+
         {expanded && (
           <RefreshCw
-            className="ml-auto size-3 shrink-0 text-muted-foreground opacity-0 hover:text-foreground group-hover:opacity-100"
+            className="size-3 shrink-0 text-muted-foreground opacity-0 hover:text-foreground group-hover:opacity-100"
             onClick={handleRefresh}
           />
         )}
-      </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              onClick={(e) => e.stopPropagation()}
+              className="shrink-0 text-muted-foreground opacity-0 hover:text-foreground group-hover:opacity-100"
+              title="更多操作"
+            >
+              <MoreHorizontal className="size-3.5" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start">
+            <DropdownMenuItem onSelect={handleErAnalysis} className="gap-2">
+              <GitFork className="size-3.5" />
+              ER 分析
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
 
       {expanded && (
         <div>

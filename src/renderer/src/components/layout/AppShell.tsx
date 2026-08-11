@@ -4,6 +4,7 @@ import TitleBar from './TitleBar'
 import Sidebar from './Sidebar'
 import SearchPalette from './SearchPalette'
 import SettingsPanel from '@/components/settings/SettingsPanel'
+import ERPickerPanel from '@/components/er/ERPickerPanel'
 import { resolveModeByPath } from '@/config/modes'
 import { useShellStore } from '@/store/shellStore'
 import { useKeybindingStore } from '@/store/keybindingStore'
@@ -43,6 +44,7 @@ export default function AppShell(): React.JSX.Element {
       </div>
       <SearchPalette />
       <SettingsPanel />
+      <ERPickerPanel />
     </div>
   )
 }

@@ -17,7 +17,8 @@ import type {
   TriggerInfo,
   RoutineInfo,
   RoleInfo,
-  TestResult
+  TestResult,
+  ErDiagramData
 } from '../../../renderer/src/types/ipc'
 import type { DatabaseType } from './types'
 
@@ -47,6 +48,9 @@ export interface IDatabaseDriver {
   getFunctions?(database: string, schema: string): Promise<RoutineInfo[]>
   /** PostgreSQL 等支持存储过程的数据库实现；不支持该概念的类型可不实现 */
   getProcedures?(database: string, schema: string): Promise<RoutineInfo[]>
+
+  /** 获取 ER 图分析所需的表结构与外键数据；不支持该能力的类型可不实现 */
+  getErDiagramData?(database: string, schemas: string[]): Promise<ErDiagramData>
 
   getStatus(): ConnectionStatus
 }

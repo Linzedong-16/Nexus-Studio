@@ -13,7 +13,8 @@ import type {
   RoutineInfo,
   RoleInfo,
   ConnectionStatus,
-  ConfigStore
+  ConfigStore,
+  ErDiagramData
 } from '../renderer/src/types/ipc'
 import type { KeybindingEntry } from '../renderer/src/types/keybinding'
 
@@ -65,6 +66,12 @@ export interface DatabaseApi {
   ): Promise<TriggerInfo[]>
   getFunctions(connectionId: string, database: string, schema: string): Promise<RoutineInfo[]>
   getProcedures(connectionId: string, database: string, schema: string): Promise<RoutineInfo[]>
+  /** 获取指定 schema 列表下所有表结构与外键关系（用于 ER 分析） */
+  getErDiagramData(
+    connectionId: string,
+    database: string,
+    schemas: string[]
+  ): Promise<ErDiagramData>
   /** 订阅连接状态变化；返回取消订阅函数 */
   onStatusChange(callback: (status: ConnectionStatus) => void): () => void
 }

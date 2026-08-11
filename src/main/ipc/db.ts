@@ -17,7 +17,8 @@ import type {
   TriggerInfo,
   RoutineInfo,
   RoleInfo,
-  TestResult
+  TestResult,
+  ErDiagramData
 } from '../../renderer/src/types/ipc'
 
 /**
@@ -126,6 +127,13 @@ export function registerDbIPC(mainWindow: BrowserWindow): void {
     'db:get-procedures',
     async (connectionId, database, schema) => {
       return driverManager.getProcedures(connectionId, database, schema)
+    }
+  )
+
+  createIPCHandler<[string, string, string[]], ErDiagramData>(
+    'db:get-er-diagram-data',
+    async (connectionId, database, schemas) => {
+      return driverManager.getErDiagramData(connectionId, database, schemas)
     }
   )
 }

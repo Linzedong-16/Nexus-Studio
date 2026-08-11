@@ -7,7 +7,10 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { v4 as uuidv4 } from 'uuid'
+import { useErStore } from '@/store/erStore'
 import type {
+  ErAnalysisTabState,
+  OpenErAnalysisTabPayload,
   OpenQueryTabPayload,
   OpenTableTabPayload,
   QueryTabState,
@@ -156,6 +159,38 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         return newId
       },
 
+      openErAnalysisTab: (payload: OpenErAnalysisTabPayload) => {
+        let newId = ''
+        set((state) => {
+          const existing = state.tabs.find((t) => {
+            if (t.type !== 'er-analysis') return false
+            const s = t.state as ErAnalysisTabState | undefined
+            return s?.connectionId === payload.connectionId && s?.database === payload.database
+          })
+          if (existing) {
+            newId = existing.id
+            return { activeTabId: existing.id }
+          }
+          newId = uuidv4()
+          const newTab: WorkspaceTab = {
+            id: newId,
+            type: 'er-analysis',
+            title: `${payload.connectionName} · ${payload.database} · ER 分析`,
+            closable: true,
+            state: {
+              connectionId: payload.connectionId,
+              connectionName: payload.connectionName,
+              database: payload.database
+            }
+          }
+          return {
+            tabs: [...state.tabs, newTab],
+            activeTabId: newId
+          }
+        })
+        return newId
+      },
+
       updateTableTab: (id, patch) => {
         set((state) => ({
           tabs: state.tabs.map((t) =>
@@ -199,6 +234,9 @@ export const useWorkspaceStore = create<WorkspaceState>()(
           const index = state.tabs.findIndex((t) => t.id === id)
           if (index === -1) return state
 
+          const closing = state.tabs[index]
+          if (closing.type === 'er-analysis') useErStore.getState().clearTabState(id)
+
           const nextTabs = state.tabs.filter((t) => t.id !== id)
           let nextActiveId = state.activeTabId
 
@@ -240,6 +278,9 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         set((state) => {
           const keep = state.tabs.find((t) => t.id === id)
           if (!keep) return state
+          for (const t of state.tabs) {
+            if (t.id !== id && t.type === 'er-analysis') useErStore.getState().clearTabState(t.id)
+          }
           return {
             tabs: [keep],
             activeTabId: keep.id
@@ -248,9 +289,14 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       },
 
       closeAllTabs: () => {
-        set({
-          tabs: [],
-          activeTabId: null
+        set((state) => {
+          for (const t of state.tabs) {
+            if (t.type === 'er-analysis') useErStore.getState().clearTabState(t.id)
+          }
+          return {
+            tabs: [],
+            activeTabId: null
+          }
         })
       }
     }),
