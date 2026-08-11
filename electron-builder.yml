@@ -1,5 +1,5 @@
 appId: com.electron.app
-productName: db-client
+productName: Nexus Studio
 directories:
   buildResources: build
 files:
@@ -12,7 +12,7 @@ files:
 asarUnpack:
   - resources/**
 win:
-  executableName: db-client
+  executableName: nexus-studio
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}

@@ -301,7 +301,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       }
     }),
     {
-      name: 'db-client-work-workspace',
+      name: 'nexus-studio-work-workspace',
       partialize: (state) => ({
         tabs: sanitizeForPersist(state.tabs),
         activeTabId: state.activeTabId

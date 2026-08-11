@@ -9,7 +9,7 @@ export default function CodeHomePage(): React.JSX.Element {
   return (
     <HomeSkeleton
       titleIcon={CodeXml}
-      title="Code with DB Client"
+      title="Code with Nexus Studio"
       inputPlaceholder="帮你编写 SQL、优化查询、分析数据结构…（骨架占位）"
       quickActions={[
         { icon: Database, label: '新建连接' },

@@ -17,6 +17,6 @@ const defaults: ConfigStore = {
 }
 
 export const configStore = new Store<ConfigStore>({
-  name: 'db-client-config',
+  name: 'nexus-studio-config',
   defaults
 })

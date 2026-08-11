@@ -8,7 +8,7 @@ import HomeSkeleton from '@/components/common/HomeSkeleton'
 export default function DesignHomePage(): React.JSX.Element {
   return (
     <HomeSkeleton
-      title="Design with DB Client"
+      title="Design with Nexus Studio"
       inputPlaceholder="设计表结构、关系与可视化模型…（骨架占位）"
       quickActions={[
         { icon: Boxes, label: '模型设计' },

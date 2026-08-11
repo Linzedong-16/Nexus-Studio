@@ -1,4 +1,4 @@
-# db-client
+# Nexus Studio
 
 An Electron application with React and TypeScript
 
