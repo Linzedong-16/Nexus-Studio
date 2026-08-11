@@ -1,7 +1,9 @@
-import { AlertCircle, Loader2 } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { AlertCircle, Loader2, Search } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
 import type { QueryResult } from '@/types/ipc'
+import LargeValueEditorDialog from './LargeValueEditorDialog'
 
 interface ResultTableProps {
   result: QueryResult | null
@@ -10,6 +12,8 @@ interface ResultTableProps {
   editMode?: boolean
   selectedRowIndexes?: Set<number>
   onToggleRow?: (rowIndex: number) => void
+  /** 编辑模式下提交单元格新值：由外层构建 UPDATE 语句并真正写入数据库 */
+  onCellCommit?: (rowIndex: number, columnName: string, rawValue: string) => Promise<void>
 }
 
 /** 单元格格式化：null → NULL，对象/数组 → JSON，其余转字符串 */
@@ -26,6 +30,19 @@ function formatCell(value: unknown): React.ReactNode {
   return String(value)
 }
 
+/** 单元格原始文本：供行内编辑框/大文本弹框回填初始值，与 formatCell 的展示态区分 */
+function rawCellText(value: unknown): string {
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'object') return JSON.stringify(value)
+  if (typeof value === 'boolean') return value ? 'true' : 'false'
+  return String(value)
+}
+
+interface EditingCell {
+  rowIndex: number
+  columnName: string
+}
+
 /**
  * 查询结果表格（手写实现，未引入 TanStack）
  */
@@ -35,8 +52,63 @@ export default function ResultTable({
   loading,
   editMode = false,
   selectedRowIndexes,
-  onToggleRow
+  onToggleRow,
+  onCellCommit
 }: ResultTableProps): React.JSX.Element {
+  const [editingCell, setEditingCell] = useState<EditingCell | null>(null)
+  const [editValue, setEditValue] = useState('')
+  const [editError, setEditError] = useState<string | null>(null)
+  const [savingCell, setSavingCell] = useState(false)
+  const [largeEditCell, setLargeEditCell] = useState<EditingCell | null>(null)
+  const skipBlurCommitRef = useRef(false)
+  const [prevEditMode, setPrevEditMode] = useState(editMode)
+
+  // 退出编辑模式时，放弃尚未提交的行内编辑，避免残留编辑框
+  // （渲染期间的状态调整，而非副作用，避免额外的一次级联重渲染）
+  if (editMode !== prevEditMode) {
+    setPrevEditMode(editMode)
+    if (!editMode) {
+      setEditingCell(null)
+      setEditError(null)
+    }
+  }
+
+  const startEdit = (rowIndex: number, columnName: string, value: unknown): void => {
+    setEditingCell({ rowIndex, columnName })
+    setEditValue(rawCellText(value))
+    setEditError(null)
+  }
+
+  const cancelEdit = (): void => {
+    skipBlurCommitRef.current = true
+    setEditingCell(null)
+    setEditError(null)
+  }
+
+  const commitEdit = async (): Promise<void> => {
+    if (skipBlurCommitRef.current) {
+      skipBlurCommitRef.current = false
+      return
+    }
+    if (!editingCell || savingCell) return
+    const original = rawCellText(result?.rows[editingCell.rowIndex]?.[editingCell.columnName])
+    if (editValue === original) {
+      setEditingCell(null)
+      setEditError(null)
+      return
+    }
+    setSavingCell(true)
+    try {
+      await onCellCommit?.(editingCell.rowIndex, editingCell.columnName, editValue)
+      setEditingCell(null)
+      setEditError(null)
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : '保存失败')
+    } finally {
+      setSavingCell(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
@@ -120,19 +192,85 @@ export default function ResultTable({
                     </span>
                   )}
                 </td>
-                {result.fields.map((field) => (
-                  <td
-                    key={field.name}
-                    className="max-w-[300px] truncate whitespace-nowrap border-b px-3 py-1 font-mono text-xs"
-                  >
-                    {formatCell(row[field.name])}
-                  </td>
-                ))}
+                {result.fields.map((field) => {
+                  const isEditingThisCell =
+                    editingCell?.rowIndex === rowIndex && editingCell.columnName === field.name
+                  return (
+                    <td
+                      key={field.name}
+                      className={cn(
+                        'group relative max-w-[300px] truncate whitespace-nowrap border-b px-3 py-1 font-mono text-xs',
+                        editMode && !isEditingThisCell && 'cursor-text'
+                      )}
+                      onDoubleClick={
+                        editMode
+                          ? () => startEdit(rowIndex, field.name, row[field.name])
+                          : undefined
+                      }
+                    >
+                      {isEditingThisCell ? (
+                        <input
+                          autoFocus
+                          value={editValue}
+                          disabled={savingCell}
+                          title={editError ?? undefined}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              void commitEdit()
+                            } else if (e.key === 'Escape') {
+                              e.preventDefault()
+                              cancelEdit()
+                            }
+                          }}
+                          onBlur={() => void commitEdit()}
+                          className={cn(
+                            'w-full bg-transparent outline-none',
+                            editError && 'text-destructive'
+                          )}
+                        />
+                      ) : (
+                        <>
+                          <span className={cn(editMode && 'pr-5')}>
+                            {formatCell(row[field.name])}
+                          </span>
+                          {editMode && (
+                            <button
+                              type="button"
+                              className="absolute top-1/2 right-1 flex size-5 -translate-y-1/2 items-center justify-center rounded opacity-0 transition-opacity group-hover:opacity-100 hover:bg-accent"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setLargeEditCell({ rowIndex, columnName: field.name })
+                              }}
+                            >
+                              <Search className="size-3.5" />
+                            </button>
+                          )}
+                        </>
+                      )}
+                    </td>
+                  )
+                })}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      <LargeValueEditorDialog
+        open={largeEditCell !== null}
+        onOpenChange={(o) => !o && setLargeEditCell(null)}
+        initialValue={
+          largeEditCell
+            ? rawCellText(result.rows[largeEditCell.rowIndex]?.[largeEditCell.columnName])
+            : ''
+        }
+        onSave={async (value) => {
+          if (!largeEditCell) return
+          await onCellCommit?.(largeEditCell.rowIndex, largeEditCell.columnName, value)
+        }}
+      />
     </div>
   )
 }

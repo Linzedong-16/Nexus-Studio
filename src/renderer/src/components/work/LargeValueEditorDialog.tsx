@@ -24,13 +24,14 @@ interface LargeValueEditorDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   initialValue: string
-  onSave: (value: string) => void
+  /** 支持返回 Promise：保存失败时抛出的错误会内联展示，弹框保持打开以便重试 */
+  onSave: (value: string) => void | Promise<void>
 }
 
 /**
  * 大文本 / JSON 编辑弹框
  *
- * 供 AddRowDialog 的放大镜入口使用：用更大的文本域编辑单个字段的值，
+ * 供 AddRowDialog 的放大镜入口、表格单元格编辑复用：用更大的文本域编辑单个字段的值，
  * 并在选择 JSON 格式时做合法性校验。不感知自己在编辑表单里的哪一列，
  * 通过 initialValue/onSave 与父组件桥接，保持可复用。
  */
@@ -43,6 +44,8 @@ export default function LargeValueEditorDialog({
   const [format, setFormat] = useState<ValueFormat>('plain')
   const [text, setText] = useState('')
   const [jsonError, setJsonError] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [prevOpen, setPrevOpen] = useState(open)
 
   // 弹框由关闭切换为打开时，以 initialValue 重置一次内部状态
@@ -58,6 +61,7 @@ export default function LargeValueEditorDialog({
         setFormat('plain')
       }
       setJsonError(null)
+      setSaveError(null)
     }
   }
 
@@ -90,9 +94,17 @@ export default function LargeValueEditorDialog({
     void navigator.clipboard.writeText(text)
   }
 
-  const handleSave = (): void => {
-    onSave(text)
-    onOpenChange(false)
+  const handleSave = async (): Promise<void> => {
+    setSaving(true)
+    setSaveError(null)
+    try {
+      await onSave(text)
+      onOpenChange(false)
+    } catch (error) {
+      setSaveError(error instanceof Error ? error.message : '保存失败')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -132,12 +144,16 @@ export default function LargeValueEditorDialog({
         />
 
         {format === 'json' && jsonError && <p className="text-xs text-destructive">{jsonError}</p>}
+        {saveError && <p className="text-xs text-destructive">{saveError}</p>}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" disabled={saving} onClick={() => onOpenChange(false)}>
             关闭
           </Button>
-          <Button onClick={handleSave} disabled={format === 'json' && jsonError !== null}>
+          <Button
+            onClick={() => void handleSave()}
+            disabled={saving || (format === 'json' && jsonError !== null)}
+          >
             保存
           </Button>
         </DialogFooter>

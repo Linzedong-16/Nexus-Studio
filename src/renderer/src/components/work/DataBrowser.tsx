@@ -29,6 +29,7 @@ import {
 } from '@/components/ui/select'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
+import type { ColumnInfo } from '@/types/ipc'
 import type { TableTabState, WorkspaceTab } from '@/types/workspace'
 import { queryService } from '@/services/queryService'
 import { useConnectionStore } from '@/store/connectionStore'
@@ -61,6 +62,7 @@ export default function DataBrowser({ tab }: DataBrowserProps): React.JSX.Elemen
   const requestSeqRef = useRef(0)
 
   const [editMode, setEditMode] = useState(false)
+  const [columns, setColumns] = useState<ColumnInfo[]>([])
   const [selectedRowIndexes, setSelectedRowIndexes] = useState<Set<number>>(() => new Set())
   const [addRowOpen, setAddRowOpen] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
@@ -143,7 +145,7 @@ export default function DataBrowser({ tab }: DataBrowserProps): React.JSX.Elemen
     ]
   )
 
-  // 进入标签页时加载第一页并统计总行数（用于计算总页数）
+  // 进入标签页时加载第一页、统计总行数（用于计算总页数），并缓存列元数据供编辑/删除复用
   useEffect(() => {
     void loadPage(1, state.pageSize)
     void (async () => {
@@ -161,6 +163,12 @@ export default function DataBrowser({ tab }: DataBrowserProps): React.JSX.Elemen
         // 统计失败不阻塞数据展示，分页按钮退化为仅首页可查看
       }
     })()
+    queryService
+      .getColumns(connectionId, state.database, state.schema, state.table)
+      .then(setColumns)
+      .catch(() => {
+        // 列元数据获取失败不阻塞数据展示，仅影响编辑/删除时的主键定位（将退化为整行匹配）
+      })
     // 仅在首次进入时执行
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab.id])
@@ -181,12 +189,6 @@ export default function DataBrowser({ tab }: DataBrowserProps): React.JSX.Elemen
     setDeleting(true)
     setDeleteError(null)
     try {
-      const columns = await queryService.getColumns(
-        connectionId,
-        state.database,
-        state.schema,
-        state.table
-      )
       const pkColumns = columns.filter((c) => c.isPrimaryKey)
       // 无主键时退化为整行匹配：按当前所有列的值做等值比较来定位该行
       const identifyingColumns = pkColumns.length > 0 ? pkColumns : columns
@@ -217,6 +219,38 @@ export default function DataBrowser({ tab }: DataBrowserProps): React.JSX.Elemen
     } finally {
       setDeleting(false)
     }
+  }
+
+  /** 编辑模式下提交单元格新值：按主键（无主键则整行）定位目标行并执行 UPDATE，成功后原地更新本地结果 */
+  const commitCellEdit = async (
+    rowIndex: number,
+    columnName: string,
+    rawValue: string
+  ): Promise<void> => {
+    const result = tab.result
+    const row = result?.rows[rowIndex]
+    if (!result || !row) return
+
+    const pkColumns = columns.filter((c) => c.isPrimaryKey)
+    const identifyingColumns = pkColumns.length > 0 ? pkColumns : columns
+    const newValue = rawValue.length === 0 ? null : rawValue
+    const params: unknown[] = [newValue]
+    const conditions: string[] = []
+    for (const column of identifyingColumns) {
+      const value = row[column.name]
+      if (value === null || value === undefined) {
+        conditions.push(`"${column.name}" IS NULL`)
+      } else {
+        params.push(value)
+        conditions.push(`"${column.name}" = $${params.length}`)
+      }
+    }
+    const sql = `UPDATE "${state.schema}"."${state.table}" SET "${columnName}" = $1 WHERE ${conditions.join(' AND ')}`
+    await queryService.execute(connectionId, state.database, sql, params)
+    setQueryResult(tab.id, {
+      ...result,
+      rows: result.rows.map((r, i) => (i === rowIndex ? { ...r, [columnName]: newValue } : r))
+    })
   }
 
   /** 编辑模式下追加在切换按钮同一行的操作项，从左往右依次浮现/下沉 */
@@ -342,6 +376,7 @@ export default function DataBrowser({ tab }: DataBrowserProps): React.JSX.Elemen
           editMode={editMode}
           selectedRowIndexes={selectedRowIndexes}
           onToggleRow={toggleRowSelected}
+          onCellCommit={commitCellEdit}
         />
 
         {/* 分页栏 */}
