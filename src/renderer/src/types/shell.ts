@@ -72,6 +72,10 @@ export interface ShellUIState {
   schemaTreeCollapsed: boolean
   /** 镜像主进程窗口最大化状态（瞬态） */
   windowMaximized: boolean
+  /** <main> 左边界相对窗口的像素偏移（瞬态）；覆盖侧边栏当前宽度，由 AppShell 持续测量 */
+  contentInsetLeft: number
+  /** 当前路由内额外的左侧结构树宽度（瞬态，如 Work 模式的 Schema 树，含分隔条）；无结构树时为 0 */
+  schemaTreeExtraWidth: number
   toggleSidebar: () => void
   setSearchOpen: (open: boolean) => void
   setSettingsOpen: (open: boolean) => void
@@ -79,4 +83,6 @@ export interface ShellUIState {
   setSchemaTreeCollapsed: (collapsed: boolean) => void
   setLastMode: (mode: ModeId) => void
   setWindowMaximized: (maximized: boolean) => void
+  setContentInsetLeft: (px: number) => void
+  setSchemaTreeExtraWidth: (px: number) => void
 }

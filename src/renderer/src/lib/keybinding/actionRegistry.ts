@@ -6,6 +6,7 @@
  */
 import { useShellStore } from '@/store/shellStore'
 import { useWorkspaceStore } from '@/store/workspaceStore'
+import { useLogStore } from '@/store/logStore'
 import type { KeybindingActionId } from '@/types/keybinding'
 
 export interface KeybindingAction {
@@ -35,6 +36,11 @@ export function getActionRegistry(): KeybindingAction[] {
       id: 'workspace.closeAllTabs',
       label: '关闭所有标签页',
       run: () => useWorkspaceStore.getState().closeAllTabs()
+    },
+    {
+      id: 'shell.toggleLogPanel',
+      label: '打开/收起数据库日志面板',
+      run: () => useLogStore.getState().toggle()
     }
   ]
 }

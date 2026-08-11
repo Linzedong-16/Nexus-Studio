@@ -11,7 +11,8 @@ import type {
   TriggerInfo,
   RoutineInfo,
   RoleInfo,
-  ErDiagramData
+  ErDiagramData,
+  DbLogEntry
 } from '../types/ipc'
 
 /**
@@ -172,5 +173,19 @@ export const queryService = {
     schemas: string[]
   ): Promise<ErDiagramData> {
     return window.api.db.getErDiagramData(connectionId, database, schemas)
+  },
+
+  /**
+   * 获取数据库日志历史（进程内环形缓冲，上限 500 条）
+   */
+  async getLogBacklog(): Promise<DbLogEntry[]> {
+    return window.api.log.getBacklog()
+  },
+
+  /**
+   * 订阅实时数据库日志推送
+   */
+  onDbLog(callback: (entry: DbLogEntry) => void): () => void {
+    return window.api.log.onLog(callback)
   }
 }

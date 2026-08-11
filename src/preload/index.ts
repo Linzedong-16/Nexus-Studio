@@ -9,7 +9,8 @@ import type {
   IndexInfo,
   TriggerInfo,
   RoleInfo,
-  ErDiagramData
+  ErDiagramData,
+  DbLogEntry
 } from '../renderer/src/types/ipc'
 import type { KeybindingEntry } from '../renderer/src/types/keybinding'
 
@@ -69,6 +70,12 @@ const api: Api = {
     getAll: createInvoke('keybindings:get-all'),
     saveAll: createInvoke<[KeybindingEntry[]], KeybindingEntry[]>('keybindings:save-all'),
     resetDefaults: createInvoke('keybindings:reset-defaults')
+  },
+
+  // ─── 数据库日志 ───
+  log: {
+    getBacklog: createInvoke<[], DbLogEntry[]>('log:get-backlog'),
+    onLog: createListener<DbLogEntry>('log:db-log')
   }
 }
 

@@ -53,6 +53,21 @@ export interface ConnectionStatus {
   error?: string
 }
 
+// ─── 数据库日志面板 ───
+
+export type DbLogLevel = 'debug' | 'info' | 'warn' | 'error'
+export type DbLogCategory = 'connection' | 'sql'
+
+export interface DbLogEntry {
+  id: number
+  timestamp: number
+  level: DbLogLevel
+  category: DbLogCategory
+  connectionId?: string
+  database?: string
+  message: string
+}
+
 // ─── 查询结果 ───
 
 export interface QueryField {

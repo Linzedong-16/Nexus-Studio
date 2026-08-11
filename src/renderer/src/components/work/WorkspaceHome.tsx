@@ -16,8 +16,10 @@ import { useShellStore } from '@/store/shellStore'
  */
 export default function WorkspaceHome(): React.JSX.Element {
   const panelRef = useRef<PanelImperativeHandle>(null)
+  const schemaTreeWrapRef = useRef<HTMLDivElement>(null)
   const schemaTreeCollapsed = useShellStore((s) => s.schemaTreeCollapsed)
   const setSchemaTreeCollapsed = useShellStore((s) => s.setSchemaTreeCollapsed)
+  const setSchemaTreeExtraWidth = useShellStore((s) => s.setSchemaTreeExtraWidth)
 
   useEffect(() => {
     const panel = panelRef.current
@@ -28,6 +30,23 @@ export default function WorkspaceHome(): React.JSX.Element {
       panel.expand()
     }
   }, [schemaTreeCollapsed])
+
+  // Schema 树宽度（含 1px 边框分隔条）会随拖拽/折叠变化，实时测量供 LogPanel 等全局浮层避让
+  useEffect(() => {
+    const el = schemaTreeWrapRef.current
+    if (!el) return
+
+    const SEPARATOR_WIDTH = 4
+    const measure = (): void => setSchemaTreeExtraWidth(el.offsetWidth + SEPARATOR_WIDTH)
+    measure()
+
+    const observer = new ResizeObserver(measure)
+    observer.observe(el)
+    return () => {
+      observer.disconnect()
+      setSchemaTreeExtraWidth(0)
+    }
+  }, [setSchemaTreeExtraWidth])
 
   return (
     <div className="flex h-full min-w-0 flex-col overflow-hidden bg-background">
@@ -46,7 +65,9 @@ export default function WorkspaceHome(): React.JSX.Element {
             }
           }}
         >
-          <SchemaTree />
+          <div ref={schemaTreeWrapRef} className="h-full">
+            <SchemaTree />
+          </div>
         </Panel>
         <Separator
           className={cn(

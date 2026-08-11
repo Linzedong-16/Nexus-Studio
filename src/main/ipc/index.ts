@@ -3,6 +3,7 @@ import { registerWindowIpc } from './window'
 import { registerDbIPC } from './db'
 import { registerConfigIPC } from './config'
 import { registerKeybindingsIPC } from './keybindings'
+import { registerLogIPC } from './log'
 
 /**
  * IPC 统一注册入口
@@ -15,4 +16,6 @@ export function registerAllIPC(mainWindow: BrowserWindow): void {
   registerDbIPC(mainWindow)
   registerConfigIPC()
   registerKeybindingsIPC()
+  registerLogIPC(mainWindow)
 }
+

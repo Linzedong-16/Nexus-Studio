@@ -21,6 +21,11 @@ export const DEFAULT_KEYBINDINGS: KeybindingEntry[] = [
     id: 'default-toggle-schema-tree',
     actionId: 'shell.toggleSchemaTree',
     chords: ['Ctrl+Shift+B']
+  },
+  {
+    id: 'default-toggle-log-panel',
+    actionId: 'shell.toggleLogPanel',
+    chords: ['Ctrl+J']
   }
 ]
 
@@ -53,3 +58,15 @@ function initStore(): Store<KeybindingsFile> {
 }
 
 export const keybindingsStore = initStore()
+
+// 迁移：electron-store 的 defaults 只在文件不存在时生效，
+// 老用户已持久化的 entries 不会自动获得后续新增的默认快捷键，需在启动时补齐
+function backfillMissingDefaults(): void {
+  const entries = keybindingsStore.get('entries')
+  const existingActionIds = new Set(entries.map((e) => e.actionId))
+  const missing = DEFAULT_KEYBINDINGS.filter((d) => !existingActionIds.has(d.actionId))
+  if (missing.length > 0) {
+    keybindingsStore.set('entries', [...entries, ...missing])
+  }
+}
+backfillMissingDefaults()

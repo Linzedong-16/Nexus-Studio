@@ -13,6 +13,7 @@ export type KeybindingActionId =
   | 'shell.toggleSidebar'
   | 'shell.openSearch'
   | 'shell.toggleSchemaTree'
+  | 'shell.toggleLogPanel'
   | 'workspace.closeAllTabs'
   | (string & {})
 

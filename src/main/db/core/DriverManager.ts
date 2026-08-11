@@ -26,6 +26,7 @@ import type {
 } from '../../../renderer/src/types/ipc'
 import type { IDatabaseDriver } from './IDatabaseDriver'
 import { createDriver } from '../factory'
+import { dbLogger } from '../../logger/dbLogger'
 
 /** 从持久化存储中加载连接配置的回调函数类型 */
 export type ConfigLoader = (connectionId: string) => ConnectionConfig | null
@@ -57,13 +58,21 @@ export class DriverManager extends EventEmitter {
     const driver = createDriver(config.type, config.id)
     this.drivers.set(config.id, driver)
 
+    dbLogger.log('info', 'connection', `正在创建连接 ${config.id}`, { connectionId: config.id })
     try {
       const result = await driver.connect(config)
       this.emitStatus(config.id)
+      dbLogger.log('info', 'connection', `连接 ${config.id} 已建立`, { connectionId: config.id })
       return result
     } catch (error) {
       this.drivers.delete(config.id)
       this.emitStatus(config.id, error)
+      dbLogger.log(
+        'error',
+        'connection',
+        `连接 ${config.id} 建立失败: ${error instanceof Error ? error.message : String(error)}`,
+        { connectionId: config.id }
+      )
       throw error
     }
   }
@@ -72,8 +81,10 @@ export class DriverManager extends EventEmitter {
     const driver = this.drivers.get(connectionId)
     if (!driver) return
 
+    dbLogger.log('info', 'connection', `正在关闭连接 ${connectionId}`, { connectionId })
     try {
       await driver.disconnect()
+      dbLogger.log('info', 'connection', `连接 ${connectionId} 已关闭`, { connectionId })
     } finally {
       this.drivers.delete(connectionId)
       this.emitStatus(connectionId)
@@ -221,6 +232,10 @@ export class DriverManager extends EventEmitter {
     if (!config) {
       throw new Error(`未找到连接: ${connectionId}（配置不存在）`)
     }
+
+    dbLogger.log('info', 'connection', `连接 ${connectionId} 不存在，尝试自动重连`, {
+      connectionId
+    })
 
     // 使用配置重新建立连接
     const driver = createDriver(config.type, config.id)

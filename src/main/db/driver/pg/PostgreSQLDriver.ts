@@ -29,6 +29,7 @@ import type {
   ForeignKeyInfo
 } from '../../../../renderer/src/types/ipc'
 import type { IDatabaseDriver } from '../../core/IDatabaseDriver'
+import { dbLogger } from '../../../logger/dbLogger'
 
 /** 未指定数据库时使用的默认管理数据库 */
 const DEFAULT_MANAGEMENT_DATABASE = 'postgres'
@@ -464,16 +465,36 @@ export class PostgreSQLDriver implements IDatabaseDriver {
   }
 
   private async runQuery(pool: Pool, sql: string, params?: unknown[]): Promise<QueryResult> {
+    const database = this.findDatabaseForPool(pool)
     const startTime = Date.now()
-    const result: PgQueryResult = params ? await pool.query(sql, params) : await pool.query(sql)
-    const durationMs = Date.now() - startTime
+    try {
+      const result: PgQueryResult = params ? await pool.query(sql, params) : await pool.query(sql)
+      const durationMs = Date.now() - startTime
+      dbLogger.log('info', 'sql', `[${durationMs}ms] ${sql}`, { connectionId: this.id, database })
 
-    return {
-      fields: result.fields.map((field) => this.mapField(field)),
-      rows: result.rows,
-      rowCount: result.rowCount ?? result.rows.length,
-      durationMs
+      return {
+        fields: result.fields.map((field) => this.mapField(field)),
+        rows: result.rows,
+        rowCount: result.rowCount ?? result.rows.length,
+        durationMs
+      }
+    } catch (error) {
+      dbLogger.log(
+        'error',
+        'sql',
+        `SQL 执行失败: ${sql} — ${error instanceof Error ? error.message : String(error)}`,
+        { connectionId: this.id, database }
+      )
+      throw error
     }
+  }
+
+  /** 反查连接池所属的数据库名，用于日志上下文（连接池数量有限，遍历成本可忽略） */
+  private findDatabaseForPool(pool: Pool): string | undefined {
+    for (const [database, candidate] of this.pools) {
+      if (candidate === pool) return database
+    }
+    return undefined
   }
 
   private async getRoutines(
@@ -528,7 +549,24 @@ export class PostgreSQLDriver implements IDatabaseDriver {
       }
     }
 
-    return new Pool(poolConfig)
+    const pool = new Pool(poolConfig)
+    dbLogger.log('info', 'connection', `创建连接池 ${this.id}/${database}`, {
+      connectionId: this.id,
+      database
+    })
+    pool.on('error', (error) => {
+      dbLogger.log('error', 'connection', `连接池 ${this.id}/${database} 出错: ${error.message}`, {
+        connectionId: this.id,
+        database
+      })
+    })
+    pool.on('remove', () => {
+      dbLogger.log('debug', 'connection', `连接池 ${this.id}/${database} 释放一个空闲连接`, {
+        connectionId: this.id,
+        database
+      })
+    })
+    return pool
   }
 
   private mapField(field: PgQueryResult['fields'][number]): QueryField {

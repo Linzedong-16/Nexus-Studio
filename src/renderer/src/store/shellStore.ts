@@ -16,6 +16,8 @@ export const useShellStore = create<ShellUIState>()(
       settingsOpen: false,
       schemaTreeCollapsed: false,
       windowMaximized: false,
+      contentInsetLeft: 0,
+      schemaTreeExtraWidth: 0,
       toggleSidebar: (): void => {
         set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed }))
       },
@@ -36,6 +38,12 @@ export const useShellStore = create<ShellUIState>()(
       },
       setWindowMaximized: (maximized): void => {
         set({ windowMaximized: maximized })
+      },
+      setContentInsetLeft: (px): void => {
+        set({ contentInsetLeft: px })
+      },
+      setSchemaTreeExtraWidth: (px): void => {
+        set({ schemaTreeExtraWidth: px })
       }
     }),
     {

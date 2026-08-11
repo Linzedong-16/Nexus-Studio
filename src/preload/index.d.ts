@@ -14,7 +14,8 @@ import type {
   RoleInfo,
   ConnectionStatus,
   ConfigStore,
-  ErDiagramData
+  ErDiagramData,
+  DbLogEntry
 } from '../renderer/src/types/ipc'
 import type { KeybindingEntry } from '../renderer/src/types/keybinding'
 
@@ -99,6 +100,15 @@ export interface KeybindingsApi {
   resetDefaults(): Promise<KeybindingEntry[]>
 }
 
+// ─── 数据库日志 API ───
+
+export interface LogApi {
+  /** 获取当前已缓存的历史日志（进程内环形缓冲，上限 500 条） */
+  getBacklog(): Promise<DbLogEntry[]>
+  /** 订阅实时日志推送；返回取消订阅函数 */
+  onLog(callback: (entry: DbLogEntry) => void): () => void
+}
+
 // ─── 全局 API ───
 
 export interface Api {
@@ -106,6 +116,7 @@ export interface Api {
   db: DatabaseApi
   config: ConfigApi
   keybindings: KeybindingsApi
+  log: LogApi
 }
 
 declare global {
