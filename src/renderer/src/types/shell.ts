@@ -68,6 +68,8 @@ export interface ShellUIState {
   searchOpen: boolean
   /** 设置面板开关（瞬态） */
   settingsOpen: boolean
+  /** 关于对话框开关（瞬态） */
+  aboutOpen: boolean
   /** 结构树面板折叠态（瞬态，Ctrl+Shift+B） */
   schemaTreeCollapsed: boolean
   /** 镜像主进程窗口最大化状态（瞬态） */
@@ -79,6 +81,7 @@ export interface ShellUIState {
   toggleSidebar: () => void
   setSearchOpen: (open: boolean) => void
   setSettingsOpen: (open: boolean) => void
+  setAboutOpen: (open: boolean) => void
   toggleSchemaTree: () => void
   setSchemaTreeCollapsed: (collapsed: boolean) => void
   setLastMode: (mode: ModeId) => void

@@ -288,6 +288,19 @@ export interface ConfigApi {
   removeConnection(id: string): Promise<void>
 }
 
+// ─── 应用信息 ───
+
+/** 应用版本与环境信息（IPC 通道 app:get-versions） */
+export interface AppVersions {
+  appVersion: string
+  appName: string
+  electron: string
+  node: string
+  chrome: string
+  v8: string
+  os: string
+}
+
 // ─── 全局 API ───
 
 export interface Api {

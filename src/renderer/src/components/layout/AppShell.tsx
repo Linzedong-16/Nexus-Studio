@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router'
 import TitleBar from './TitleBar'
 import Sidebar from './Sidebar'
 import SearchPalette from './SearchPalette'
+import AboutDialog from './AboutDialog'
 import LogPanel from './LogPanel'
 import SettingsPanel from '@/components/settings/SettingsPanel'
 import ERPickerPanel from '@/components/er/ERPickerPanel'
@@ -67,6 +68,7 @@ export default function AppShell(): React.JSX.Element {
         </main>
       </div>
       <SearchPalette />
+      <AboutDialog />
       <SettingsPanel />
       <ERPickerPanel />
       <LogPanel />

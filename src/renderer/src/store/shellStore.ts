@@ -14,6 +14,7 @@ export const useShellStore = create<ShellUIState>()(
       lastMode: 'work',
       searchOpen: false,
       settingsOpen: false,
+      aboutOpen: false,
       schemaTreeCollapsed: false,
       windowMaximized: false,
       contentInsetLeft: 0,
@@ -26,6 +27,9 @@ export const useShellStore = create<ShellUIState>()(
       },
       setSettingsOpen: (open): void => {
         set({ settingsOpen: open })
+      },
+      setAboutOpen: (open): void => {
+        set({ aboutOpen: open })
       },
       toggleSchemaTree: (): void => {
         set((s) => ({ schemaTreeCollapsed: !s.schemaTreeCollapsed }))

@@ -76,6 +76,20 @@ const api: Api = {
   log: {
     getBacklog: createInvoke<[], DbLogEntry[]>('log:get-backlog'),
     onLog: createListener<DbLogEntry>('log:db-log')
+  },
+
+  // ─── 头像文件管理 ───
+  avatar: {
+    save: createInvoke<[string], void>('avatar:save'),
+    load: createInvoke<[], string | null>('avatar:load'),
+    delete: createInvoke<[], void>('avatar:delete')
+  },
+
+  // ─── 应用信息 ───
+  app: {
+    getVersions: createInvoke<[], import('../renderer/src/types/ipc').AppVersions>(
+      'app:get-versions'
+    )
   }
 }
 

@@ -15,9 +15,7 @@ function Table({ className, ...props }: React.ComponentProps<'table'>): React.JS
 }
 
 function TableHeader({ className, ...props }: React.ComponentProps<'thead'>): React.JSX.Element {
-  return (
-    <thead data-slot="table-header" className={cn('[&_tr]:border-b', className)} {...props} />
-  )
+  return <thead data-slot="table-header" className={cn('[&_tr]:border-b', className)} {...props} />
 }
 
 function TableBody({ className, ...props }: React.ComponentProps<'tbody'>): React.JSX.Element {

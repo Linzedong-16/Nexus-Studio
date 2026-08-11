@@ -109,6 +109,35 @@ export interface LogApi {
   onLog(callback: (entry: DbLogEntry) => void): () => void
 }
 
+// ─── 头像 API ───
+
+export interface AvatarApi {
+  /** 保存头像 base64 DataURL 到本地文件 */
+  save(base64Data: string): Promise<void>
+  /** 加载本地头像文件，返回 base64 DataURL；无文件返回 null */
+  load(): Promise<string | null>
+  /** 删除本地头像文件 */
+  delete(): Promise<void>
+}
+
+// ─── 应用信息 API ───
+
+/** 应用版本与环境信息 */
+export interface AppVersions {
+  appVersion: string
+  appName: string
+  electron: string
+  node: string
+  chrome: string
+  v8: string
+  os: string
+}
+
+export interface AppApi {
+  /** 获取应用版本、Electron / Node / Chrome / V8 版本及操作系统信息 */
+  getVersions(): Promise<AppVersions>
+}
+
 // ─── 全局 API ───
 
 export interface Api {
@@ -117,6 +146,8 @@ export interface Api {
   config: ConfigApi
   keybindings: KeybindingsApi
   log: LogApi
+  avatar: AvatarApi
+  app: AppApi
 }
 
 declare global {

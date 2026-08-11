@@ -1,83 +1,108 @@
+import { useState, useEffect } from 'react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useShellStore } from '@/store/shellStore'
-
-/** 占位用户数据（data-model.md §3）—— 后续接入真实账号体系时迁移 */
-const PLACEHOLDER_USER = {
-  displayName: 'LLinzex',
-  avatarUrl: null as string | null,
-  plan: 'free' as 'free' | 'pro' | 'team'
-}
-
-const PLAN_LABELS = { free: '免费', pro: 'Pro', team: '团队' } as const
+import { useUserStore } from '@/store/userStore'
+import UserProfileDialog from './UserProfileDialog'
 
 interface UserPanelProps {
-  /** 折叠态：头像 + tooltip，齿轮按钮挪到头像下方 */
   collapsed?: boolean
 }
 
 /**
  * 侧边栏底部用户信息区（FR-014）
- * avatarUrl 为 null 时显示首字符 fallback（spec Edge Case）
  *
- * 齿轮按钮的展开⇄折叠位移只改 transform（不改 top/left/width 等触发布局的属性），
- * 命中合成层、不重排；两态的目标偏移量基于侧边栏固定宽度（w-65/w-14，Sidebar.tsx）
- * 预先算好的常量，不需要像 ModeSwitcher 那样用 ref 测量。头像保持在正常文档流中，
- * 折叠时只是随容器 padding 收窄小幅漂移，无需特殊处理。
+ * 点击头像打开用户信息编辑面板，齿轮按钮打开设置面板。
+ * 启动时根据 avatarType 加载头像：
+ * - 'local' → 通过 IPC 从 userData/avatar/avatar.png 读取 base64
+ * - 'remote' → 直接使用 avatarUrl
  */
 export default function UserPanel({ collapsed = false }: UserPanelProps): React.JSX.Element {
   const setSettingsOpen = useShellStore((s) => s.setSettingsOpen)
+  const userStore = useUserStore()
+  const [profileOpen, setProfileOpen] = useState(false)
+  const [localAvatarSrc, setLocalAvatarSrc] = useState<string | null>(null)
+
+  // 启动时加载本地头像文件，avatarVersion 变化时重新加载
+  useEffect(() => {
+    if (userStore.avatarType === 'local') {
+      window.api.avatar.load().then((dataUrl) => {
+        if (dataUrl) setLocalAvatarSrc(dataUrl)
+      })
+    } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- 同步外部 Store 状态变化
+      setLocalAvatarSrc(null)
+    }
+  }, [userStore.avatarType, userStore.avatarVersion])
+
+  // 头像显示源：远程 URL > 本地 base64 > null
+  const avatarSrc =
+    userStore.avatarType === 'remote' && userStore.avatarUrl ? userStore.avatarUrl : localAvatarSrc
 
   const avatar = (
     <Avatar className="size-7">
-      {PLACEHOLDER_USER.avatarUrl && (
-        <AvatarImage src={PLACEHOLDER_USER.avatarUrl} alt={PLACEHOLDER_USER.displayName} />
-      )}
+      {avatarSrc && <AvatarImage src={avatarSrc} alt={userStore.displayName} />}
       <AvatarFallback className="bg-primary/10 text-xs text-primary">
-        {PLACEHOLDER_USER.displayName[0]}
+        {userStore.displayName[0]}
       </AvatarFallback>
     </Avatar>
   )
 
   return (
-    <div
-      className={cn(
-        'border-t border-sidebar-border transition-[padding] duration-150 ease-out',
-        collapsed ? 'px-1.5 pb-10 pt-3' : 'px-3 py-3'
-      )}
-    >
-      <div className={cn('relative flex h-7 items-center', collapsed && 'justify-center')}>
-        {collapsed ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button type="button">{avatar}</button>
-            </TooltipTrigger>
-            <TooltipContent side="right">
-              {PLACEHOLDER_USER.displayName} · {PLAN_LABELS[PLACEHOLDER_USER.plan]}
-            </TooltipContent>
-          </Tooltip>
-        ) : (
-          <>
-            {avatar}
-            <span className="min-w-0 flex-1 truncate pl-2 pr-7 text-[13px] font-medium">
-              {PLACEHOLDER_USER.displayName}
-            </span>
-          </>
+    <>
+      <div
+        className={cn(
+          'border-t border-sidebar-border transition-[padding] duration-150 ease-out',
+          collapsed ? 'px-1.5 pb-10 pt-3' : 'px-3 py-3'
         )}
-        <button
-          type="button"
-          title="设置"
-          onClick={() => setSettingsOpen(true)}
-          className={cn(
-            'absolute left-1/2 top-1/2 flex size-6 items-center justify-center rounded-md text-muted-foreground transition-transform duration-150 ease-out will-change-transform hover:bg-sidebar-accent hover:text-foreground',
-            collapsed ? 'translate-x-[-50%] translate-y-[calc(-50%+32px)]' : 'translate-x-26.5 translate-y-[-50%]'
+      >
+        <div className={cn('relative flex h-7 items-center', collapsed && 'justify-center')}>
+          {collapsed ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button type="button" onClick={() => setProfileOpen(true)}>
+                  {avatar}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">{userStore.displayName}</TooltipContent>
+            </Tooltip>
+          ) : (
+            <>
+              <button type="button" onClick={() => setProfileOpen(true)}>
+                {avatar}
+              </button>
+              <button
+                type="button"
+                onClick={() => setProfileOpen(true)}
+                className="min-w-0 flex-1 truncate pl-2 pr-7 text-left text-[13px] font-medium hover:text-foreground/80"
+              >
+                {userStore.displayName}
+              </button>
+            </>
           )}
-        >
-          <Settings className="size-3.5" />
-        </button>
+          <button
+            type="button"
+            title="设置"
+            onClick={() => setSettingsOpen(true)}
+            className={cn(
+              'absolute left-1/2 top-1/2 flex size-6 items-center justify-center rounded-md text-muted-foreground transition-transform duration-150 ease-out will-change-transform hover:bg-sidebar-accent hover:text-foreground',
+              collapsed
+                ? 'translate-x-[-50%] translate-y-[calc(-50%+32px)]'
+                : 'translate-x-26.5 translate-y-[-50%]'
+            )}
+          >
+            <Settings className="size-3.5" />
+          </button>
+        </div>
       </div>
-    </div>
+
+      <UserProfileDialog
+        open={profileOpen}
+        onOpenChange={setProfileOpen}
+        currentAvatarSrc={avatarSrc}
+      />
+    </>
   )
 }

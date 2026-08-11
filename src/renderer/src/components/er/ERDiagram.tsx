@@ -235,7 +235,8 @@ export default function ERDiagram({ tab }: ERDiagramProps): React.JSX.Element {
       ref={containerRef}
       className={cn(
         'relative h-full w-full',
-        layoutTransition && '[&_.react-flow\\_\\_node]:transition-transform [&_.react-flow\\_\\_node]:duration-300 [&_.react-flow\\_\\_node]:ease-out'
+        layoutTransition &&
+          '[&_.react-flow\\_\\_node]:transition-transform [&_.react-flow\\_\\_node]:duration-300 [&_.react-flow\\_\\_node]:ease-out'
       )}
     >
       {foreignKeyCount === 0 && (

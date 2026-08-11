@@ -25,6 +25,7 @@ export default function TitleBar(): React.JSX.Element {
   const toggleSidebar = useShellStore((s) => s.toggleSidebar)
   const setSearchOpen = useShellStore((s) => s.setSearchOpen)
   const setSettingsOpen = useShellStore((s) => s.setSettingsOpen)
+  const setAboutOpen = useShellStore((s) => s.setAboutOpen)
 
   return (
     <header className="flex h-10 shrink-0 items-center justify-between border-b border-border bg-background [-webkit-app-region:drag]">
@@ -79,7 +80,9 @@ export default function TitleBar(): React.JSX.Element {
             <DropdownMenuItem onClick={() => setSettingsOpen(true)}>快捷键</DropdownMenuItem>
             <DropdownMenuItem>检查更新</DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>关于 Nexus Studio</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setAboutOpen(true)}>
+              关于 Nexus Studio
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
