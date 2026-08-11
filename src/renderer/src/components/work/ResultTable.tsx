@@ -1,4 +1,5 @@
 import { AlertCircle, Loader2 } from 'lucide-react'
+import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
 import type { QueryResult } from '@/types/ipc'
 
@@ -6,6 +7,9 @@ interface ResultTableProps {
   result: QueryResult | null
   error?: string
   loading: boolean
+  editMode?: boolean
+  selectedRowIndexes?: Set<number>
+  onToggleRow?: (rowIndex: number) => void
 }
 
 /** 单元格格式化：null → NULL，对象/数组 → JSON，其余转字符串 */
@@ -28,7 +32,10 @@ function formatCell(value: unknown): React.ReactNode {
 export default function ResultTable({
   result,
   error,
-  loading
+  loading,
+  editMode = false,
+  selectedRowIndexes,
+  onToggleRow
 }: ResultTableProps): React.JSX.Element {
   if (loading) {
     return (
@@ -74,6 +81,12 @@ export default function ResultTable({
         <table className="w-full border-collapse text-sm">
           <thead className="sticky top-0 z-10 bg-muted">
             <tr>
+              <th
+                className={cn(
+                  'overflow-hidden border-b p-0 transition-[width] duration-200 ease-out',
+                  editMode ? 'w-9 border-r' : 'w-0 border-r-0'
+                )}
+              />
               {result.fields.map((field) => (
                 <th
                   key={field.name}
@@ -91,8 +104,22 @@ export default function ResultTable({
             {result.rows.map((row, rowIndex) => (
               <tr
                 key={rowIndex}
-                className={cn('hover:bg-accent/40', rowIndex % 2 === 1 && 'bg-muted/30')}
+                className={cn(
+                  'hover:bg-accent/40',
+                  rowIndex % 2 === 1 && 'bg-muted/30',
+                  selectedRowIndexes?.has(rowIndex) && 'bg-primary/10'
+                )}
               >
+                <td className="border-b px-1 text-center">
+                  {editMode && (
+                    <span className="inline-flex animate-in fade-in-0 slide-in-from-left-1 duration-150">
+                      <Checkbox
+                        checked={selectedRowIndexes?.has(rowIndex) ?? false}
+                        onCheckedChange={() => onToggleRow?.(rowIndex)}
+                      />
+                    </span>
+                  )}
+                </td>
                 {result.fields.map((field) => (
                   <td
                     key={field.name}
