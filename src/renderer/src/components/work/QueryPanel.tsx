@@ -68,6 +68,9 @@ export default function QueryPanel({ tab }: QueryPanelProps): React.JSX.Element 
                 value={state.sql}
                 onChange={(value) => updateQueryTab(tab.id, { sql: value })}
                 onExecute={() => void runQuery()}
+                connectionId={state.connectionId}
+                database={state.database}
+                schema={state.schema}
               />
             </div>
           </Panel>

@@ -19,3 +19,6 @@ self.MonacoEnvironment = {
 }
 
 loader.config({ monaco })
+
+// 导出补全提供者注册函数，供 SqlEditor 在 onMount 时调用
+export { registerCompletionProvider } from './monaco/completionProvider'
