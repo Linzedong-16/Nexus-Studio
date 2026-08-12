@@ -1,9 +1,11 @@
 import { useState } from 'react'
-import { ChevronDown, ChevronRight, Loader2, RefreshCw, Server, Unplug } from 'lucide-react'
+import { ChevronDown, ChevronRight, Loader2, Plus, RefreshCw, Server, Unplug } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { DATABASE_CAPABILITIES } from '@/config/databaseCapabilities'
+import { getSqlTemplate } from '@/lib/sqlTemplates'
 import { useConnectionStore } from '@/store/connectionStore'
+import { useWorkspaceStore } from '@/store/workspaceStore'
 import DatabaseNode from './DatabaseNode'
 import SecurityNode from './SecurityNode'
 
@@ -28,6 +30,7 @@ export default function ServerNode({ connectionId }: ServerNodeProps): React.JSX
   const loadDatabases = useConnectionStore((s) => s.loadDatabases)
   const disconnect = useConnectionStore((s) => s.disconnect)
   const activate = useConnectionStore((s) => s.activate)
+  const openQueryTab = useWorkspaceStore((s) => s.openQueryTab)
   const [expanded, setExpanded] = useState(false)
 
   if (!conn) return null
@@ -51,6 +54,17 @@ export default function ServerNode({ connectionId }: ServerNodeProps): React.JSX
     void disconnect(connectionId)
   }
 
+  const handleCreateDatabase = (e: React.MouseEvent): void => {
+    e.stopPropagation()
+    openQueryTab({
+      connectionId,
+      connectionName: conn.config.name,
+      database: conn.activeDatabase ?? conn.databases?.[0]?.name ?? 'postgres',
+      schema: undefined,
+      defaultSql: getSqlTemplate('createDatabase', {})
+    })
+  }
+
   return (
     <div>
       <button
@@ -72,6 +86,12 @@ export default function ServerNode({ connectionId }: ServerNodeProps): React.JSX
           {STATUS_LABEL[conn.status]}
         </Badge>
         <div className="ml-auto flex shrink-0 items-center gap-1.5 opacity-0 group-hover:opacity-100">
+          <span title="创建数据库">
+            <Plus
+              className="size-3 text-muted-foreground hover:text-foreground"
+              onClick={handleCreateDatabase}
+            />
+          </span>
           <RefreshCw
             className="size-3 text-muted-foreground hover:text-foreground"
             onClick={handleRefresh}

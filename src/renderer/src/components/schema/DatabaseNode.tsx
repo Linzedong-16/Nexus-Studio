@@ -5,6 +5,7 @@ import {
   GitFork,
   Loader2,
   MoreHorizontal,
+  Plus,
   RefreshCw
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -16,6 +17,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import { DATABASE_CAPABILITIES } from '@/config/databaseCapabilities'
+import { getSqlTemplate } from '@/lib/sqlTemplates'
 import type { DatabaseInfo, DatabaseType } from '@/types/ipc'
 import { useConnectionStore } from '@/store/connectionStore'
 import { useWorkspaceStore } from '@/store/workspaceStore'
@@ -71,6 +73,18 @@ export default function DatabaseNode({
     })
   }
 
+  const handleCreateTable = (e: React.MouseEvent): void => {
+    e.stopPropagation()
+    const defaultSchema = node?.schemas?.[0]?.name ?? 'public'
+    useWorkspaceStore.getState().openQueryTab({
+      connectionId,
+      connectionName,
+      database: database.name,
+      schema: defaultSchema,
+      defaultSql: getSqlTemplate('createTable', { schema: defaultSchema })
+    })
+  }
+
   return (
     <div>
       <div
@@ -98,6 +112,14 @@ export default function DatabaseNode({
             className="size-3 shrink-0 text-muted-foreground opacity-0 hover:text-foreground group-hover:opacity-100"
             onClick={handleRefresh}
           />
+        )}
+        {expanded && (
+          <span title="创建表">
+            <Plus
+              className="size-3 shrink-0 text-muted-foreground opacity-0 hover:text-foreground group-hover:opacity-100"
+              onClick={handleCreateTable}
+            />
+          </span>
         )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

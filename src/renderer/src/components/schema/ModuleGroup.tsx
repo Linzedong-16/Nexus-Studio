@@ -3,6 +3,7 @@ import {
   ChevronRight,
   Cog,
   Loader2,
+  Plus,
   RefreshCw,
   Sigma,
   Table2,
@@ -14,6 +15,7 @@ import type { ModuleKind } from '@/types/database'
 import type { RoutineInfo, TableInfo } from '@/types/ipc'
 import { useConnectionStore } from '@/store/connectionStore'
 import { useWorkspaceStore } from '@/store/workspaceStore'
+import { getSqlTemplate } from '@/lib/sqlTemplates'
 import TableNode from './TableNode'
 
 interface ModuleGroupProps {
@@ -105,6 +107,24 @@ export default function ModuleGroup({
     void loadModuleItems(connectionId, database, schema, moduleKind, { force: true })
   }
 
+  const handleCreate = (e: React.MouseEvent): void => {
+    e.stopPropagation()
+    if (!schema) return
+    const actionKind =
+      moduleKind === 'views'
+        ? ('createView' as const)
+        : moduleKind === 'procedures'
+          ? ('createProcedure' as const)
+          : ('createFunction' as const)
+    openQueryTab({
+      connectionId,
+      connectionName,
+      database,
+      schema,
+      defaultSql: getSqlTemplate(actionKind, { schema })
+    })
+  }
+
   return (
     <div>
       <button
@@ -121,6 +141,14 @@ export default function ModuleGroup({
         <span className="truncate">{label}</span>
         {items && items.length > 0 && (
           <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">{items.length}</span>
+        )}
+        {expanded && moduleKind !== 'tables' && (
+          <span title={`创建${label}`}>
+            <Plus
+              className="ml-auto size-3 shrink-0 text-muted-foreground opacity-0 hover:text-foreground group-hover:opacity-100"
+              onClick={handleCreate}
+            />
+          </span>
         )}
         {expanded && (
           <RefreshCw

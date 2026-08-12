@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import type { QueryTabState, WorkspaceTab } from '@/types/workspace'
 import { queryService } from '@/services/queryService'
+import { useConnectionStore } from '@/store/connectionStore'
 import { useWorkspaceStore } from '@/store/workspaceStore'
 import SqlEditor from './SqlEditor'
 import ResultTable from './ResultTable'
@@ -24,12 +25,45 @@ export default function QueryPanel({ tab }: QueryPanelProps): React.JSX.Element 
   const setQueryLoading = useWorkspaceStore((s) => s.setQueryLoading)
   const setQueryResult = useWorkspaceStore((s) => s.setQueryResult)
 
+  /** 执行成功后根据 SQL 类型自动刷新对应数据列表 */
+  const autoRefresh = (state: QueryTabState): void => {
+    const sql = state.sql.trim().toUpperCase()
+    const connStore = useConnectionStore.getState()
+    const connectionId = state.connectionId
+    const database = state.database
+    const schema = state.schema
+
+    if (sql.startsWith('CREATE DATABASE')) {
+      void connStore.loadDatabases(connectionId, { force: true })
+    } else if (sql.startsWith('CREATE TABLE')) {
+      if (schema) {
+        void connStore.loadModuleItems(connectionId, database, schema, 'tables', { force: true })
+      }
+    } else if (sql.startsWith('CREATE VIEW')) {
+      if (schema) {
+        void connStore.loadModuleItems(connectionId, database, schema, 'views', { force: true })
+      }
+    } else if (sql.startsWith('CREATE PROCEDURE')) {
+      if (schema) {
+        void connStore.loadModuleItems(connectionId, database, schema, 'procedures', {
+          force: true
+        })
+      }
+    } else if (sql.startsWith('CREATE FUNCTION')) {
+      if (schema) {
+        void connStore.loadModuleItems(connectionId, database, schema, 'functions', { force: true })
+      }
+    }
+  }
+
   const runQuery = async (): Promise<void> => {
     if (!state.sql.trim() || tab.loading) return
     setQueryLoading(tab.id, true)
     try {
       const result = await queryService.execute(state.connectionId, state.database, state.sql)
       setQueryResult(tab.id, result)
+      // 执行成功后根据 SQL 类型自动刷新对应数据列表
+      autoRefresh(state)
     } catch (error) {
       setQueryResult(tab.id, null, error instanceof Error ? error.message : '查询执行失败')
     }

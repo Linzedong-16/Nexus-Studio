@@ -4,6 +4,7 @@ import {
   KeyRound,
   ListTree,
   Loader2,
+  Plus,
   RefreshCw,
   Table2,
   View,
@@ -14,6 +15,7 @@ import type { TableInfo, ColumnInfo, IndexInfo, TriggerInfo } from '@/types/ipc'
 import type { TableModuleKind } from '@/types/database'
 import { useConnectionStore } from '@/store/connectionStore'
 import { useWorkspaceStore } from '@/store/workspaceStore'
+import { getSqlTemplate } from '@/lib/sqlTemplates'
 import { cn } from '@/lib/utils'
 
 interface TableNodeProps {
@@ -114,6 +116,25 @@ export default function TableNode({
             }}
           >
             <RefreshCw className="size-3" />
+          </button>
+        )}
+        {table.type === 'table' && expanded && (
+          <button
+            type="button"
+            className="shrink-0 text-muted-foreground opacity-0 hover:text-foreground group-hover:opacity-100"
+            title="添加行"
+            onClick={(e) => {
+              e.stopPropagation()
+              useWorkspaceStore.getState().openQueryTab({
+                connectionId,
+                connectionName,
+                database,
+                schema,
+                defaultSql: getSqlTemplate('insertRow', { schema, table: table.name })
+              })
+            }}
+          >
+            <Plus className="size-3" />
           </button>
         )}
       </div>
