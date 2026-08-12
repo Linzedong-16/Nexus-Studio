@@ -64,7 +64,8 @@ export const useWorkspaceStore = create<WorkspaceState>()(
             id: uuidv4(),
             type: 'connection',
             title: `新建连接 ${nextIndex}`,
-            closable: true
+            closable: true,
+            pinned: false
           }
           return {
             tabs: [...state.tabs, newTab],
@@ -92,6 +93,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
             type: 'query',
             title: `${payload.connectionName} · ${payload.database} · ${tableName}`,
             closable: true,
+            pinned: false,
             state: {
               connectionId: payload.connectionId,
               connectionName: payload.connectionName,
@@ -136,6 +138,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
             type: 'table',
             title: `${payload.connectionName} · ${payload.breadcrumb ?? `${payload.schema}.${payload.table}`}`,
             closable: true,
+            pinned: false,
             state: {
               connectionId: payload.connectionId,
               connectionName: payload.connectionName,
@@ -177,6 +180,7 @@ export const useWorkspaceStore = create<WorkspaceState>()(
             type: 'er-analysis',
             title: `${payload.connectionName} · ${payload.database} · ER 分析`,
             closable: true,
+            pinned: false,
             state: {
               connectionId: payload.connectionId,
               connectionName: payload.connectionName,
@@ -277,12 +281,15 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       closeOtherTabs: (id) => {
         set((state) => {
           const keep = state.tabs.find((t) => t.id === id)
+          // 保留当前 tab 和所有 pinned tab
+          const pinned = state.tabs.filter((t) => t.id !== id && t.pinned)
           if (!keep) return state
           for (const t of state.tabs) {
-            if (t.id !== id && t.type === 'er-analysis') useErStore.getState().clearTabState(t.id)
+            if (t.id !== id && !t.pinned && t.type === 'er-analysis')
+              useErStore.getState().clearTabState(t.id)
           }
           return {
-            tabs: [keep],
+            tabs: [keep, ...pinned],
             activeTabId: keep.id
           }
         })
@@ -290,14 +297,22 @@ export const useWorkspaceStore = create<WorkspaceState>()(
 
       closeAllTabs: () => {
         set((state) => {
+          // 过滤掉 pinned 标签页，仅关闭未固定的
+          const pinnedTabs = state.tabs.filter((t) => t.pinned)
           for (const t of state.tabs) {
-            if (t.type === 'er-analysis') useErStore.getState().clearTabState(t.id)
+            if (t.type === 'er-analysis' && !t.pinned) useErStore.getState().clearTabState(t.id)
           }
           return {
-            tabs: [],
-            activeTabId: null
+            tabs: pinnedTabs,
+            activeTabId: pinnedTabs[0]?.id ?? null
           }
         })
+      },
+
+      togglePin: (id) => {
+        set((state) => ({
+          tabs: state.tabs.map((t) => (t.id === id ? { ...t, pinned: !t.pinned } : t))
+        }))
       }
     }),
     {

@@ -70,6 +70,8 @@ export interface WorkspaceTab {
   type: WorkspaceTabType
   title: string
   closable: boolean
+  /** 是否固定（固定标签页在"关闭所有"时保留） */
+  pinned: boolean
   /** 连接/查询/表/ER 分析标签页各自的载荷 */
   state?: ConnectionTabState | QueryTabState | TableTabState | ErAnalysisTabState
   /** 查询标签页的瞬时结果（不持久化） */
@@ -136,4 +138,6 @@ export interface WorkspaceState {
   closeOtherTabs: (id: string) => void
   /** 关闭所有可关闭标签页 */
   closeAllTabs: () => void
+  /** 切换标签页固定状态 */
+  togglePin: (id: string) => void
 }

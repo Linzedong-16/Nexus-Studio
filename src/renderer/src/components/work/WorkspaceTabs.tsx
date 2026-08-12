@@ -34,6 +34,7 @@ export default function WorkspaceTabs(): React.JSX.Element {
   const activateTab = useWorkspaceStore((s) => s.activateTab)
   const closeTab = useWorkspaceStore((s) => s.closeTab)
   const reorderTabs = useWorkspaceStore((s) => s.reorderTabs)
+  const togglePin = useWorkspaceStore((s) => s.togglePin)
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const [isOverflow, setIsOverflow] = useState(false)
@@ -102,6 +103,7 @@ export default function WorkspaceTabs(): React.JSX.Element {
                 active={tab.id === activeTabId}
                 onActivate={() => activateTab(tab.id)}
                 onClose={() => closeTab(tab.id)}
+                onTogglePin={() => togglePin(tab.id)}
               />
             ))}
           </div>
