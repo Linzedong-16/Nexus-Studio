@@ -134,7 +134,7 @@ export default function UserProfileDialog({
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="flex max-h-[90vh] max-w-md flex-col gap-0 p-0 sm:max-w-md">
           <DialogHeader className="border-b px-5 py-4">
-            <DialogTitle>编辑个人信息</DialogTitle>
+            <DialogTitle>个人信息</DialogTitle>
             <DialogDescription className="sr-only">修改头像、昵称和邮箱</DialogDescription>
           </DialogHeader>
 
@@ -155,9 +155,9 @@ export default function UserProfileDialog({
                 className="group relative cursor-pointer rounded-full"
                 title="点击选择本地图片"
               >
-                <Avatar className="size-24" size="lg">
+                <Avatar className="!size-32" size="lg">
                   {previewDataUrl && <AvatarImage src={previewDataUrl} alt="用户头像" />}
-                  <AvatarFallback className="bg-primary/10 text-3xl text-primary">
+                  <AvatarFallback className="bg-primary/10 text-4xl text-primary">
                     {displayName ? displayName[0] : 'U'}
                   </AvatarFallback>
                 </Avatar>

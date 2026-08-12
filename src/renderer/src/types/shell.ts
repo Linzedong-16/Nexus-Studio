@@ -7,7 +7,7 @@ import type { ComponentType } from 'react'
  */
 
 /** 模式标识；新增模式时扩展此联合类型并在 config/modes.tsx 注册 */
-export type ModeId = 'work' | 'code' | 'design'
+export type ModeId = 'work' | 'code'
 
 /** 模式内页面路由 */
 export interface ModeRoute {

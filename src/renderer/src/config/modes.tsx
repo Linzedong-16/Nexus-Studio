@@ -13,12 +13,10 @@ import { useWorkspaceStore } from '@/store/workspaceStore'
 import { useErStore } from '@/store/erStore'
 import WorkHomePage from '@/pages/work/WorkHomePage'
 import CodeHomePage from '@/pages/code/CodeHomePage'
-import DesignHomePage from '@/pages/design/DesignHomePage'
 
 /**
  * 模式注册表 —— 外壳的唯一配置源（contracts/shell-config.md）
  * 新增模式/页面/菜单 = 在此登记，外壳组件零改动（FR-010/FR-023）
- * 本期三模式菜单组同构（spec Assumptions），复刻 TRAE 截图结构
  */
 
 /** Work 模式专用菜单组（差异化：新建连接打开工作区标签页） */
@@ -100,14 +98,6 @@ export const MODES: readonly ModeConfig[] = [
     icon: CodeXml,
     basePath: '/code',
     routes: [{ path: '', title: 'Code', Component: CodeHomePage }],
-    menuGroups: buildPlaceholderMenuGroups()
-  },
-  {
-    id: 'design',
-    label: 'Design',
-    icon: null,
-    basePath: '/design',
-    routes: [{ path: '', title: 'Design', Component: DesignHomePage }],
     menuGroups: buildPlaceholderMenuGroups()
   }
 ]
