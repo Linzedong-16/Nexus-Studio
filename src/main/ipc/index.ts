@@ -7,6 +7,7 @@ import { registerLogIPC } from './log'
 import { registerAvatarIPC } from './avatar'
 import { registerAppIPC } from './app'
 import { registerFsIPC } from './fs'
+import { registerTaskIPC } from './task'
 
 /**
  * IPC 统一注册入口
@@ -23,4 +24,5 @@ export function registerAllIPC(mainWindow: BrowserWindow): void {
   registerAvatarIPC()
   registerAppIPC()
   registerFsIPC()
+  registerTaskIPC(mainWindow)
 }

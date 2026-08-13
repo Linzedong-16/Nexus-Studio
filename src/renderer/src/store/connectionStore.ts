@@ -398,6 +398,8 @@ export const useConnectionStore = create<ConnectionStoreState>()((set, get) => {
       } finally {
         // 手动断开即视为放弃该连接，同时删除持久化配置，避免下次启动时被自动重连（FR-004）
         void configService.removeConnection(id)
+        // 暂停关联该连接的所有定时任务
+        void window.api.task.pauseByConnection(id)
         set((state) => {
           if (!(id in state.connections)) return state
           const next = { ...state.connections }

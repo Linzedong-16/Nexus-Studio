@@ -2,8 +2,20 @@ import { app, shell, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+
+// 解决 Windows 控制台中文乱码（UTF-8 字节被 GBK 错解）
+// 原理：stdout 默认编码设为 utf-8，确保 Node.js 输出到终端的字节流是 UTF-8
+if (process.platform === 'win32') {
+  try {
+    process.stdout.setDefaultEncoding('utf-8')
+  } catch {
+    // 忽略失败
+  }
+}
+
 import { registerAllIPC } from './ipc'
 import { driverManager } from './db/core/DriverManager'
+import { taskScheduler } from './scheduler'
 
 function createWindow(): void {
   // 无边框窗口：自定义标题栏（顶栏拖拽区 + 窗口控制按钮在渲染进程实现）
@@ -24,8 +36,19 @@ function createWindow(): void {
     }
   })
 
-  // 注册所有 IPC 处理器（窗口控制 + 数据库 + 配置）
+  // 注册所有 IPC 处理器（窗口控制 + 数据库 + 配置 + 任务调度）
   registerAllIPC(mainWindow)
+
+  // 启动定时任务调度器（恢复已启用任务 + 补偿执行）
+  taskScheduler.bootstrap()
+
+  // 关闭窗口时检查是否有运行中的定时任务，如有则弹确认框
+  mainWindow.on('close', (e) => {
+    if (taskScheduler.hasRunningTasks()) {
+      e.preventDefault()
+      mainWindow.webContents.send('task:confirm-close')
+    }
+  })
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
@@ -69,9 +92,10 @@ app.whenReady().then(() => {
   })
 })
 
-// 应用退出前优雅关闭所有数据库连接
+// 应用退出前优雅关闭所有数据库连接和定时任务调度
 app.on('before-quit', async (event) => {
   event.preventDefault()
+  await taskScheduler.shutdown()
   await driverManager.disconnectAll()
   app.quit()
 })

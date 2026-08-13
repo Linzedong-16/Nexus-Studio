@@ -14,6 +14,7 @@ import type {
 } from '../renderer/src/types/ipc'
 import type { KeybindingEntry } from '../renderer/src/types/keybinding'
 import type { FileNode } from '../renderer/src/types/fileExplorer'
+import type { TaskStatusChangePayload } from '../renderer/src/types/task'
 
 /**
  * 渲染进程可用 API —— 使用工厂函数创建，声明式定义
@@ -109,6 +110,21 @@ const api: Api = {
     readFileSafe: createInvoke<[string], { isBinary: boolean; content?: string }>(
       'fs:read-file-safe'
     )
+  },
+
+  // ─── 定时任务 ───
+  task: {
+    list: createInvoke('task:list'),
+    create: createInvoke('task:create'),
+    update: createInvoke('task:update'),
+    delete: createInvoke('task:delete'),
+    runNow: createInvoke('task:run-now'),
+    getLogs: createInvoke('task:get-logs'),
+    pauseByConnection: createInvoke('task:pause-by-connection'),
+    hasRunning: createInvoke('task:has-running'),
+    forceClose: createInvoke('task:force-close'),
+    onStatusChange: createListener<TaskStatusChangePayload>('task:status-changed'),
+    onConfirmClose: createListener('task:confirm-close')
   }
 }
 

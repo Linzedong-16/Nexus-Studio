@@ -4,9 +4,11 @@
  * 定义 Work 模式下标签页工作区的状态契约。
  */
 import type { ConnectionConfig, QueryResult } from './ipc'
+import type { AutomationTabState } from './task'
 
 /** 标签页类型 */
-export type WorkspaceTabType = 'connection' | 'query' | 'table' | 'er-analysis' | 'file'
+export type WorkspaceTabType =
+  'connection' | 'query' | 'table' | 'er-analysis' | 'file' | 'automation'
 
 /** 查询标签页载荷 */
 export interface QueryTabState {
@@ -91,8 +93,14 @@ export interface WorkspaceTab {
   closable: boolean
   /** 是否固定（固定标签页在"关闭所有"时保留） */
   pinned: boolean
-  /** 连接/查询/表/ER 分析标签页各自的载荷 */
-  state?: ConnectionTabState | QueryTabState | TableTabState | ErAnalysisTabState | FileTabState
+  /** 连接/查询/表/ER 分析/文件/自动化标签页各自的载荷 */
+  state?:
+    | ConnectionTabState
+    | QueryTabState
+    | TableTabState
+    | ErAnalysisTabState
+    | FileTabState
+    | AutomationTabState
   /** 查询标签页的瞬时结果（不持久化） */
   result?: QueryResult | null
   error?: string
@@ -167,4 +175,6 @@ export interface WorkspaceState {
   closeFileTabsUnderPath: (rootPath: string) => void
   /** 将匹配旧路径（文件本身，或目录及其下全部内容）的文件标签页更新为新路径 */
   renameFileTab: (oldPath: string, newPath: string) => void
+  /** 打开自动化工作台标签页（同类型去重） */
+  openAutomationTab: () => string
 }

@@ -21,6 +21,7 @@ import type {
   WorkspaceState,
   WorkspaceTab
 } from '@/types/workspace'
+import type { AutomationTabState } from '@/types/task'
 
 /** 提取表名用于标签标题 */
 function extractTableName(sql: string): string {
@@ -427,6 +428,35 @@ export const useWorkspaceStore = create<WorkspaceState>()(
             }
           })
         }))
+      },
+
+      openAutomationTab: () => {
+        let newId = ''
+        set((state) => {
+          const existing = state.tabs.find((t) => t.type === 'automation')
+          if (existing) {
+            newId = existing.id
+            return { activeTabId: existing.id }
+          }
+          newId = uuidv4()
+          const newTab: WorkspaceTab = {
+            id: newId,
+            type: 'automation',
+            title: '自动化工作台',
+            closable: true,
+            pinned: false,
+            state: {
+              selectedTaskId: null,
+              editingTaskId: null,
+              isCreating: false
+            } as AutomationTabState
+          }
+          return {
+            tabs: [...state.tabs, newTab],
+            activeTabId: newId
+          }
+        })
+        return newId
       }
     }),
     {

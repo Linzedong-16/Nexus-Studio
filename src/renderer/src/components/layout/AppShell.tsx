@@ -5,6 +5,7 @@ import Sidebar from './Sidebar'
 import SearchPalette from './SearchPalette'
 import AboutDialog from './AboutDialog'
 import LogPanel from './LogPanel'
+import TaskCloseConfirmDialog from './TaskCloseConfirmDialog'
 import SettingsPanel from '@/components/settings/SettingsPanel'
 import ERPickerPanel from '@/components/er/ERPickerPanel'
 import { resolveModeByPath } from '@/config/modes'
@@ -75,6 +76,7 @@ export default function AppShell(): React.JSX.Element {
       </div>
       <SearchPalette />
       <AboutDialog />
+      <TaskCloseConfirmDialog />
       <SettingsPanel />
       <ERPickerPanel />
       <LogPanel />

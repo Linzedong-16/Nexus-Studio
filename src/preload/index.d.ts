@@ -19,6 +19,13 @@ import type {
 } from '../renderer/src/types/ipc'
 import type { KeybindingEntry } from '../renderer/src/types/keybinding'
 import type { FileNode } from '../renderer/src/types/fileExplorer'
+import type {
+  ScheduledTask,
+  CreateTaskPayload,
+  UpdateTaskPayload,
+  TaskRunLog,
+  TaskStatusChangePayload
+} from '../renderer/src/types/task'
 
 // ─── 窗口控制 API ───
 
@@ -168,6 +175,33 @@ export interface FileSystemApi {
   readFileSafe(path: string): Promise<{ isBinary: boolean; content?: string }>
 }
 
+// ─── 定时任务 API ───
+
+export interface TaskApi {
+  /** 获取所有任务 */
+  list(): Promise<ScheduledTask[]>
+  /** 创建任务 */
+  create(payload: CreateTaskPayload): Promise<ScheduledTask>
+  /** 更新任务 */
+  update(payload: UpdateTaskPayload): Promise<ScheduledTask | null>
+  /** 删除任务 */
+  delete(id: string): Promise<boolean>
+  /** 立即执行一次 */
+  runNow(taskId: string): Promise<void>
+  /** 获取任务执行日志 */
+  getLogs(taskId: string): Promise<TaskRunLog[]>
+  /** 暂停指定连接关联的所有任务 */
+  pauseByConnection(connectionId: string): Promise<void>
+  /** 检查是否有正在运行的任务 */
+  hasRunning(): Promise<boolean>
+  /** 用户确认强制退出：取消所有任务并关闭窗口 */
+  forceClose(): Promise<void>
+  /** 订阅任务状态变更；返回取消订阅函数 */
+  onStatusChange(callback: (payload: TaskStatusChangePayload) => void): () => void
+  /** 订阅退出确认请求；返回取消订阅函数 */
+  onConfirmClose(callback: () => void): () => void
+}
+
 // ─── 全局 API ───
 
 export interface Api {
@@ -179,6 +213,7 @@ export interface Api {
   avatar: AvatarApi
   app: AppApi
   fs: FileSystemApi
+  task: TaskApi
 }
 
 declare global {
