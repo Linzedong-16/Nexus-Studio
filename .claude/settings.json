@@ -3,7 +3,25 @@
     "allow": [
       "Bash(powershell.exe -NoProfile -ExecutionPolicy Bypass -File \".specify/scripts/powershell/setup-tasks.ps1\" -Json)",
       "Bash(powershell.exe -NoProfile -ExecutionPolicy Bypass -File \".specify/scripts/powershell/check-prerequisites.ps1\" -Json -RequireTasks -IncludeTasks)",
-      "Bash(pnpm add *)"
+      "Bash(pnpm add *)",
+      "Bash(pnpm dev *)",
+      "Bash(echo \"started pid $!\")",
+      "Bash(cat /tmp/dbclient-dev.log 2>&1 | tail -50; echo \"---ps---\"; tasklist 2>/dev/null | grep -i -E \"electron|node.exe\" )",
+      "Read(//tmp/**)",
+      "Bash(env)",
+      "Bash(env -u ELECTRON_RUN_AS_NODE pnpm dev)",
+      "Bash(tail -60 /tmp/dbclient-dev.log 2>&1; echo \"---procs---\"; tasklist 2>/dev/null | grep -i -E \"electron\")",
+      "Bash(env -u ELECTRON_RUN_AS_NODE node .tmp-driver.mjs)",
+      "Bash(sleep 3; cat /tmp/driver.log 2>&1)",
+      "Bash(curl -s -X POST localhost:4756 -d '{\"type\":\"windows\"}')",
+      "Bash(curl -s -X POST localhost:4756 -d '{\"type\":\"eval\",\"expr\":\"[...document.querySelectorAll\\(\\\\\"button, [role=\\\\\\\\\\\\\"button\\\\\\\\\\\\\"], .cursor-pointer\\\\\"\\)].map\\(e=>e.textContent.trim\\(\\)\\).filter\\(Boolean\\).slice\\(0,40\\)\"}')",
+      "Bash(curl -s -X POST localhost:4756 -d '{\"type\":\"click-text\",\"text\":\"新建连接\"}')",
+      "Bash(curl -s -X POST localhost:4756 -d '{\"type\":\"screenshot\",\"name\":\"02-new-conn-dialog\"}')",
+      "Bash(curl -s -X POST localhost:4756 -d '{\"type\":\"eval\",\"expr\":\"[...document.querySelectorAll\\(\\\\\"li,button,div,span\\\\\"\\)].filter\\(e=>e.textContent.trim\\(\\)===\\\\\"新建连接\\\\\"\\).map\\(e=>e.tagName+\\\\\":\\\\\"+e.className\\)\"}')",
+      "Bash(curl -s -X POST localhost:4756 -d '{\"type\":\"eval\",\"expr\":\"[...document.querySelectorAll\\(\\\\\"li,button,div,span,a\\\\\"\\)].filter\\(e=>e.textContent.includes\\(\\\\\"新建连接\\\\\"\\)\\).map\\(e=>\\({tag:e.tagName,cls:e.className,txt:JSON.stringify\\(e.textContent\\)}\\)\\)\"}')",
+      "Bash(curl -s -X POST localhost:4756 -d '{\"type\":\"eval\",\"expr\":\"document.querySelector\\(\\\\\"body\\\\\"\\).innerHTML.length\"}')",
+      "Bash(curl -s -X POST localhost:4756 -d '{\"type\":\"eval\",\"expr\":\"[...document.querySelectorAll\\(\\\\\"svg\\\\\"\\)].length\"}')",
+      "Bash(curl -s -X POST localhost:4756 -d '{\"type\":\"eval\",\"expr\":\"[...document.querySelectorAll\\(\\\\\"li,button,div,span,a\\\\\"\\)].filter\\(e=>e.innerText && e.innerText.trim\\(\\).length>0 && e.innerText.trim\\(\\).length<10\\).map\\(e=>e.innerText.trim\\(\\)\\).slice\\(0,30\\)\"}')"
     ]
   }
 }

@@ -1,4 +1,5 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import { AlertCircle, Loader2, Search } from 'lucide-react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { cn } from '@/lib/utils'
@@ -43,8 +44,17 @@ interface EditingCell {
   columnName: string
 }
 
+/** 单元格内容固定单行截断，行高恒定，供虚拟滚动按固定尺寸计算而无需逐行测量 */
+const ROW_HEIGHT = 25
+/** 每列最小宽度：列少时按容器宽度均分撑满，列多到分不下时退化为该宽度并出现横向滚动 */
+const MIN_COL_WIDTH = 140
+/** 行首选择框列宽度，与原先 `w-9` 一致 */
+const CHECKBOX_COL_WIDTH = 36
+
 /**
- * 查询结果表格（手写实现，未引入 TanStack）
+ * 查询结果表格：div + CSS Grid 实现，行级虚拟滚动（@tanstack/react-virtual）。
+ * 表头与每一行共享同一份 gridTemplateColumns 以保证列对齐；同一时刻仅挂载可视区域
+ * 内的行，避免整表渲染导致 DOM 过重（尤其影响主题切换的 view-transition 快照性能）。
  */
 export default function ResultTable({
   result,
@@ -63,6 +73,9 @@ export default function ResultTable({
   const skipBlurCommitRef = useRef(false)
   const [prevEditMode, setPrevEditMode] = useState(editMode)
 
+  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null)
+  const [containerWidth, setContainerWidth] = useState(0)
+
   // 退出编辑模式时，放弃尚未提交的行内编辑，避免残留编辑框
   // （渲染期间的状态调整，而非副作用，避免额外的一次级联重渲染）
   if (editMode !== prevEditMode) {
@@ -72,6 +85,24 @@ export default function ResultTable({
       setEditError(null)
     }
   }
+
+  // 监听滚动容器宽度变化，用于计算「列少时均分撑满、列多时退化为最小宽度」的列宽
+  useEffect(() => {
+    if (!scrollEl) return
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width
+      if (width !== undefined) setContainerWidth(width)
+    })
+    observer.observe(scrollEl)
+    return () => observer.disconnect()
+  }, [scrollEl])
+
+  const virtualizer = useVirtualizer({
+    count: result?.rows.length ?? 0,
+    getScrollElement: () => scrollEl,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 12
+  })
 
   const startEdit = (rowIndex: number, columnName: string, value: unknown): void => {
     setEditingCell({ rowIndex, columnName })
@@ -140,6 +171,14 @@ export default function ResultTable({
     )
   }
 
+  const checkboxColWidth = editMode ? CHECKBOX_COL_WIDTH : 0
+  const availableWidth = Math.max(0, containerWidth - checkboxColWidth)
+  const colWidth =
+    result.fields.length > 0
+      ? Math.max(MIN_COL_WIDTH, Math.floor(availableWidth / result.fields.length))
+      : MIN_COL_WIDTH
+  const gridTemplateColumns = `${checkboxColWidth}px repeat(${result.fields.length}, ${colWidth}px)`
+
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <div className="flex items-center justify-between border-b px-3 py-1.5 text-xs text-muted-foreground">
@@ -149,113 +188,124 @@ export default function ResultTable({
         <span>{result.durationMs} ms</span>
       </div>
 
-      <div className="flex-1 overflow-auto">
-        <table className="w-full border-collapse text-sm">
-          <thead className="sticky top-0 z-10 bg-muted">
-            <tr>
-              <th
-                className={cn(
-                  'overflow-hidden border-b p-0 transition-[width] duration-200 ease-out',
-                  editMode ? 'w-9 border-r' : 'w-0 border-r-0'
-                )}
-              />
-              {result.fields.map((field) => (
-                <th
-                  key={field.name}
-                  className="whitespace-nowrap border-b border-r px-3 py-1.5 text-left font-medium"
-                >
-                  <span className="mr-1.5">{field.name}</span>
-                  <span className="text-[10px] font-normal text-muted-foreground">
-                    {field.dataType}
-                  </span>
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {result.rows.map((row, rowIndex) => (
-              <tr
-                key={rowIndex}
-                className={cn(
-                  'hover:bg-accent/40',
-                  rowIndex % 2 === 1 && 'bg-muted/30',
-                  selectedRowIndexes?.has(rowIndex) && 'bg-primary/10'
-                )}
+      <div ref={setScrollEl} className="flex-1 overflow-auto">
+        <div role="table" className="text-sm">
+          <div
+            role="row"
+            className="sticky top-0 z-10 w-full bg-muted transition-[grid-template-columns] duration-200 ease-out"
+            style={{ display: 'grid', gridTemplateColumns }}
+          >
+            <div className={cn('border-b', editMode && 'border-r')} />
+            {result.fields.map((field) => (
+              <div
+                key={field.name}
+                role="columnheader"
+                className="min-w-0 truncate border-b border-r px-3 py-1.5 text-left font-medium whitespace-nowrap"
               >
-                <td className="border-b px-1 text-center">
-                  {editMode && (
-                    <span className="inline-flex animate-in fade-in-0 slide-in-from-left-1 duration-150">
-                      <Checkbox
-                        checked={selectedRowIndexes?.has(rowIndex) ?? false}
-                        onCheckedChange={() => onToggleRow?.(rowIndex)}
-                      />
-                    </span>
-                  )}
-                </td>
-                {result.fields.map((field) => {
-                  const isEditingThisCell =
-                    editingCell?.rowIndex === rowIndex && editingCell.columnName === field.name
-                  return (
-                    <td
-                      key={field.name}
-                      className={cn(
-                        'group relative max-w-[300px] truncate whitespace-nowrap border-b px-3 py-1 font-mono text-xs',
-                        editMode && !isEditingThisCell && 'cursor-text'
-                      )}
-                      onDoubleClick={
-                        editMode
-                          ? () => startEdit(rowIndex, field.name, row[field.name])
-                          : undefined
-                      }
-                    >
-                      {isEditingThisCell ? (
-                        <input
-                          autoFocus
-                          value={editValue}
-                          disabled={savingCell}
-                          title={editError ?? undefined}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault()
-                              void commitEdit()
-                            } else if (e.key === 'Escape') {
-                              e.preventDefault()
-                              cancelEdit()
-                            }
-                          }}
-                          onBlur={() => void commitEdit()}
-                          className={cn(
-                            'w-full bg-transparent outline-none',
-                            editError && 'text-destructive'
-                          )}
-                        />
-                      ) : (
-                        <>
-                          <span className={cn(editMode && 'pr-5')}>
-                            {formatCell(row[field.name])}
-                          </span>
-                          {editMode && (
-                            <button
-                              type="button"
-                              className="absolute top-1/2 right-1 flex size-5 -translate-y-1/2 items-center justify-center rounded opacity-0 transition-opacity group-hover:opacity-100 hover:bg-accent"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setLargeEditCell({ rowIndex, columnName: field.name })
-                              }}
-                            >
-                              <Search className="size-3.5" />
-                            </button>
-                          )}
-                        </>
-                      )}
-                    </td>
-                  )
-                })}
-              </tr>
+                <span className="mr-1.5">{field.name}</span>
+                <span className="text-[10px] font-normal text-muted-foreground">
+                  {field.dataType}
+                </span>
+              </div>
             ))}
-          </tbody>
-        </table>
+          </div>
+
+          <div role="rowgroup" style={{ position: 'relative', height: virtualizer.getTotalSize() }}>
+            {virtualizer.getVirtualItems().map((virtualRow) => {
+              const rowIndex = virtualRow.index
+              const row = result.rows[rowIndex]
+              return (
+                <div
+                  key={rowIndex}
+                  role="row"
+                  className={cn(
+                    'absolute top-0 left-0 w-full transition-[grid-template-columns] duration-200 ease-out hover:bg-accent/40',
+                    rowIndex % 2 === 1 && 'bg-muted/30',
+                    selectedRowIndexes?.has(rowIndex) && 'bg-primary/10'
+                  )}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns,
+                    height: virtualRow.size,
+                    transform: `translateY(${virtualRow.start}px)`
+                  }}
+                >
+                  <div className="flex items-center justify-center border-b px-1">
+                    {editMode && (
+                      <span className="inline-flex animate-in fade-in-0 slide-in-from-left-1 duration-150">
+                        <Checkbox
+                          checked={selectedRowIndexes?.has(rowIndex) ?? false}
+                          onCheckedChange={() => onToggleRow?.(rowIndex)}
+                        />
+                      </span>
+                    )}
+                  </div>
+                  {result.fields.map((field) => {
+                    const isEditingThisCell =
+                      editingCell?.rowIndex === rowIndex && editingCell.columnName === field.name
+                    return (
+                      <div
+                        key={field.name}
+                        role="cell"
+                        className={cn(
+                          'group relative min-w-0 truncate border-b px-3 py-1 font-mono text-xs whitespace-nowrap',
+                          editMode && !isEditingThisCell && 'cursor-text'
+                        )}
+                        onDoubleClick={
+                          editMode
+                            ? () => startEdit(rowIndex, field.name, row[field.name])
+                            : undefined
+                        }
+                      >
+                        {isEditingThisCell ? (
+                          <input
+                            autoFocus
+                            value={editValue}
+                            disabled={savingCell}
+                            title={editError ?? undefined}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault()
+                                void commitEdit()
+                              } else if (e.key === 'Escape') {
+                                e.preventDefault()
+                                cancelEdit()
+                              }
+                            }}
+                            onBlur={() => void commitEdit()}
+                            className={cn(
+                              'w-full bg-transparent outline-none',
+                              editError && 'text-destructive'
+                            )}
+                          />
+                        ) : (
+                          <>
+                            <span className={cn(editMode && 'pr-5')}>
+                              {formatCell(row[field.name])}
+                            </span>
+                            {editMode && (
+                              <button
+                                type="button"
+                                className="absolute top-1/2 right-1 flex size-5 -translate-y-1/2 items-center justify-center rounded opacity-0 transition-opacity group-hover:opacity-100 hover:bg-accent"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setLargeEditCell({ rowIndex, columnName: field.name })
+                                }}
+                              >
+                                <Search className="size-3.5" />
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })}
+          </div>
+        </div>
       </div>
 
       <LargeValueEditorDialog
