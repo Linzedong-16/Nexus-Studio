@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { cn } from '@/lib/utils'
 
 type ValueFormat = 'plain' | 'json'
 
@@ -25,7 +26,9 @@ interface LargeValueEditorDialogProps {
   onOpenChange: (open: boolean) => void
   initialValue: string
   /** 支持返回 Promise：保存失败时抛出的错误会内联展示，弹框保持打开以便重试 */
-  onSave: (value: string) => void | Promise<void>
+  onSave?: (value: string) => void | Promise<void>
+  /** 只读查看模式：不显示保存按钮，textarea 不可编辑 */
+  readOnly?: boolean
 }
 
 /**
@@ -39,7 +42,8 @@ export default function LargeValueEditorDialog({
   open,
   onOpenChange,
   initialValue,
-  onSave
+  onSave,
+  readOnly = false
 }: LargeValueEditorDialogProps): React.JSX.Element {
   const [format, setFormat] = useState<ValueFormat>('plain')
   const [text, setText] = useState('')
@@ -95,6 +99,7 @@ export default function LargeValueEditorDialog({
   }
 
   const handleSave = async (): Promise<void> => {
+    if (!onSave) return
     setSaving(true)
     setSaveError(null)
     try {
@@ -111,19 +116,21 @@ export default function LargeValueEditorDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>编辑数据</DialogTitle>
+          <DialogTitle>{readOnly ? '查看数据' : '编辑数据'}</DialogTitle>
         </DialogHeader>
 
         <div className="flex items-center gap-2">
-          <Select value={format} onValueChange={(v) => handleFormatChange(v as ValueFormat)}>
-            <SelectTrigger size="sm" className="w-28">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="plain">Plain</SelectItem>
-              <SelectItem value="json">JSON</SelectItem>
-            </SelectContent>
-          </Select>
+          {!readOnly && (
+            <Select value={format} onValueChange={(v) => handleFormatChange(v as ValueFormat)}>
+              <SelectTrigger size="sm" className="w-28">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="plain">Plain</SelectItem>
+                <SelectItem value="json">JSON</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
 
           <Tooltip>
             <TooltipTrigger asChild>
@@ -138,8 +145,9 @@ export default function LargeValueEditorDialog({
         <Textarea
           value={text}
           onChange={(e) => handleTextChange(e.target.value)}
+          readOnly={readOnly}
           aria-invalid={format === 'json' && jsonError !== null}
-          className="h-72 resize-none font-mono text-xs"
+          className={cn('h-72 resize-none font-mono text-xs', readOnly && 'cursor-default')}
           spellCheck={false}
         />
 
@@ -147,15 +155,17 @@ export default function LargeValueEditorDialog({
         {saveError && <p className="text-xs text-destructive">{saveError}</p>}
 
         <DialogFooter>
-          <Button variant="outline" disabled={saving} onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             关闭
           </Button>
-          <Button
-            onClick={() => void handleSave()}
-            disabled={saving || (format === 'json' && jsonError !== null)}
-          >
-            保存
-          </Button>
+          {!readOnly && (
+            <Button
+              onClick={() => void handleSave()}
+              disabled={saving || (format === 'json' && jsonError !== null)}
+            >
+              保存
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

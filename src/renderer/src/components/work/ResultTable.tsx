@@ -110,6 +110,10 @@ export default function ResultTable({
     setEditError(null)
   }
 
+  const openViewer = (rowIndex: number, columnName: string): void => {
+    setLargeEditCell({ rowIndex, columnName })
+  }
+
   const cancelEdit = (): void => {
     skipBlurCommitRef.current = true
     setEditingCell(null)
@@ -254,7 +258,7 @@ export default function ResultTable({
                         onDoubleClick={
                           editMode
                             ? () => startEdit(rowIndex, field.name, row[field.name])
-                            : undefined
+                            : () => openViewer(rowIndex, field.name)
                         }
                       >
                         {isEditingThisCell ? (
@@ -316,10 +320,15 @@ export default function ResultTable({
             ? rawCellText(result.rows[largeEditCell.rowIndex]?.[largeEditCell.columnName])
             : ''
         }
-        onSave={async (value) => {
-          if (!largeEditCell) return
-          await onCellCommit?.(largeEditCell.rowIndex, largeEditCell.columnName, value)
-        }}
+        readOnly={!editMode}
+        onSave={
+          editMode
+            ? async (value) => {
+                if (!largeEditCell) return
+                await onCellCommit?.(largeEditCell.rowIndex, largeEditCell.columnName, value)
+              }
+            : undefined
+        }
       />
     </div>
   )
