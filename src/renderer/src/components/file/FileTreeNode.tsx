@@ -24,6 +24,8 @@ import {
   ContextMenuTrigger
 } from '@/components/ui/context-menu'
 import { cn } from '@/lib/utils'
+import { useInCodeMode } from '@/components/code/useInCodeMode'
+import AddToConversationMenuItem from '@/components/code/AddToConversationMenuItem'
 
 interface FileTreeNodeProps {
   node: FileNode
@@ -38,16 +40,7 @@ function isSqlFile(name: string): boolean {
 }
 
 /** 图片扩展名集合 */
-const IMAGE_EXTENSIONS = new Set([
-  '.png',
-  '.jpg',
-  '.jpeg',
-  '.gif',
-  '.webp',
-  '.bmp',
-  '.svg',
-  '.ico'
-])
+const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg', '.ico'])
 
 /** 判断是否为图片文件 */
 function isImageFile(name: string): boolean {
@@ -163,6 +156,8 @@ export default function FileTreeNode({
   const createFolder = useFileExplorerStore((s) => s.createFolder)
   const dragSourcePath = useFileExplorerStore((s) => s.dragSourcePath)
 
+  const inCodeMode = useInCodeMode()
+
   const isExpanded = expandedPaths.has(node.path)
   const isSelected = selectedPath === node.path
   const isRenaming = renamingPath === node.path
@@ -182,6 +177,8 @@ export default function FileTreeNode({
       await toggleExpand(node.path)
       return
     }
+    // Code 模式下不打开文件标签页，阻断在文件树内
+    if (inCodeMode) return
     try {
       // 图片文件：读取为 base64 并打开标签页
       if (isImageFile(node.name)) {
@@ -320,6 +317,17 @@ export default function FileTreeNode({
           )}
         </ContextMenuTrigger>
         <ContextMenuContent>
+          {inCodeMode && !node.isDirectory && (
+            <>
+              <AddToConversationMenuItem
+                id={`file:${node.path}`}
+                type="file"
+                label={node.name}
+                detail={node.path}
+              />
+              <ContextMenuSeparator />
+            </>
+          )}
           {node.isDirectory && (
             <>
               <ContextMenuItem onClick={() => void startCreate(node.path, 'file')}>

@@ -12,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { useConnectionStore } from '@/store/connectionStore'
 import { useWorkspaceStore } from '@/store/workspaceStore'
+import { useInCodeMode } from '@/components/code/useInCodeMode'
 import type { RoleInfo } from '@/types/ipc'
 
 interface SecurityNodeProps {
@@ -203,6 +204,7 @@ function RoleRow({
   clickable: boolean
 }): React.JSX.Element {
   const openTableTab = useWorkspaceStore((s) => s.openTableTab)
+  const inCodeMode = useInCodeMode()
 
   const attrs = [
     role.isSuperuser && 'Superuser',
@@ -238,7 +240,7 @@ function RoleRow({
   }
 
   const handleOpenPrivileges = (): void => {
-    if (!database) return
+    if (inCodeMode || !database) return
     const escapedName = role.name.replace(/'/g, "''")
     openTableTab({
       connectionId,

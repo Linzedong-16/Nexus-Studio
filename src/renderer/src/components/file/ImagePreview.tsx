@@ -44,14 +44,11 @@ export default function ImagePreview({ src, fileName }: ImagePreviewProps): Reac
     fitToWindow()
   }, [fitToWindow])
 
-  const handleWheel = useCallback(
-    (e: React.WheelEvent) => {
-      e.preventDefault()
-      const delta = e.deltaY > 0 ? -0.1 : 0.1
-      setScale((prev) => Math.max(0.1, Math.min(10, prev + delta)))
-    },
-    []
-  )
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault()
+    const delta = e.deltaY > 0 ? -0.1 : 0.1
+    setScale((prev) => Math.max(0.1, Math.min(10, prev + delta)))
+  }, [])
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
@@ -107,9 +104,7 @@ export default function ImagePreview({ src, fileName }: ImagePreviewProps): Reac
       {/* 工具栏 */}
       <div className="flex h-9 shrink-0 items-center gap-1 border-b px-2">
         <span className="truncate text-xs text-muted-foreground">{fileName}</span>
-        <span className="text-xs text-muted-foreground/60">
-          {Math.round(scale * 100)}%
-        </span>
+        <span className="text-xs text-muted-foreground/60">{Math.round(scale * 100)}%</span>
         <div className="flex-1" />
         <Button size="icon" variant="ghost" onClick={handleZoomOut} title="缩小">
           <ZoomOut className="size-3.5" />

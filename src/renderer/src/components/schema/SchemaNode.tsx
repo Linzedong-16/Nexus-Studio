@@ -1,7 +1,10 @@
 import { ChevronDown, ChevronRight, FolderTree, RefreshCw } from 'lucide-react'
+import { ContextMenu, ContextMenuContent, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { DATABASE_CAPABILITIES } from '@/config/databaseCapabilities'
 import type { DatabaseType, SchemaInfo } from '@/types/ipc'
 import { useConnectionStore } from '@/store/connectionStore'
+import AddToConversationMenuItem from '@/components/code/AddToConversationMenuItem'
+import { useInCodeMode } from '@/components/code/useInCodeMode'
 import ModuleGroup from './ModuleGroup'
 
 interface SchemaNodeProps {
@@ -30,6 +33,7 @@ export default function SchemaNode({
   )
   const toggleSchemaNode = useConnectionStore((s) => s.toggleSchemaNode)
   const loadModuleItems = useConnectionStore((s) => s.loadModuleItems)
+  const inCodeMode = useInCodeMode()
 
   const expanded = node?.expanded ?? false
   const modules = DATABASE_CAPABILITIES[connectionType].schemaLevelModules
@@ -50,41 +54,55 @@ export default function SchemaNode({
   }
 
   return (
-    <div>
-      <button
-        type="button"
-        onClick={() => toggleSchemaNode(connectionId, database, schema.name)}
-        className="group flex w-full items-center gap-1 px-2 py-0.5 pl-4 text-left text-[13px] hover:bg-accent/50"
-      >
-        {expanded ? (
-          <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
-        ) : (
-          <ChevronRight className="size-3 shrink-0 text-muted-foreground" />
-        )}
-        <FolderTree className="size-3.5 shrink-0 text-amber-500 dark:text-amber-400" />
-        <span className="truncate">{schema.name}</span>
-        {expanded && (
-          <RefreshCw
-            className="ml-auto size-3 shrink-0 text-muted-foreground opacity-0 hover:text-foreground group-hover:opacity-100"
-            onClick={handleRefresh}
-          />
-        )}
-      </button>
-
-      {expanded && (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
         <div>
-          {modules.map((moduleKind) => (
-            <ModuleGroup
-              key={moduleKind}
-              connectionId={connectionId}
-              connectionName={connectionName}
-              database={database}
-              schema={schema.name}
-              moduleKind={moduleKind}
-            />
-          ))}
+          <button
+            type="button"
+            onClick={() => toggleSchemaNode(connectionId, database, schema.name)}
+            className="group flex w-full items-center gap-1 px-2 py-0.5 pl-4 text-left text-[13px] hover:bg-accent/50"
+          >
+            {expanded ? (
+              <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="size-3 shrink-0 text-muted-foreground" />
+            )}
+            <FolderTree className="size-3.5 shrink-0 text-amber-500 dark:text-amber-400" />
+            <span className="truncate">{schema.name}</span>
+            {expanded && (
+              <RefreshCw
+                className="ml-auto size-3 shrink-0 text-muted-foreground opacity-0 hover:text-foreground group-hover:opacity-100"
+                onClick={handleRefresh}
+              />
+            )}
+          </button>
+
+          {expanded && (
+            <div>
+              {modules.map((moduleKind) => (
+                <ModuleGroup
+                  key={moduleKind}
+                  connectionId={connectionId}
+                  connectionName={connectionName}
+                  database={database}
+                  schema={schema.name}
+                  moduleKind={moduleKind}
+                />
+              ))}
+            </div>
+          )}
         </div>
+      </ContextMenuTrigger>
+      {inCodeMode && (
+        <ContextMenuContent>
+          <AddToConversationMenuItem
+            id={`schema:${connectionId}:${database}:${schema.name}`}
+            type="schema"
+            label={schema.name}
+            detail={`${connectionName} / ${database}`}
+          />
+        </ContextMenuContent>
       )}
-    </div>
+    </ContextMenu>
   )
 }

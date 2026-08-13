@@ -11,11 +11,14 @@ import {
   Zap
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { ContextMenu, ContextMenuContent, ContextMenuTrigger } from '@/components/ui/context-menu'
 import type { TableInfo, ColumnInfo, IndexInfo, TriggerInfo } from '@/types/ipc'
 import type { TableModuleKind } from '@/types/database'
 import { useConnectionStore } from '@/store/connectionStore'
 import { useWorkspaceStore } from '@/store/workspaceStore'
 import { getSqlTemplate } from '@/lib/sqlTemplates'
+import AddToConversationMenuItem from '@/components/code/AddToConversationMenuItem'
+import { useInCodeMode } from '@/components/code/useInCodeMode'
 import { cn } from '@/lib/utils'
 
 interface TableNodeProps {
@@ -66,6 +69,7 @@ export default function TableNode({
   const toggleTableNode = useConnectionStore((s) => s.toggleTableNode)
   const loadTableModuleItems = useConnectionStore((s) => s.loadTableModuleItems)
   const openTableTab = useWorkspaceStore((s) => s.openTableTab)
+  const inCodeMode = useInCodeMode()
 
   const expanded = node?.expanded ?? false
 
@@ -73,87 +77,103 @@ export default function TableNode({
     toggleTableNode(connectionId, database, schema, table.name)
   }
   const handleOpenData = (): void => {
+    if (inCodeMode) return
     openTableTab({ connectionId, connectionName, database, schema, table: table.name })
   }
 
   return (
-    <div>
-      <div className="group flex w-full items-center gap-1 px-2 py-0.5 pl-10 text-left text-[13px] hover:bg-accent/50">
-        <button
-          type="button"
-          onClick={handleToggle}
-          className="flex shrink-0 items-center gap-1 text-muted-foreground hover:text-foreground"
-          title={expanded ? '收起' : '展开'}
-        >
-          {expanded ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
-        </button>
-        <button
-          type="button"
-          onClick={handleOpenData}
-          title={`打开 ${schema}.${table.name} 数据`}
-          className="flex min-w-0 flex-1 items-center gap-1.5 text-muted-foreground hover:text-foreground"
-        >
-          {table.type === 'view' ? (
-            <View className="size-3.5 shrink-0 text-green-500 dark:text-green-400" />
-          ) : (
-            <Table2 className="size-3.5 shrink-0 text-green-500 dark:text-green-400" />
-          )}
-          <span className="truncate">{table.name}</span>
-        </button>
-        {expanded && (
-          <button
-            type="button"
-            className="shrink-0 text-muted-foreground opacity-0 hover:text-foreground group-hover:opacity-100"
-            title="刷新"
-            onClick={() => {
-              for (const kind of ['columns', 'indexes', 'triggers'] as const) {
-                if (node?.modules?.[kind]?.items) {
-                  void loadTableModuleItems(connectionId, database, schema, table.name, kind, {
-                    force: true
-                  })
-                }
-              }
-            }}
-          >
-            <RefreshCw className="size-3" />
-          </button>
-        )}
-        {table.type === 'table' && expanded && (
-          <button
-            type="button"
-            className="shrink-0 text-muted-foreground opacity-0 hover:text-foreground group-hover:opacity-100"
-            title="添加行"
-            onClick={(e) => {
-              e.stopPropagation()
-              useWorkspaceStore.getState().openQueryTab({
-                connectionId,
-                connectionName,
-                database,
-                schema,
-                defaultSql: getSqlTemplate('insertRow', { schema, table: table.name })
-              })
-            }}
-          >
-            <Plus className="size-3" />
-          </button>
-        )}
-      </div>
-
-      {expanded && (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
         <div>
-          {(['columns', 'indexes', 'triggers'] as const).map((kind) => (
-            <TableModule
-              key={kind}
-              connectionId={connectionId}
-              database={database}
-              schema={schema}
-              table={table.name}
-              moduleKind={kind}
-            />
-          ))}
+          <div className="group flex w-full items-center gap-1 px-2 py-0.5 pl-10 text-left text-[13px] hover:bg-accent/50">
+            <button
+              type="button"
+              onClick={handleToggle}
+              className="flex shrink-0 items-center gap-1 text-muted-foreground hover:text-foreground"
+              title={expanded ? '收起' : '展开'}
+            >
+              {expanded ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
+            </button>
+            <button
+              type="button"
+              onClick={handleOpenData}
+              title={`打开 ${schema}.${table.name} 数据`}
+              className="flex min-w-0 flex-1 items-center gap-1.5 text-muted-foreground hover:text-foreground"
+            >
+              {table.type === 'view' ? (
+                <View className="size-3.5 shrink-0 text-green-500 dark:text-green-400" />
+              ) : (
+                <Table2 className="size-3.5 shrink-0 text-green-500 dark:text-green-400" />
+              )}
+              <span className="truncate">{table.name}</span>
+            </button>
+            {expanded && (
+              <button
+                type="button"
+                className="shrink-0 text-muted-foreground opacity-0 hover:text-foreground group-hover:opacity-100"
+                title="刷新"
+                onClick={() => {
+                  for (const kind of ['columns', 'indexes', 'triggers'] as const) {
+                    if (node?.modules?.[kind]?.items) {
+                      void loadTableModuleItems(connectionId, database, schema, table.name, kind, {
+                        force: true
+                      })
+                    }
+                  }
+                }}
+              >
+                <RefreshCw className="size-3" />
+              </button>
+            )}
+            {table.type === 'table' && expanded && (
+              <button
+                type="button"
+                className="shrink-0 text-muted-foreground opacity-0 hover:text-foreground group-hover:opacity-100"
+                title="添加行"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  if (inCodeMode) return
+                  useWorkspaceStore.getState().openQueryTab({
+                    connectionId,
+                    connectionName,
+                    database,
+                    schema,
+                    defaultSql: getSqlTemplate('insertRow', { schema, table: table.name })
+                  })
+                }}
+              >
+                <Plus className="size-3" />
+              </button>
+            )}
+          </div>
+
+          {expanded && (
+            <div>
+              {(['columns', 'indexes', 'triggers'] as const).map((kind) => (
+                <TableModule
+                  key={kind}
+                  connectionId={connectionId}
+                  database={database}
+                  schema={schema}
+                  table={table.name}
+                  moduleKind={kind}
+                />
+              ))}
+            </div>
+          )}
         </div>
+      </ContextMenuTrigger>
+      {inCodeMode && (
+        <ContextMenuContent>
+          <AddToConversationMenuItem
+            id={`table:${connectionId}:${database}:${schema}:${table.name}`}
+            type="table"
+            label={table.name}
+            detail={`${schema}.${table.name}`}
+          />
+        </ContextMenuContent>
       )}
-    </div>
+    </ContextMenu>
   )
 }
 

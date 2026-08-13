@@ -11,11 +11,14 @@ import {
   View
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { ContextMenu, ContextMenuContent, ContextMenuTrigger } from '@/components/ui/context-menu'
 import type { ModuleKind } from '@/types/database'
 import type { RoutineInfo, TableInfo } from '@/types/ipc'
 import { useConnectionStore } from '@/store/connectionStore'
 import { useWorkspaceStore } from '@/store/workspaceStore'
 import { getSqlTemplate } from '@/lib/sqlTemplates'
+import AddToConversationMenuItem from '@/components/code/AddToConversationMenuItem'
+import { useInCodeMode } from '@/components/code/useInCodeMode'
 import TableNode from './TableNode'
 
 interface ModuleGroupProps {
@@ -67,12 +70,14 @@ export default function ModuleGroup({
   const toggleModule = useConnectionStore((s) => s.toggleModule)
   const loadModuleItems = useConnectionStore((s) => s.loadModuleItems)
   const openQueryTab = useWorkspaceStore((s) => s.openQueryTab)
+  const inCodeMode = useInCodeMode()
 
   const Icon = MODULE_ICON[moduleKind]
   const label = MODULE_LABEL[moduleKind]
 
   if (moduleKind === 'query') {
     const handleOpenQuery = (): void => {
+      if (inCodeMode) return
       openQueryTab({
         connectionId,
         connectionName,
@@ -109,7 +114,7 @@ export default function ModuleGroup({
 
   const handleCreate = (e: React.MouseEvent): void => {
     e.stopPropagation()
-    if (!schema) return
+    if (inCodeMode || !schema) return
     const actionKind =
       moduleKind === 'views'
         ? ('createView' as const)
@@ -126,80 +131,101 @@ export default function ModuleGroup({
   }
 
   return (
-    <div>
-      <button
-        type="button"
-        onClick={handleToggle}
-        className="group flex w-full items-center gap-1 px-2 py-0.5 pl-6 text-left text-[13px] hover:bg-accent/50"
-      >
-        {expanded ? (
-          <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
-        ) : (
-          <ChevronRight className="size-3 shrink-0 text-muted-foreground" />
-        )}
-        <Icon className="size-3.5 shrink-0 text-green-500 dark:text-green-400" />
-        <span className="truncate">{label}</span>
-        {items && items.length > 0 && (
-          <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">{items.length}</span>
-        )}
-        {expanded && moduleKind !== 'tables' && (
-          <span title={`创建${label}`}>
-            <Plus
-              className="ml-auto size-3 shrink-0 text-muted-foreground opacity-0 hover:text-foreground group-hover:opacity-100"
-              onClick={handleCreate}
-            />
-          </span>
-        )}
-        {expanded && (
-          <RefreshCw
-            className="ml-auto size-3 shrink-0 text-muted-foreground opacity-0 hover:text-foreground group-hover:opacity-100"
-            onClick={handleRefresh}
-          />
-        )}
-      </button>
-
-      {expanded && (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
         <div>
-          {loading && (
-            <div className="flex items-center gap-1.5 px-2 py-1 pl-10 text-xs text-muted-foreground">
-              <Loader2 className="size-3 animate-spin" />
-              加载中…
-            </div>
-          )}
-          {!loading && error && (
-            <div className="flex items-center gap-1.5 px-2 py-1 pl-10 text-xs text-destructive">
-              <span className="truncate">{error}</span>
-              <Button variant="ghost" size="sm" className="h-5 gap-1 px-1" onClick={handleRefresh}>
-                <RefreshCw className="size-3" />
-                重试
-              </Button>
-            </div>
-          )}
-          {!loading && !error && items && items.length === 0 && (
-            <div className="px-2 py-1 pl-10 text-xs text-muted-foreground">暂无数据</div>
-          )}
-          {!loading &&
-            !error &&
-            (moduleKind === 'tables' || moduleKind === 'views') &&
-            (items as TableInfo[] | undefined)?.map((table) => (
-              <TableNode
-                key={table.name}
-                connectionId={connectionId}
-                connectionName={connectionName}
-                database={database}
-                schema={schema}
-                table={table}
+          <button
+            type="button"
+            onClick={handleToggle}
+            className="group flex w-full items-center gap-1 px-2 py-0.5 pl-6 text-left text-[13px] hover:bg-accent/50"
+          >
+            {expanded ? (
+              <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="size-3 shrink-0 text-muted-foreground" />
+            )}
+            <Icon className="size-3.5 shrink-0 text-green-500 dark:text-green-400" />
+            <span className="truncate">{label}</span>
+            {items && items.length > 0 && (
+              <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">
+                {items.length}
+              </span>
+            )}
+            {expanded && moduleKind !== 'tables' && (
+              <span title={`创建${label}`}>
+                <Plus
+                  className="ml-auto size-3 shrink-0 text-muted-foreground opacity-0 hover:text-foreground group-hover:opacity-100"
+                  onClick={handleCreate}
+                />
+              </span>
+            )}
+            {expanded && (
+              <RefreshCw
+                className="ml-auto size-3 shrink-0 text-muted-foreground opacity-0 hover:text-foreground group-hover:opacity-100"
+                onClick={handleRefresh}
               />
-            ))}
-          {!loading &&
-            !error &&
-            (moduleKind === 'functions' || moduleKind === 'procedures') &&
-            (items as RoutineInfo[] | undefined)?.map((routine) => (
-              <RoutineRow key={routine.name} routine={routine} />
-            ))}
+            )}
+          </button>
+
+          {expanded && (
+            <div>
+              {loading && (
+                <div className="flex items-center gap-1.5 px-2 py-1 pl-10 text-xs text-muted-foreground">
+                  <Loader2 className="size-3 animate-spin" />
+                  加载中…
+                </div>
+              )}
+              {!loading && error && (
+                <div className="flex items-center gap-1.5 px-2 py-1 pl-10 text-xs text-destructive">
+                  <span className="truncate">{error}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-5 gap-1 px-1"
+                    onClick={handleRefresh}
+                  >
+                    <RefreshCw className="size-3" />
+                    重试
+                  </Button>
+                </div>
+              )}
+              {!loading && !error && items && items.length === 0 && (
+                <div className="px-2 py-1 pl-10 text-xs text-muted-foreground">暂无数据</div>
+              )}
+              {!loading &&
+                !error &&
+                (moduleKind === 'tables' || moduleKind === 'views') &&
+                (items as TableInfo[] | undefined)?.map((table) => (
+                  <TableNode
+                    key={table.name}
+                    connectionId={connectionId}
+                    connectionName={connectionName}
+                    database={database}
+                    schema={schema}
+                    table={table}
+                  />
+                ))}
+              {!loading &&
+                !error &&
+                (moduleKind === 'functions' || moduleKind === 'procedures') &&
+                (items as RoutineInfo[] | undefined)?.map((routine) => (
+                  <RoutineRow key={routine.name} routine={routine} />
+                ))}
+            </div>
+          )}
         </div>
+      </ContextMenuTrigger>
+      {inCodeMode && schema && (
+        <ContextMenuContent>
+          <AddToConversationMenuItem
+            id={`module:${connectionId}:${database}:${schema}:${moduleKind}`}
+            type="moduleGroup"
+            label={MODULE_LABEL[moduleKind]}
+            detail={`${connectionName} / ${database} / ${schema}`}
+          />
+        </ContextMenuContent>
       )}
-    </div>
+    </ContextMenu>
   )
 }
 
