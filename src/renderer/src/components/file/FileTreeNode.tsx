@@ -37,6 +37,24 @@ function isSqlFile(name: string): boolean {
   return name.endsWith('.sql')
 }
 
+/** 图片扩展名集合 */
+const IMAGE_EXTENSIONS = new Set([
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.webp',
+  '.bmp',
+  '.svg',
+  '.ico'
+])
+
+/** 判断是否为图片文件 */
+function isImageFile(name: string): boolean {
+  const ext = name.slice(name.lastIndexOf('.')).toLowerCase()
+  return IMAGE_EXTENSIONS.has(ext)
+}
+
 interface TreeItemInputProps {
   depth: number
   icon: React.ReactNode
@@ -165,6 +183,22 @@ export default function FileTreeNode({
       return
     }
     try {
+      // 图片文件：读取为 base64 并打开标签页
+      if (isImageFile(node.name)) {
+        const imageSrc = await fsService.readImageBase64(node.path)
+        if (imageSrc) {
+          useWorkspaceStore.getState().openFileTab({
+            filePath: node.path,
+            fileName: node.name,
+            content: '',
+            isImage: true,
+            imageSrc
+          })
+          return
+        }
+        onError('不支持预览该图片文件')
+        return
+      }
       const result = await fsService.readFileSafe(node.path)
       if (result.isBinary) {
         onError('不支持预览该文件（二进制文件）')

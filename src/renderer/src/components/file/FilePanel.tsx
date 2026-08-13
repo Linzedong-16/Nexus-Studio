@@ -8,6 +8,7 @@ import type { FileTabState, WorkspaceTab } from '@/types/workspace'
 import { useWorkspaceStore } from '@/store/workspaceStore'
 import SqlEditor from '@/components/work/SqlEditor'
 import ResultTable from '@/components/work/ResultTable'
+import ImagePreview from '@/components/file/ImagePreview'
 
 interface FilePanelProps {
   tab: WorkspaceTab
@@ -69,6 +70,10 @@ export default function FilePanel({ tab }: FilePanelProps): React.JSX.Element {
       {state.isBinary ? (
         <div className="flex min-h-0 flex-1 items-center justify-center text-sm text-muted-foreground">
           不支持预览该文件（二进制文件）
+        </div>
+      ) : state.isImage ? (
+        <div className="min-h-0 flex-1">
+          <ImagePreview src={state.imageSrc ?? ''} fileName={state.fileName} />
         </div>
       ) : (
         <div className="min-h-0 flex-1">

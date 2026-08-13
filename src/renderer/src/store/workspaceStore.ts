@@ -65,7 +65,7 @@ function sanitizeForPersist(tabs: WorkspaceTab[]): WorkspaceTab[] {
     if (tab.type === 'file') {
       return {
         ...tab,
-        state: { ...((tab.state as FileTabState) ?? {}), content: '' },
+        state: { ...((tab.state as FileTabState) ?? {}), content: '', imageSrc: undefined },
         result: null,
         error: undefined,
         loading: false
@@ -242,7 +242,9 @@ export const useWorkspaceStore = create<WorkspaceState>()(
             state: {
               filePath: payload.filePath,
               fileName: payload.fileName,
-              content: payload.content
+              content: payload.content,
+              isImage: payload.isImage,
+              imageSrc: payload.imageSrc
             } as FileTabState
           }
           return {
@@ -380,6 +382,18 @@ export const useWorkspaceStore = create<WorkspaceState>()(
           const state = tab.state as FileTabState | undefined
           if (!state?.filePath) continue
           try {
+            // 图片文件：读取为 base64
+            if (state.isImage) {
+              const imageSrc = await fsService.readImageBase64(state.filePath)
+              const updatedTab: WorkspaceTab = {
+                ...tab,
+                state: { ...state, imageSrc: imageSrc ?? undefined, content: '' }
+              }
+              set((s) => ({
+                tabs: s.tabs.map((t) => (t.id === tab.id ? updatedTab : t))
+              }))
+              continue
+            }
             const result = await fsService.readFileSafe(state.filePath)
             const updatedTab: WorkspaceTab = {
               ...tab,

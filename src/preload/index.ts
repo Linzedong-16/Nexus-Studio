@@ -109,7 +109,8 @@ const api: Api = {
     moveItem: createInvoke<[string, string], string>('fs:move'),
     readFileSafe: createInvoke<[string], { isBinary: boolean; content?: string }>(
       'fs:read-file-safe'
-    )
+    ),
+    readImageBase64: createInvoke<[string], string | null>('fs:read-image-base64')
   },
 
   // ─── 定时任务 ───

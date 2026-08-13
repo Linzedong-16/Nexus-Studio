@@ -76,6 +76,10 @@ export interface FileTabState {
   content: string
   /** 是否为二进制文件（为 true 时不渲染编辑器，展示不支持预览提示） */
   isBinary?: boolean
+  /** 是否为图片文件 */
+  isImage?: boolean
+  /** 图片的 base64 data URL（isImage 为 true 时有效） */
+  imageSrc?: string
 }
 
 /** 打开文件标签页的参数 */
@@ -83,6 +87,8 @@ export interface OpenFileTabPayload {
   filePath: string
   fileName: string
   content: string
+  isImage?: boolean
+  imageSrc?: string
 }
 
 /** 工作区标签页 */

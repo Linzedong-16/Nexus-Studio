@@ -173,6 +173,8 @@ export interface FileSystemApi {
   moveItem(sourcePath: string, targetDirPath: string): Promise<string>
   /** 安全读取文件：先探测是否为二进制文件，二进制文件不读取全文内容 */
   readFileSafe(path: string): Promise<{ isBinary: boolean; content?: string }>
+  /** 读取图片文件为 base64 data URL，非图片文件返回 null */
+  readImageBase64(path: string): Promise<string | null>
 }
 
 // ─── 定时任务 API ───

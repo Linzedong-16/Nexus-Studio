@@ -13,6 +13,24 @@ import { readdir, readFile, writeFile, mkdir, rename as fsRename, open } from 'f
 import { existsSync } from 'fs'
 import { createIPCHandler } from './utils'
 
+/** 图片扩展名 → MIME 类型映射 */
+const IMAGE_MIME: Record<string, string> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.bmp': 'image/bmp',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon'
+}
+
+/** 获取图片文件的 MIME 类型 */
+function getImageMime(name: string): string | undefined {
+  const ext = name.slice(name.lastIndexOf('.')).toLowerCase()
+  return IMAGE_MIME[ext]
+}
+
 /** 文件树节点（与渲染进程类型保持一致） */
 interface FileNode {
   name: string
@@ -218,4 +236,17 @@ export function registerFsIPC(): void {
       return { isBinary: false, content }
     }
   )
+
+  // 读取图片文件为 base64 data URL
+  createIPCHandler<[string], string | null>('fs:read-image-base64', async (targetPath: string) => {
+    if (!existsSync(targetPath)) {
+      throw new Error('文件不存在')
+    }
+    const name = targetPath.slice(lastSepIndex(targetPath) + 1)
+    const mime = getImageMime(name)
+    if (!mime) return null
+    const buffer = await readFile(targetPath)
+    const base64 = buffer.toString('base64')
+    return `data:${mime};base64,${base64}`
+  })
 }

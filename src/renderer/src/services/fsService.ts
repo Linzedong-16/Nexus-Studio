@@ -66,5 +66,10 @@ export const fsService = {
   /** 安全读取文件：先探测是否为二进制文件，二进制文件不读取全文内容 */
   async readFileSafe(path: string): Promise<{ isBinary: boolean; content?: string }> {
     return window.api.fs.readFileSafe(path)
+  },
+
+  /** 读取图片文件为 base64 data URL，非图片文件返回 null */
+  async readImageBase64(path: string): Promise<string | null> {
+    return window.api.fs.readImageBase64(path)
   }
 }
