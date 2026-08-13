@@ -2,12 +2,12 @@
 
 ## 实体总览
 
-| 实体                              | 对应 spec Key Entity | 归属层                                   |
-| --------------------------------- | --------------------- | ---------------------------------------- |
-| Project（激活项目根）             | 项目（Project）       | `projectStore` 状态（不持久化）           |
-| RecentProjectEntry（最近项目记录） | 最近项目记录           | `ConfigStore.recentProjects`（持久化）    |
-| FileNode（文件树节点）             | 文件树节点             | `projectStore.fileTree`（不持久化）       |
-| FileTab（文件标签页）              | 文件标签页             | `workspaceStore` 既有 `WorkspaceTab` 的文件类型分支（不持久化内容，仅持久化标签结构） |
+| 实体                               | 对应 spec Key Entity | 归属层                                                                                |
+| ---------------------------------- | -------------------- | ------------------------------------------------------------------------------------- |
+| Project（激活项目根）              | 项目（Project）      | `projectStore` 状态（不持久化）                                                       |
+| RecentProjectEntry（最近项目记录） | 最近项目记录         | `ConfigStore.recentProjects`（持久化）                                                |
+| FileNode（文件树节点）             | 文件树节点           | `projectStore.fileTree`（不持久化）                                                   |
+| FileTab（文件标签页）              | 文件标签页           | `workspaceStore` 既有 `WorkspaceTab` 的文件类型分支（不持久化内容，仅持久化标签结构） |
 
 ---
 
@@ -15,9 +15,9 @@
 
 不作为独立命名类型，由 `projectStore` 的以下字段表达：
 
-| 字段              | 类型             | 说明                                   |
-| ----------------- | ---------------- | -------------------------------------- |
-| `activeProjectPath` | `string \| null` | 当前激活项目的绝对路径；`null` 表示未打开任何项目 |
+| 字段                | 类型             | 说明                                                         |
+| ------------------- | ---------------- | ------------------------------------------------------------ |
+| `activeProjectPath` | `string \| null` | 当前激活项目的绝对路径；`null` 表示未打开任何项目            |
 | `activeProjectName` | `string \| null` | 派生字段（`path.basename` 语义的字符串裁剪），供顶部入口展示 |
 
 **校验规则**：`activeProjectPath` 变更时必须触发 `workspaceStore.closeFileTabsUnderPath(旧路径)`（FR-025），且必须重置 `fileTree`/`expandedPaths`/`selectedPath`（FR-012）。
@@ -43,6 +43,7 @@ interface RecentProjectEntry {
 **归属**：`ConfigStore.recentProjects: RecentProjectEntry[]`（`src/renderer/src/types/ipc.ts`），持久化于 `electron-store`（`src/main/config/store.ts` 默认值新增 `recentProjects: []`）。
 
 **校验规则**（对应 FR-005/006/007/008）：
+
 - 按 `path` 去重：新增/激活某路径时，若已存在同 `path` 记录，先移除旧记录再插入到最前面（更新 `lastUsedAt`），而不是产生重复项。
 - 上限 20 条：插入后若长度超过 20，移除末尾（最久未使用）的记录。
 - 排序：数组顺序即最近使用顺序（下标 0 为最近），不再单独维护排序字段。
@@ -139,6 +140,7 @@ interface WorkspaceStoreNewActions {
 ```
 
 **调用时机**：
+
 - `closeFileTabsUnderPath` ← 项目切换时（旧 `activeProjectPath`）、删除文件/文件夹时（被删除路径）。
 - `renameFileTab` ← 重命名文件/文件夹时（旧路径 → 新路径）。
 
@@ -146,9 +148,9 @@ interface WorkspaceStoreNewActions {
 
 ## 5. 类型文件改动清单
 
-| 文件                                              | 改动                                                              |
-| ------------------------------------------------- | ------------------------------------------------------------------- |
-| `src/renderer/src/types/fileExplorer.ts`          | 新增 `RecentProjectEntry` 接口；`FileNode` 保持不变                  |
-| `src/renderer/src/types/ipc.ts`                   | `ConfigStore` 新增 `recentProjects: RecentProjectEntry[]`；`FileSystemApi` 补充新方法签名（见 [contracts/fs-ipc.md](./contracts/fs-ipc.md)） |
-| `src/renderer/src/types/workspace.ts`             | 补充 `closeFileTabsUnderPath`/`renameFileTab` 的动作类型签名          |
-| `src/main/config/store.ts`                        | `defaults` 新增 `recentProjects: []`                                 |
+| 文件                                     | 改动                                                                                                                                         |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/renderer/src/types/fileExplorer.ts` | 新增 `RecentProjectEntry` 接口；`FileNode` 保持不变                                                                                          |
+| `src/renderer/src/types/ipc.ts`          | `ConfigStore` 新增 `recentProjects: RecentProjectEntry[]`；`FileSystemApi` 补充新方法签名（见 [contracts/fs-ipc.md](./contracts/fs-ipc.md)） |
+| `src/renderer/src/types/workspace.ts`    | 补充 `closeFileTabsUnderPath`/`renameFileTab` 的动作类型签名                                                                                 |
+| `src/main/config/store.ts`               | `defaults` 新增 `recentProjects: []`                                                                                                         |

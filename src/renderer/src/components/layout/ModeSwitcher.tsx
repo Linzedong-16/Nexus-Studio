@@ -95,7 +95,13 @@ export default function ModeSwitcher({ collapsed = false }: ModeSwitcherProps): 
             )}
           >
             {mode.icon ? (
-              <mode.icon className={collapsed ? 'size-4' : 'size-3.5'} />
+              active ? (
+                <mode.icon
+                  className={cn('animate-mode-icon-in', collapsed ? 'size-4' : 'size-3.5')}
+                />
+              ) : collapsed ? (
+                <mode.icon className="size-4" />
+              ) : null
             ) : collapsed ? (
               <span className="text-xs font-medium">{mode.label[0]}</span>
             ) : null}

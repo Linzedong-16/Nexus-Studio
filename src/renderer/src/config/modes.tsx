@@ -1,5 +1,6 @@
 import {
   Blocks,
+  BookOpen,
   CirclePlus,
   CodeXml,
   Folder,
@@ -78,7 +79,7 @@ export const MODES: readonly ModeConfig[] = [
   {
     id: 'work',
     label: 'Work',
-    icon: null,
+    icon: BookOpen,
     basePath: '/work',
     routes: [{ path: '', title: 'Work', Component: WorkHomePage }],
     menuGroups: buildWorkMenuGroups()

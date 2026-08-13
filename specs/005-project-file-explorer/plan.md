@@ -34,16 +34,16 @@
 
 _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
-| 原则                              | 评估                                                                                                                                                                                                                     | 结论   |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------ |
-| I. 进程隔离与安全                 | 所有新增文件系统操作（新建/重命名/删除/移动/二进制探测/读取）均作为主进程 `fs:*` IPC 处理器实现，渲染进程仅经 `window.api.fs` 调用；`contextIsolation=true`/`nodeIntegration=false` 不变；复制路径/相对路径使用渲染进程内置 Web Clipboard API（非 Node API），不违反隔离要求 | PASS   |
-| II. TypeScript 全栈类型安全       | 新增 IPC 通道在主进程处理器与 `preload/index.d.ts` 间保持入参/返回值类型一致；`FileNode`/`RecentProjectEntry`/store 新方法签名均补充完整类型，零 `any`                                                                   | PASS   |
-| III. 组件化与关注点分离           | 新增 `fsService`（`services/`）封装全部 `window.api.fs` 调用，`projectStore` 只调用 `fsService`，不直接调用 `window.api`；新增 `ProjectPicker` 组件仅负责展示与交互，业务逻辑留在 store；布局组件（`Sidebar`/`TitleBar`）不承载业务逻辑                    | PASS   |
-| IV. 数据库适配器模式               | 本功能不涉及数据库适配层                                                                                                                                                                                                 | N/A    |
-| V. IPC 通信契约                   | 新增通道沿用 `fs:动作` kebab-case 命名（如 `fs:create-file`、`fs:rename`、`fs:delete`、`fs:move`）；均为双向 invoke/handle；主进程抛错、渲染进程 Service 层捕获后转换为用户提示；主进程内不含 UI 逻辑                              | PASS   |
-| VI. 分阶段交付                    | 本功能作为单一迭代交付，不划分子阶段；不影响既有 Phase 划分                                                                                                                                                              | N/A    |
-| VII. 中文文档与注释规范           | 本计划及后续 research/data-model/contracts/quickstart 均使用简体中文；新增导出函数/方法/类型将补充中文 JSDoc（`@param`/`@returns`/`@throws`）                                                                            | PASS   |
-| VIII. 依赖最小化                  | 不新增任何 npm 依赖；拖拽用 `@dnd-kit/*`（已存在）、回收站用 `shell.trashItem`（Electron 内置）、剪贴板用 `navigator.clipboard`（Web 内置）、编辑器用 `@monaco-editor/react`（已存在）                                        | PASS   |
+| 原则                        | 评估                                                                                                                                                                                                                                                                         | 结论 |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| I. 进程隔离与安全           | 所有新增文件系统操作（新建/重命名/删除/移动/二进制探测/读取）均作为主进程 `fs:*` IPC 处理器实现，渲染进程仅经 `window.api.fs` 调用；`contextIsolation=true`/`nodeIntegration=false` 不变；复制路径/相对路径使用渲染进程内置 Web Clipboard API（非 Node API），不违反隔离要求 | PASS |
+| II. TypeScript 全栈类型安全 | 新增 IPC 通道在主进程处理器与 `preload/index.d.ts` 间保持入参/返回值类型一致；`FileNode`/`RecentProjectEntry`/store 新方法签名均补充完整类型，零 `any`                                                                                                                       | PASS |
+| III. 组件化与关注点分离     | 新增 `fsService`（`services/`）封装全部 `window.api.fs` 调用，`projectStore` 只调用 `fsService`，不直接调用 `window.api`；新增 `ProjectPicker` 组件仅负责展示与交互，业务逻辑留在 store；布局组件（`Sidebar`/`TitleBar`）不承载业务逻辑                                      | PASS |
+| IV. 数据库适配器模式        | 本功能不涉及数据库适配层                                                                                                                                                                                                                                                     | N/A  |
+| V. IPC 通信契约             | 新增通道沿用 `fs:动作` kebab-case 命名（如 `fs:create-file`、`fs:rename`、`fs:delete`、`fs:move`）；均为双向 invoke/handle；主进程抛错、渲染进程 Service 层捕获后转换为用户提示；主进程内不含 UI 逻辑                                                                        | PASS |
+| VI. 分阶段交付              | 本功能作为单一迭代交付，不划分子阶段；不影响既有 Phase 划分                                                                                                                                                                                                                  | N/A  |
+| VII. 中文文档与注释规范     | 本计划及后续 research/data-model/contracts/quickstart 均使用简体中文；新增导出函数/方法/类型将补充中文 JSDoc（`@param`/`@returns`/`@throws`）                                                                                                                                | PASS |
+| VIII. 依赖最小化            | 不新增任何 npm 依赖；拖拽用 `@dnd-kit/*`（已存在）、回收站用 `shell.trashItem`（Electron 内置）、剪贴板用 `navigator.clipboard`（Web 内置）、编辑器用 `@monaco-editor/react`（已存在）                                                                                       | PASS |
 
 结论：无宪法违规项，无需填写 Complexity Tracking。
 

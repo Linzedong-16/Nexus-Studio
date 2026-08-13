@@ -188,3 +188,24 @@
   animation: none;
   mix-blend-mode: normal;
 }
+
+/*
+ * 模式切换器图标入场动画：仅 GPU 可合成属性（opacity + transform），
+ * 不触发 layout/paint，确保 60fps 丝滑过渡。
+ * 动画时长 180ms，与滑块指示器 duration-150 接近，视觉连贯。
+ */
+@keyframes mode-icon-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@utility animate-mode-icon-in {
+  animation: mode-icon-in 180ms ease-out;
+  will-change: transform, opacity;
+}

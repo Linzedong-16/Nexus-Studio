@@ -6,14 +6,14 @@
 
 ## 新增通道一览
 
-| 通道                | 对应 FR         | 入参                                              | 返回值                                  | 主要错误场景                                   |
-| ------------------- | --------------- | ------------------------------------------------- | ---------------------------------------- | ---------------------------------------------- |
-| `fs:create-file`    | FR-013/019       | `parentDir: string, name: string`                 | `string`（新建文件的绝对路径）           | `parentDir` 下已存在同名条目                    |
-| `fs:create-directory` | FR-013/019     | `parentDir: string, name: string`                 | `string`（新建目录的绝对路径）           | `parentDir` 下已存在同名条目                    |
-| `fs:rename`         | FR-014/019/026   | `oldPath: string, newName: string`                | `string`（重命名后的绝对路径）           | 目标目录下已存在同名条目；`oldPath` 不存在      |
-| `fs:delete`         | FR-015/024       | `path: string`                                    | `void`                                   | `path` 不存在；移入回收站失败（系统级异常）      |
-| `fs:move`           | FR-017           | `sourcePath: string, targetDirPath: string`       | `string`（移动后的绝对路径）             | 目标目录下已存在同名条目；`targetDirPath` 是 `sourcePath` 自身或其子孙目录 |
-| `fs:read-file-safe` | FR-020/021       | `path: string`                                    | `{ isBinary: boolean; content?: string }` | `path` 不存在或无读取权限                        |
+| 通道                  | 对应 FR        | 入参                                        | 返回值                                    | 主要错误场景                                                               |
+| --------------------- | -------------- | ------------------------------------------- | ----------------------------------------- | -------------------------------------------------------------------------- |
+| `fs:create-file`      | FR-013/019     | `parentDir: string, name: string`           | `string`（新建文件的绝对路径）            | `parentDir` 下已存在同名条目                                               |
+| `fs:create-directory` | FR-013/019     | `parentDir: string, name: string`           | `string`（新建目录的绝对路径）            | `parentDir` 下已存在同名条目                                               |
+| `fs:rename`           | FR-014/019/026 | `oldPath: string, newName: string`          | `string`（重命名后的绝对路径）            | 目标目录下已存在同名条目；`oldPath` 不存在                                 |
+| `fs:delete`           | FR-015/024     | `path: string`                              | `void`                                    | `path` 不存在；移入回收站失败（系统级异常）                                |
+| `fs:move`             | FR-017         | `sourcePath: string, targetDirPath: string` | `string`（移动后的绝对路径）              | 目标目录下已存在同名条目；`targetDirPath` 是 `sourcePath` 自身或其子孙目录 |
+| `fs:read-file-safe`   | FR-020/021     | `path: string`                              | `{ isBinary: boolean; content?: string }` | `path` 不存在或无读取权限                                                  |
 
 ## 详细签名
 

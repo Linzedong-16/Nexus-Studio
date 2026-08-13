@@ -23,10 +23,10 @@
 
 **Purpose**：为后续所有阶段准备类型定义与配置默认值，不涉及具体逻辑实现
 
-- [X] T001 [P] 在 `src/renderer/src/types/fileExplorer.ts` 新增 `RecentProjectEntry` 接口（`path`/`name`/`lastUsedAt`），`FileNode` 保持不变
-- [X] T002 [P] 在 `src/renderer/src/types/ipc.ts` 为 `ConfigStore` 新增 `recentProjects: RecentProjectEntry[]` 字段，并为 `FileSystemApi` 补充 `createFile`/`createDirectory`/`rename`/`deleteItem`/`moveItem`/`readFileSafe` 方法签名（签名见 [contracts/fs-ipc.md](./contracts/fs-ipc.md)）
-- [X] T003 [P] 在 `src/renderer/src/types/workspace.ts` 的 `WorkspaceState` 接口新增 `closeFileTabsUnderPath(rootPath: string): void` 与 `renameFileTab(oldPath: string, newPath: string): void` 方法签名
-- [X] T004 [P] 在 `src/main/config/store.ts` 的 `defaults` 中新增 `recentProjects: []`
+- [x] T001 [P] 在 `src/renderer/src/types/fileExplorer.ts` 新增 `RecentProjectEntry` 接口（`path`/`name`/`lastUsedAt`），`FileNode` 保持不变
+- [x] T002 [P] 在 `src/renderer/src/types/ipc.ts` 为 `ConfigStore` 新增 `recentProjects: RecentProjectEntry[]` 字段，并为 `FileSystemApi` 补充 `createFile`/`createDirectory`/`rename`/`deleteItem`/`moveItem`/`readFileSafe` 方法签名（签名见 [contracts/fs-ipc.md](./contracts/fs-ipc.md)）
+- [x] T003 [P] 在 `src/renderer/src/types/workspace.ts` 的 `WorkspaceState` 接口新增 `closeFileTabsUnderPath(rootPath: string): void` 与 `renameFileTab(oldPath: string, newPath: string): void` 方法签名
+- [x] T004 [P] 在 `src/main/config/store.ts` 的 `defaults` 中新增 `recentProjects: []`
 
 **Checkpoint**：类型与配置默认值就位，可开始 Foundational 阶段
 
@@ -38,17 +38,17 @@
 
 **⚠️ CRITICAL**：本阶段完成前，任何用户故事均不可开始实现
 
-- [X] T005 在 `src/main/ipc/fs.ts` 实现 `fs:create-file` 处理器：在 `parentDir` 下创建空文件，同名条目已存在时抛错（FR-013/019）
-- [X] T006 在 `src/main/ipc/fs.ts` 实现 `fs:create-directory` 处理器：逻辑同 T005，创建空文件夹
-- [X] T007 在 `src/main/ipc/fs.ts` 实现 `fs:rename` 处理器：同目录内改名，目标名称冲突或 `oldPath` 不存在时抛错（FR-014/019/026）
-- [X] T008 在 `src/main/ipc/fs.ts` 实现 `fs:delete` 处理器：调用 `shell.trashItem(path)` 移入系统回收站（FR-015/024）
-- [X] T009 在 `src/main/ipc/fs.ts` 实现 `fs:move` 处理器：移动到目标目录，目标目录已有同名条目或目标是源自身/子孙目录时抛错（FR-017）
-- [X] T010 在 `src/main/ipc/fs.ts` 实现 `fs:read-file-safe` 处理器：读取文件前 8KB 探测空字节判定二进制，二进制时返回 `{isBinary: true}` 不读取全文，否则返回 `{isBinary: false, content}`（FR-020/021）
-- [X] T011 [P] 在 `src/preload/index.ts` 的 `fs` 命名空间新增 `createFile`/`createDirectory`/`rename`/`deleteItem`/`moveItem`/`readFileSafe` 对应的 `createInvoke` 声明（依赖 T005-T010）
-- [X] T012 [P] 在 `src/preload/index.d.ts` 的 `FileSystemApi` 接口补充上述 6 个方法的类型签名（依赖 T005-T010，与 T011 并行）
-- [X] T013 新建 `src/renderer/src/services/fsService.ts`：封装 `window.api.fs` 全部调用（既有 6 个 + 新增 6 个方法），遵循 `configService.ts` 的封装模式（依赖 T011/T012）
-- [X] T014 [P] 在 `src/renderer/src/services/index.ts` 导出 `fsService`（依赖 T013）
-- [X] T015 [P] 在 `src/renderer/src/store/workspaceStore.ts` 新增 `closeFileTabsUnderPath(rootPath)`（前缀匹配关闭 `type === 'file'` 标签页）与 `renameFileTab(oldPath, newPath)`（前缀匹配更新 `filePath`/标题）两个动作，实现 T003 的类型签名
+- [x] T005 在 `src/main/ipc/fs.ts` 实现 `fs:create-file` 处理器：在 `parentDir` 下创建空文件，同名条目已存在时抛错（FR-013/019）
+- [x] T006 在 `src/main/ipc/fs.ts` 实现 `fs:create-directory` 处理器：逻辑同 T005，创建空文件夹
+- [x] T007 在 `src/main/ipc/fs.ts` 实现 `fs:rename` 处理器：同目录内改名，目标名称冲突或 `oldPath` 不存在时抛错（FR-014/019/026）
+- [x] T008 在 `src/main/ipc/fs.ts` 实现 `fs:delete` 处理器：调用 `shell.trashItem(path)` 移入系统回收站（FR-015/024）
+- [x] T009 在 `src/main/ipc/fs.ts` 实现 `fs:move` 处理器：移动到目标目录，目标目录已有同名条目或目标是源自身/子孙目录时抛错（FR-017）
+- [x] T010 在 `src/main/ipc/fs.ts` 实现 `fs:read-file-safe` 处理器：读取文件前 8KB 探测空字节判定二进制，二进制时返回 `{isBinary: true}` 不读取全文，否则返回 `{isBinary: false, content}`（FR-020/021）
+- [x] T011 [P] 在 `src/preload/index.ts` 的 `fs` 命名空间新增 `createFile`/`createDirectory`/`rename`/`deleteItem`/`moveItem`/`readFileSafe` 对应的 `createInvoke` 声明（依赖 T005-T010）
+- [x] T012 [P] 在 `src/preload/index.d.ts` 的 `FileSystemApi` 接口补充上述 6 个方法的类型签名（依赖 T005-T010，与 T011 并行）
+- [x] T013 新建 `src/renderer/src/services/fsService.ts`：封装 `window.api.fs` 全部调用（既有 6 个 + 新增 6 个方法），遵循 `configService.ts` 的封装模式（依赖 T011/T012）
+- [x] T014 [P] 在 `src/renderer/src/services/index.ts` 导出 `fsService`（依赖 T013）
+- [x] T015 [P] 在 `src/renderer/src/store/workspaceStore.ts` 新增 `closeFileTabsUnderPath(rootPath)`（前缀匹配关闭 `type === 'file'` 标签页）与 `renameFileTab(oldPath, newPath)`（前缀匹配更新 `filePath`/标题）两个动作，实现 T003 的类型签名
 
 **Checkpoint**：IPC 通道、`fsService`、`workspaceStore` 联动动作全部就位，用户故事阶段可以开始
 
@@ -60,11 +60,11 @@
 
 **Independent Test**：应用启动后点击顶部入口 → 打开文件夹 → 顶部入口文案变为项目名 → 重启应用后「最近」列表仍包含该记录 → 点击「最近」列表可直接切换而不再弹窗（quickstart.md 场景 1）
 
-- [X] T016 [US1] 在 `src/renderer/src/store/fileExplorerStore.ts` 扩展项目选择状态与动作：新增 `activeProjectPath`/`activeProjectName`/`recentProjects` 状态字段，新增 `loadRecentProjects()`/`openFolder()`/`openRecentProject(path)`/`closeWorkspace()` 动作及内部 `activateProject(path)` 辅助函数（调用 `workspaceStore.closeFileTabsUnderPath(旧路径)`、重置树状态、更新并持久化 `recentProjects`）
-- [X] T017 [P] [US1] 在 `src/renderer/src/services/configService.ts` 新增 `getRecentProjects()`/`setRecentProjects(list)` 方法，封装 `window.api.config.get('recentProjects')`/`set('recentProjects', ...)`
-- [X] T018 [P] [US1] 新建 `src/renderer/src/components/layout/ProjectPicker.tsx`：下拉菜单包含「打开文件夹」与「最近」分组列表，调用 `fileExplorerStore` 的 `openFolder`/`openRecentProject`，展示当前激活项目名或未激活占位文案
-- [X] T019 [US1] 在 `src/renderer/src/components/layout/TitleBar.tsx` 插入 `<ProjectPicker />`（依赖 T018）
-- [X] T020 [P] [US1] 在 `src/renderer/src/components/layout/Sidebar.tsx` 将文件资源管理器渲染条件由 `mode.id === 'work' && !collapsed` 调整为 `mode.id === 'work' && !collapsed && activeProjectPath !== null`
+- [x] T016 [US1] 在 `src/renderer/src/store/fileExplorerStore.ts` 扩展项目选择状态与动作：新增 `activeProjectPath`/`activeProjectName`/`recentProjects` 状态字段，新增 `loadRecentProjects()`/`openFolder()`/`openRecentProject(path)`/`closeWorkspace()` 动作及内部 `activateProject(path)` 辅助函数（调用 `workspaceStore.closeFileTabsUnderPath(旧路径)`、重置树状态、更新并持久化 `recentProjects`）
+- [x] T017 [P] [US1] 在 `src/renderer/src/services/configService.ts` 新增 `getRecentProjects()`/`setRecentProjects(list)` 方法，封装 `window.api.config.get('recentProjects')`/`set('recentProjects', ...)`
+- [x] T018 [P] [US1] 新建 `src/renderer/src/components/layout/ProjectPicker.tsx`：下拉菜单包含「打开文件夹」与「最近」分组列表，调用 `fileExplorerStore` 的 `openFolder`/`openRecentProject`，展示当前激活项目名或未激活占位文案
+- [x] T019 [US1] 在 `src/renderer/src/components/layout/TitleBar.tsx` 插入 `<ProjectPicker />`（依赖 T018）
+- [x] T020 [P] [US1] 在 `src/renderer/src/components/layout/Sidebar.tsx` 将文件资源管理器渲染条件由 `mode.id === 'work' && !collapsed` 调整为 `mode.id === 'work' && !collapsed && activeProjectPath !== null`
 
 **Checkpoint**：User Story 1 可独立验证——顶部选择/切换项目、最近列表持久化全部可用
 
@@ -76,9 +76,9 @@
 
 **Independent Test**：打开含多层子目录的项目，逐级展开定位深层文件，折叠根节点后全部内容隐藏，再展开后此前子目录展开态被保留；切换到另一「最近」项目后树被完全替换（quickstart.md 场景 2）
 
-- [X] T021 [US2] 在 `src/renderer/src/store/fileExplorerStore.ts` 补齐 `fileTree`/`expandedPaths`/`loading` 状态与 `toggleExpand(dirPath)` 动作（懒加载子节点、失败时回滚展开态），并在 `activateProject` 中接入：切换项目时重置 `fileTree`/`expandedPaths`
-- [X] T022 [US2] 更新 `src/renderer/src/components/file/FileExplorer.tsx`：移除「打开文件夹」工具条按钮（由 `ProjectPicker` 承担），新增可折叠的根节点标题（展示项目名，点击整体折叠/展开树内容，不清空各子目录的 `expandedPaths`）
-- [X] T023 [P] [US2] 核查 `src/main/ipc/fs.ts` 的 `fs:read-dir` 处理器继续正确过滤 `.` 开头隐藏条目、保持目录在前/文件在后按名称排序的既有行为（FR-009/FR-010），如有回归则修复
+- [x] T021 [US2] 在 `src/renderer/src/store/fileExplorerStore.ts` 补齐 `fileTree`/`expandedPaths`/`loading` 状态与 `toggleExpand(dirPath)` 动作（懒加载子节点、失败时回滚展开态），并在 `activateProject` 中接入：切换项目时重置 `fileTree`/`expandedPaths`
+- [x] T022 [US2] 更新 `src/renderer/src/components/file/FileExplorer.tsx`：移除「打开文件夹」工具条按钮（由 `ProjectPicker` 承担），新增可折叠的根节点标题（展示项目名，点击整体折叠/展开树内容，不清空各子目录的 `expandedPaths`）
+- [x] T023 [P] [US2] 核查 `src/main/ipc/fs.ts` 的 `fs:read-dir` 处理器继续正确过滤 `.` 开头隐藏条目、保持目录在前/文件在后按名称排序的既有行为（FR-009/FR-010），如有回归则修复
 
 **Checkpoint**：User Story 1 + 2 共同验证通过——项目选择与文件树浏览均可用
 
@@ -90,14 +90,14 @@
 
 **Independent Test**：右键新建文件遇同名报错拒绝；重命名/删除文件磁盘同步更新，删除后系统回收站可见；拖拽文件到另一文件夹成功移动，拖拽到自身子目录被拒绝；复制路径/相对路径写入剪贴板正确（quickstart.md 场景 3）
 
-- [X] T024 [US3] 在 `src/renderer/src/store/fileExplorerStore.ts` 新增 `selectedPath` 状态与 `setSelected(path)`/`createFile(parentDir, name)`/`createFolder(parentDir, name)`/`rename(oldPath, newName)`/`remove(path)`/`move(sourcePath, targetDirPath)` 动作：均调用 `fsService` 对应方法、成功后立即更新 `fileTree`（复用既有 `updateNodeChildren` 风格的不可变更新辅助函数）；`rename`/`remove` 分别调用 `workspaceStore.getState().renameFileTab`/`closeFileTabsUnderPath`
-- [X] T025 [US3] 在 `src/renderer/src/store/fileExplorerStore.ts` 移除 `createSqlFile` 动作（由通用 `createFile` 取代，遵循 spec.md Assumptions 决策）
-- [X] T026 [US3] 扩展 `src/renderer/src/components/file/FileTreeNode.tsx` 右键上下文菜单：移除「新建 SQL 脚本」，新增「新建文件」/「新建文件夹」（仅目录节点，创建后进入命名编辑态）、「重命名」、「删除」、「复制路径」、「复制相对路径」（`navigator.clipboard.writeText`，相对路径基于 `activeProjectPath` 前缀裁剪）
-- [X] T027 [US3] 在 `src/renderer/src/components/file/FileTreeNode.tsx` 新增单选视觉态：点击节点调用 `setSelected(node.path)` 并高亮当前选中节点
-- [X] T028 [P] [US3] 在 `src/renderer/src/components/file/FileExplorer.tsx` 的文件树容器新增局部 `onKeyDown` 监听：聚焦且存在 `selectedPath` 时，`F2` 触发对应节点进入重命名编辑态，`Delete` 触发删除确认弹窗
-- [X] T029 [US3] 在 `src/renderer/src/components/file/FileTreeNode.tsx` 使用 `@dnd-kit/core` 为节点添加 draggable（文件与文件夹）与 droppable（仅文件夹）：drop 时调用 `move(sourcePath, targetDirPath)`，客户端先校验目标不是源自身或其子孙路径，非法时直接阻止 drop
-- [X] T030 [US3] 在 `src/renderer/src/components/file/FileTreeNode.tsx` 实现命名编辑态 UI：文本输入框替换节点标签，Enter/失焦确认调用 `rename()`/`createFile()`/`createFolder()`，Escape 取消
-- [X] T031 [US3] 在 `src/renderer/src/components/file/FileExplorer.tsx` 新增删除确认弹窗（复用现有 Dialog 组件），确认后调用 `remove(selectedPath)`
+- [x] T024 [US3] 在 `src/renderer/src/store/fileExplorerStore.ts` 新增 `selectedPath` 状态与 `setSelected(path)`/`createFile(parentDir, name)`/`createFolder(parentDir, name)`/`rename(oldPath, newName)`/`remove(path)`/`move(sourcePath, targetDirPath)` 动作：均调用 `fsService` 对应方法、成功后立即更新 `fileTree`（复用既有 `updateNodeChildren` 风格的不可变更新辅助函数）；`rename`/`remove` 分别调用 `workspaceStore.getState().renameFileTab`/`closeFileTabsUnderPath`
+- [x] T025 [US3] 在 `src/renderer/src/store/fileExplorerStore.ts` 移除 `createSqlFile` 动作（由通用 `createFile` 取代，遵循 spec.md Assumptions 决策）
+- [x] T026 [US3] 扩展 `src/renderer/src/components/file/FileTreeNode.tsx` 右键上下文菜单：移除「新建 SQL 脚本」，新增「新建文件」/「新建文件夹」（仅目录节点，创建后进入命名编辑态）、「重命名」、「删除」、「复制路径」、「复制相对路径」（`navigator.clipboard.writeText`，相对路径基于 `activeProjectPath` 前缀裁剪）
+- [x] T027 [US3] 在 `src/renderer/src/components/file/FileTreeNode.tsx` 新增单选视觉态：点击节点调用 `setSelected(node.path)` 并高亮当前选中节点
+- [x] T028 [P] [US3] 在 `src/renderer/src/components/file/FileExplorer.tsx` 的文件树容器新增局部 `onKeyDown` 监听：聚焦且存在 `selectedPath` 时，`F2` 触发对应节点进入重命名编辑态，`Delete` 触发删除确认弹窗
+- [x] T029 [US3] 在 `src/renderer/src/components/file/FileTreeNode.tsx` 使用 `@dnd-kit/core` 为节点添加 draggable（文件与文件夹）与 droppable（仅文件夹）：drop 时调用 `move(sourcePath, targetDirPath)`，客户端先校验目标不是源自身或其子孙路径，非法时直接阻止 drop
+- [x] T030 [US3] 在 `src/renderer/src/components/file/FileTreeNode.tsx` 实现命名编辑态 UI：文本输入框替换节点标签，Enter/失焦确认调用 `rename()`/`createFile()`/`createFolder()`，Escape 取消
+- [x] T031 [US3] 在 `src/renderer/src/components/file/FileExplorer.tsx` 新增删除确认弹窗（复用现有 Dialog 组件），确认后调用 `remove(selectedPath)`
 
 **Checkpoint**：User Story 1 + 2 + 3 共同验证通过——项目选择、文件树浏览、文件管理操作均可用
 
@@ -109,12 +109,12 @@
 
 **Independent Test**：点击不同扩展名文件验证语法高亮与保存写回磁盘；点击二进制文件仅提示不新增标签页；切换项目后旧项目文件标签页全部自动关闭；对已打开文件重命名/删除，标签页自动跟随更新/关闭（quickstart.md 场景 4）
 
-- [X] T032 [US4] 在 `src/renderer/src/components/work/SqlEditor.tsx` 新增文件扩展名到 Monaco language id 的映射（`.ts/.tsx`→typescript、`.js/.jsx`→javascript、`.json`→json、`.md`→markdown、`.html`→html、`.css`→css、`.py`→python、`.yaml/.yml`→yaml、`.sql`→pgsql、未知→plaintext），新增可选 `language` prop（默认 `pgsql`）转发给 Monaco `<Editor>`，仅当 `language === 'pgsql'` 时注册 SQL 补全提供者
-- [X] T033 [US4] 更新 `src/renderer/src/components/work/FilePanel.tsx`：按 `state.fileName`/`state.filePath` 扩展名计算 Monaco language id，作为新增 `language` prop 传给 `SqlEditor`（依赖 T032）
-- [X] T034 [P] [US4] 泛化 `src/renderer/src/components/file/FileTreeNode.tsx` 的打开行为：文件节点单击（非目录）调用 `fsService.readFileSafe(node.path)`，`isBinary` 为 `true` 时提示"不支持预览"且不新增标签页，否则调用 `workspaceStore.getState().openFileTab({filePath, fileName, content})`（替换原先仅 `.sql` 文件双击打开的逻辑）
-- [X] T035 [US4] 在 `src/renderer/src/components/work/FilePanel.tsx` 补充二进制文件兜底展示：当标签页对应文件被判定为二进制时渲染"不支持预览"提示而非编辑器（依赖 T033）
-- [X] T036 [P] [US4] 核实 `src/renderer/src/store/fileExplorerStore.ts` 的 `activateProject`（T016）在切换项目前正确调用 `workspaceStore.getState().closeFileTabsUnderPath(旧 activeProjectPath)`，确保旧项目文件标签页全部自动关闭（FR-025）
-- [X] T037 [US4] 核实 `src/renderer/src/store/fileExplorerStore.ts` 的 `rename()`/`remove()`（T024）分别正确调用 `workspaceStore.getState().renameFileTab`/`closeFileTabsUnderPath`，确保已打开文件的标签页自动跟随更新/关闭（FR-026）
+- [x] T032 [US4] 在 `src/renderer/src/components/work/SqlEditor.tsx` 新增文件扩展名到 Monaco language id 的映射（`.ts/.tsx`→typescript、`.js/.jsx`→javascript、`.json`→json、`.md`→markdown、`.html`→html、`.css`→css、`.py`→python、`.yaml/.yml`→yaml、`.sql`→pgsql、未知→plaintext），新增可选 `language` prop（默认 `pgsql`）转发给 Monaco `<Editor>`，仅当 `language === 'pgsql'` 时注册 SQL 补全提供者
+- [x] T033 [US4] 更新 `src/renderer/src/components/work/FilePanel.tsx`：按 `state.fileName`/`state.filePath` 扩展名计算 Monaco language id，作为新增 `language` prop 传给 `SqlEditor`（依赖 T032）
+- [x] T034 [P] [US4] 泛化 `src/renderer/src/components/file/FileTreeNode.tsx` 的打开行为：文件节点单击（非目录）调用 `fsService.readFileSafe(node.path)`，`isBinary` 为 `true` 时提示"不支持预览"且不新增标签页，否则调用 `workspaceStore.getState().openFileTab({filePath, fileName, content})`（替换原先仅 `.sql` 文件双击打开的逻辑）
+- [x] T035 [US4] 在 `src/renderer/src/components/work/FilePanel.tsx` 补充二进制文件兜底展示：当标签页对应文件被判定为二进制时渲染"不支持预览"提示而非编辑器（依赖 T033）
+- [x] T036 [P] [US4] 核实 `src/renderer/src/store/fileExplorerStore.ts` 的 `activateProject`（T016）在切换项目前正确调用 `workspaceStore.getState().closeFileTabsUnderPath(旧 activeProjectPath)`，确保旧项目文件标签页全部自动关闭（FR-025）
+- [x] T037 [US4] 核实 `src/renderer/src/store/fileExplorerStore.ts` 的 `rename()`/`remove()`（T024）分别正确调用 `workspaceStore.getState().renameFileTab`/`closeFileTabsUnderPath`，确保已打开文件的标签页自动跟随更新/关闭（FR-026）
 
 **Checkpoint**：4 个用户故事全部独立可用——顶部项目选择、文件树浏览、文件管理操作、文件预览编辑
 
@@ -124,9 +124,9 @@
 
 **Purpose**：清理被取代的旧能力、端到端手动验证
 
-- [X] T038 [P] 清理 `src/renderer/src/components/file/FileExplorer.tsx` 与 `src/renderer/src/components/file/FileTreeNode.tsx` 中残留的「新建 SQL 脚本」相关未使用图标引用/样式
-- [X] T039 运行 `pnpm dev`，按 [quickstart.md](./quickstart.md) 场景 1-4 全部手动验证，修复过程中发现的回归问题
-- [X] T040 [P] 核实 `src/renderer/src/store/workspaceStore.ts` 的 `hydrateFileTabs()` 在新 `fsService`/`readFileSafe` 引入后仍能正确恢复文件标签页内容（文件不存在时关闭标签页的既有 catch 逻辑保持不变）
+- [x] T038 [P] 清理 `src/renderer/src/components/file/FileExplorer.tsx` 与 `src/renderer/src/components/file/FileTreeNode.tsx` 中残留的「新建 SQL 脚本」相关未使用图标引用/样式
+- [x] T039 运行 `pnpm dev`，按 [quickstart.md](./quickstart.md) 场景 1-4 全部手动验证，修复过程中发现的回归问题
+- [x] T040 [P] 核实 `src/renderer/src/store/workspaceStore.ts` 的 `hydrateFileTabs()` 在新 `fsService`/`readFileSafe` 引入后仍能正确恢复文件标签页内容（文件不存在时关闭标签页的既有 catch 逻辑保持不变）
 
 ---
 
@@ -184,10 +184,10 @@ Task: "在 src/preload/index.d.ts 补充 FileSystemApi 新方法签名"
 ### Incremental Delivery
 
 1. Setup + Foundational → 基础设施就位
-2. + User Story 1 → 验证 → MVP 起点（仅项目选择）
-3. + User Story 2 → 验证 → MVP 完整（选择 + 浏览，quickstart 场景 1-2）
-4. + User Story 3 → 验证 → 文件管理操作可用（quickstart 场景 3）
-5. + User Story 4 → 验证 → 文件预览编辑可用（quickstart 场景 4）
+2. - User Story 1 → 验证 → MVP 起点（仅项目选择）
+3. - User Story 2 → 验证 → MVP 完整（选择 + 浏览，quickstart 场景 1-2）
+4. - User Story 3 → 验证 → 文件管理操作可用（quickstart 场景 3）
+5. - User Story 4 → 验证 → 文件预览编辑可用（quickstart 场景 4）
 6. 每个故事增量交付且不破坏此前故事
 
 ---
