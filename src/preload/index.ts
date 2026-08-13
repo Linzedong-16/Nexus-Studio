@@ -94,6 +94,11 @@ const api: Api = {
     )
   },
 
+  // ─── 主题外观 ───
+  theme: {
+    setBackgroundColor: createInvoke<[string], void>('theme:set-background-color')
+  },
+
   // ─── 文件系统操作 ───
   fs: {
     pickFolder: createInvoke<[], string | null>('fs:pick-folder'),

@@ -35,4 +35,9 @@ export function registerWindowIpc(mainWindow: BrowserWindow): void {
   mainWindow.on('unmaximize', () => {
     mainWindow.webContents.send('window:maximized-changed', false)
   })
+
+  // 主题切换时同步窗口背景色，避免最小化/还原动画中的白屏闪烁
+  ipcMain.handle('theme:set-background-color', (_event, color: string) => {
+    mainWindow.setBackgroundColor(color)
+  })
 }

@@ -146,6 +146,13 @@ export interface AppApi {
   getVersions(): Promise<AppVersions>
 }
 
+// ─── 主题外观 API ───
+
+export interface ThemeApi {
+  /** 设置窗口背景色（用于主题切换时同步，避免动画白屏闪烁） */
+  setBackgroundColor(color: string): Promise<void>
+}
+
 // ─── 文件系统 API ───
 
 export interface FileSystemApi {
@@ -214,6 +221,7 @@ export interface Api {
   log: LogApi
   avatar: AvatarApi
   app: AppApi
+  theme: ThemeApi
   fs: FileSystemApi
   task: TaskApi
 }
