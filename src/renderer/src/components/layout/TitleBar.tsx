@@ -82,6 +82,9 @@ export default function TitleBar(): React.JSX.Element {
             <DropdownMenuItem onClick={() => setSettingsOpen(true)}>快捷键</DropdownMenuItem>
             <DropdownMenuItem>检查更新</DropdownMenuItem>
             <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => void window.api.windowControls.openDevTools()}>
+              切换开发人员工具
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setAboutOpen(true)}>
               关于 Nexus Studio
             </DropdownMenuItem>

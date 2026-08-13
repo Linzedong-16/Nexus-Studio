@@ -34,6 +34,8 @@ export interface WindowControlsApi {
   toggleMaximize(): Promise<boolean>
   close(): Promise<void>
   isMaximized(): Promise<boolean>
+  /** 切换开发人员工具（DevTools） */
+  openDevTools(): Promise<void>
   /** 订阅最大化状态变化；返回取消订阅函数 */
   onMaximizedChange(callback: (maximized: boolean) => void): () => void
 }

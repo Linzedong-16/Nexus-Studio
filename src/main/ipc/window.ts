@@ -40,4 +40,12 @@ export function registerWindowIpc(mainWindow: BrowserWindow): void {
   ipcMain.handle('theme:set-background-color', (_event, color: string) => {
     mainWindow.setBackgroundColor(color)
   })
+
+  // 切换开发人员工具（独立窗口打开）
+  ipcMain.handle('window:open-dev-tools', (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    if (win) {
+      win.webContents.openDevTools({ mode: 'detach' })
+    }
+  })
 }

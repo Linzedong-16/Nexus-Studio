@@ -32,7 +32,8 @@ const api: Api = {
     toggleMaximize: createInvoke<[], boolean>('window:toggle-maximize'),
     close: createInvoke('window:close'),
     isMaximized: createInvoke<[], boolean>('window:is-maximized'),
-    onMaximizedChange: createListener<boolean>('window:maximized-changed')
+    onMaximizedChange: createListener<boolean>('window:maximized-changed'),
+    openDevTools: createInvoke<[], void>('window:open-dev-tools')
   },
 
   // ─── 数据库操作 ───
