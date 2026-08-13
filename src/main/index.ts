@@ -25,13 +25,17 @@ function createWindow(): void {
     minWidth: 940,
     minHeight: 600,
     show: false,
+    backgroundColor: '#fafafa',
     frame: false,
     autoHideMenuBar: true,
     icon,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
+      // 禁用沙箱模式，允许预加载脚本直接访问渲染进程的 DOM （因为electron官方工具包在 preload 中通过 createInvoke 注册大量 IPC 通道，一般会关闭沙箱模式）
       sandbox: false,
+      // 隔离预加载脚本与渲染进程，防止预加载脚本直接访问渲染进程的 DOM
       contextIsolation: true,
+      // 页面不能直接使用node
       nodeIntegration: false
     }
   })
