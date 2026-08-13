@@ -53,16 +53,26 @@ export default function AppShell(): React.JSX.Element {
   }, [])
 
   // main 的左边界随侧边栏折叠/窗口尺寸变化，供 LogPanel 等全局浮层避让侧边栏
+  // 使用 rAF 节流，避免侧边栏过渡动画期间每帧都触发 setState 导致卡顿
   useEffect(() => {
     const el = mainRef.current
     if (!el) return
 
-    const measure = (): void => setContentInsetLeft(el.getBoundingClientRect().left)
-    measure()
+    let rafId = 0
+    const measure = (): void => {
+      cancelAnimationFrame(rafId)
+      rafId = requestAnimationFrame(() => {
+        setContentInsetLeft(el.getBoundingClientRect().left)
+      })
+    }
 
+    measure()
     const observer = new ResizeObserver(measure)
     observer.observe(el)
-    return () => observer.disconnect()
+    return () => {
+      cancelAnimationFrame(rafId)
+      observer.disconnect()
+    }
   }, [setContentInsetLeft])
 
   return (

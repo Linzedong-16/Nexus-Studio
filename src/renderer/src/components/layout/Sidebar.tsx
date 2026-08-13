@@ -15,7 +15,7 @@ export default function Sidebar(): React.JSX.Element {
   return (
     <aside
       className={cn(
-        'flex shrink-0 flex-col bg-sidebar transition-[width] duration-150 ease-out',
+        'flex shrink-0 flex-col bg-sidebar transition-[width,transform] duration-150 ease-out will-change-[width]',
         collapsed ? 'w-14' : 'w-55'
       )}
     >

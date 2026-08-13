@@ -31,17 +31,25 @@ export default function ExplorerLayout({ children }: ExplorerLayoutProps): React
   }, [schemaTreeCollapsed])
 
   // Schema 树宽度（含 1px 边框分隔条）会随拖拽/折叠变化，实时测量供 LogPanel 等全局浮层避让
+  // 使用 rAF 节流，避免拖拽动画期间每帧都触发 setState 导致卡顿
   useEffect(() => {
     const el = schemaTreeWrapRef.current
     if (!el) return
 
     const SEPARATOR_WIDTH = 4
-    const measure = (): void => setSchemaTreeExtraWidth(el.offsetWidth + SEPARATOR_WIDTH)
-    measure()
+    let rafId = 0
+    const measure = (): void => {
+      cancelAnimationFrame(rafId)
+      rafId = requestAnimationFrame(() => {
+        setSchemaTreeExtraWidth(el.offsetWidth + SEPARATOR_WIDTH)
+      })
+    }
 
+    measure()
     const observer = new ResizeObserver(measure)
     observer.observe(el)
     return () => {
+      cancelAnimationFrame(rafId)
       observer.disconnect()
       setSchemaTreeExtraWidth(0)
     }
