@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router'
 import TitleBar from './TitleBar'
 import Sidebar from './Sidebar'
@@ -24,9 +24,9 @@ import { queryService } from '@/services/queryService'
  */
 export default function AppShell(): React.JSX.Element {
   const location = useLocation()
+  const sidebarCollapsed = useShellStore((s) => s.sidebarCollapsed)
   const setLastMode = useShellStore((s) => s.setLastMode)
   const setContentInsetLeft = useShellStore((s) => s.setContentInsetLeft)
-  const mainRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
     setLastMode(resolveModeByPath(location.pathname).id)
@@ -52,35 +52,17 @@ export default function AppShell(): React.JSX.Element {
     return queryService.onDbLog((entry) => useLogStore.getState().append(entry))
   }, [])
 
-  // main 的左边界随侧边栏折叠/窗口尺寸变化，供 LogPanel 等全局浮层避让侧边栏
-  // 使用 rAF 节流，避免侧边栏过渡动画期间每帧都触发 setState 导致卡顿
+  // 侧边栏宽度固定，直接根据折叠状态计算 main 左边界，供 LogPanel 等全局浮层避让
   useEffect(() => {
-    const el = mainRef.current
-    if (!el) return
-
-    let rafId = 0
-    const measure = (): void => {
-      cancelAnimationFrame(rafId)
-      rafId = requestAnimationFrame(() => {
-        setContentInsetLeft(el.getBoundingClientRect().left)
-      })
-    }
-
-    measure()
-    const observer = new ResizeObserver(measure)
-    observer.observe(el)
-    return () => {
-      cancelAnimationFrame(rafId)
-      observer.disconnect()
-    }
-  }, [setContentInsetLeft])
+    setContentInsetLeft(sidebarCollapsed ? 56 : 220)
+  }, [sidebarCollapsed, setContentInsetLeft])
 
   return (
     <div className="flex h-full flex-col">
       <TitleBar />
       <div className="flex min-h-0 flex-1">
         <Sidebar />
-        <main ref={mainRef} className="min-w-0 flex-1 overflow-y-auto bg-background">
+        <main className="min-w-0 flex-1 overflow-y-auto bg-background">
           <Outlet />
         </main>
       </div>

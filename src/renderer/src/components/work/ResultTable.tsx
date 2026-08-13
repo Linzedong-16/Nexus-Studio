@@ -87,14 +87,23 @@ export default function ResultTable({
   }
 
   // 监听滚动容器宽度变化，用于计算「列少时均分撑满、列多时退化为最小宽度」的列宽
+  // 使用 rAF 节流，避免侧边栏收展动画期间每帧触发 ResizeObserver 导致全表重算列宽
   useEffect(() => {
     if (!scrollEl) return
+    let rafId = 0
     const observer = new ResizeObserver((entries) => {
       const width = entries[0]?.contentRect.width
-      if (width !== undefined) setContainerWidth(width)
+      if (width === undefined) return
+      cancelAnimationFrame(rafId)
+      rafId = requestAnimationFrame(() => {
+        setContainerWidth(width)
+      })
     })
     observer.observe(scrollEl)
-    return () => observer.disconnect()
+    return () => {
+      cancelAnimationFrame(rafId)
+      observer.disconnect()
+    }
   }, [scrollEl])
 
   const virtualizer = useVirtualizer({
@@ -196,7 +205,7 @@ export default function ResultTable({
         <div role="table" className="text-sm">
           <div
             role="row"
-            className="sticky top-0 z-10 w-full bg-muted transition-[grid-template-columns] duration-200 ease-out"
+            className="sticky top-0 z-10 w-full bg-muted"
             style={{ display: 'grid', gridTemplateColumns }}
           >
             <div className={cn('border-b', editMode && 'border-r')} />
@@ -223,7 +232,7 @@ export default function ResultTable({
                   key={rowIndex}
                   role="row"
                   className={cn(
-                    'absolute top-0 left-0 w-full transition-[grid-template-columns] duration-200 ease-out hover:bg-accent/40',
+                    'absolute top-0 left-0 w-full hover:bg-accent/40',
                     rowIndex % 2 === 1 && 'bg-muted/30',
                     selectedRowIndexes?.has(rowIndex) && 'bg-primary/10'
                   )}

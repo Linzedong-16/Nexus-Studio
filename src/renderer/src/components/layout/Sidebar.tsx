@@ -6,7 +6,8 @@ import { cn } from '@/lib/utils'
 
 /**
  * 侧边栏容器（FR-011/013/015）
- * 展开 220px ⇄ 折叠 56px 图标窄栏，宽度过渡 ≤300ms；折叠态导航仍可用
+ * 展开 220px ⇄ 折叠 56px 图标窄栏，宽度过渡 150ms
+ * 使用 will-change: width 提升为独立合成层，配合已移除的 ResizeObserver 级联链路，不再触发表格式重渲染
  * US3：底部集成 UserPanel（滚动区之外）
  */
 export default function Sidebar(): React.JSX.Element {
@@ -15,7 +16,7 @@ export default function Sidebar(): React.JSX.Element {
   return (
     <aside
       className={cn(
-        'flex shrink-0 flex-col bg-sidebar transition-[width,transform] duration-150 ease-out will-change-[width]',
+        'flex shrink-0 flex-col bg-sidebar transition-[width] duration-150 ease-out will-change-[width]',
         collapsed ? 'w-14' : 'w-55'
       )}
     >
