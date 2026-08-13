@@ -29,6 +29,7 @@
   - [x] 运行 `pnpm run lint`，确保 0 错误/警告
 
 # Task Dependencies
+
 - Task 2 依赖 Task 1（补全提供者需要配置模块）
 - Task 3 依赖 Task 2（集成需要补全提供者完成）
 - Task 4 依赖 Task 3（SqlEditor 需要可用的补全注册函数）

@@ -1,4 +1,5 @@
 import type { ConnectionConfig, ConfigStore } from '../types/ipc'
+import type { RecentProjectEntry } from '../types/fileExplorer'
 
 /**
  * 配置管理服务层
@@ -81,5 +82,20 @@ export const configService = {
    */
   async getAll(): Promise<ConfigStore> {
     return window.api.config.getAll()
+  },
+
+  /**
+   * 获取「最近项目」列表
+   */
+  async getRecentProjects(): Promise<RecentProjectEntry[]> {
+    const list = await window.api.config.get<RecentProjectEntry[]>('recentProjects')
+    return list ?? []
+  },
+
+  /**
+   * 设置「最近项目」列表
+   */
+  async setRecentProjects(list: RecentProjectEntry[]): Promise<void> {
+    return window.api.config.set('recentProjects', list)
   }
 }

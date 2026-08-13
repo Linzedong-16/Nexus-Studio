@@ -31,6 +31,7 @@ openErAnalysisTab(payload: OpenErAnalysisTabPayload): string // 返回 tabId
 ```
 
 行为契约：
+
 1. 在现有 `tabs` 中查找 `type === 'er-analysis' && state.connectionId === payload.connectionId && state.database === payload.database` 的标签页。
 2. 若找到：调用 `activateTab(existing.id)`，返回 `existing.id`，**不**新建标签页（FR-009）。
 3. 若未找到：新建 `WorkspaceTab`（`type: 'er-analysis'`，`title` 用 `${payload.database}` 或 `${payload.connectionName} · ${payload.database}`，`closable: true`，`state: payload`），`push` 后 `activateTab`，返回新 `id`。
@@ -127,13 +128,15 @@ useErStore.getState().setPickerOpen(true)
 将现有 `<button>` 包裹进 shadcn `DropdownMenu`（复用 `WorkspaceTabs.tsx` 已验证的 `DropdownMenu`/`DropdownMenuContent`/`DropdownMenuItem`/`DropdownMenuTrigger` 用法），新增菜单项：
 
 ```tsx
-<DropdownMenuItem onSelect={() => {
-  useWorkspaceStore.getState().openErAnalysisTab({
-    connectionId,
-    connectionName,
-    database: database.name
-  })
-}}>
+<DropdownMenuItem
+  onSelect={() => {
+    useWorkspaceStore.getState().openErAnalysisTab({
+      connectionId,
+      connectionName,
+      database: database.name
+    })
+  }}
+>
   ER 分析
 </DropdownMenuItem>
 ```

@@ -13,6 +13,7 @@ import type {
   DbLogEntry
 } from '../renderer/src/types/ipc'
 import type { KeybindingEntry } from '../renderer/src/types/keybinding'
+import type { FileNode } from '../renderer/src/types/fileExplorer'
 
 /**
  * 渲染进程可用 API —— 使用工厂函数创建，声明式定义
@@ -89,6 +90,24 @@ const api: Api = {
   app: {
     getVersions: createInvoke<[], import('../renderer/src/types/ipc').AppVersions>(
       'app:get-versions'
+    )
+  },
+
+  // ─── 文件系统操作 ───
+  fs: {
+    pickFolder: createInvoke<[], string | null>('fs:pick-folder'),
+    readDir: createInvoke<[string], FileNode[]>('fs:read-dir'),
+    readFile: createInvoke<[string], string>('fs:read-file'),
+    writeFile: createInvoke<[string, string], void>('fs:write-file'),
+    showItemInFolder: createInvoke<[string], void>('fs:show-item'),
+    fileExists: createInvoke<[string], boolean>('fs:file-exists'),
+    createFile: createInvoke<[string, string], string>('fs:create-file'),
+    createDirectory: createInvoke<[string, string], string>('fs:create-directory'),
+    rename: createInvoke<[string, string], string>('fs:rename'),
+    deleteItem: createInvoke<[string], void>('fs:delete'),
+    moveItem: createInvoke<[string, string], string>('fs:move'),
+    readFileSafe: createInvoke<[string], { isBinary: boolean; content?: string }>(
+      'fs:read-file-safe'
     )
   }
 }

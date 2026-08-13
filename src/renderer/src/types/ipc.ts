@@ -6,6 +6,7 @@
  *
  * 宪法 II：IPC 接口类型化，确保三个进程的类型一致
  */
+import type { RecentProjectEntry } from './fileExplorer'
 
 // ─── 数据库类型 ───
 
@@ -215,6 +216,8 @@ export interface ConfigStore {
   pageSize: number
   connections: StoredConnection[]
   recentFiles: string[]
+  /** 「最近项目」列表，按最近使用排序，上限 20 条 */
+  recentProjects: RecentProjectEntry[]
   windowBounds?: { x: number; y: number; width: number; height: number }
 }
 

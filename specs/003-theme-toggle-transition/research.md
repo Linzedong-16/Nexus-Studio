@@ -9,16 +9,19 @@
 **Decision**: 新建渲染进程专用的 `useThemeStore`（Zustand + `persist` 中间件，`name: 'theme-store'`，落盘到 `localStorage`），字段仅 `mode: 'light' | 'dark'`，整体持久化（无需 `partialize` 裁剪）。
 
 **Rationale**:
+
 - 项目已有完全相同性质的先例：`shellStore.ts` 的 `sidebarCollapsed`/`lastMode` 就是"纯渲染进程 UI 偏好"，同样用 `persist` 落到 `localStorage`，不经过主进程 `electron-store`/IPC。主题偏好与这两项属于同一类状态（本机、本用户、界面级、与业务数据无关），复用同一模式最省心且符合宪法 VIII"依赖最小化"与既有约定保持一致。
 - 若改走主进程 `electron-store` + 新增 IPC 通道，会引入渲染进程 ↔ 主进程往返（首帧要等 `invoke` 返回才能确定主题，容易出现 FOUC 闪烁），且违反"新功能不应无必要地扩大主进程/IPC 面"的最小改动原则。
 
 **Alternatives considered**:
+
 - 主进程 `electron-store` + `theme:get`/`theme:set` IPC 通道：功能上可行，但对一个纯 UI 偏好而言过度设计，且会引入启动期异步等待，增加 FOUC 风险。
 - 引入 `next-themes` 库：该库面向 Next.js SSR 场景（服务端渲染时预置 class 避免闪烁），本项目是纯客户端渲染的 Electron 渲染进程，不存在 SSR 闪烁问题，引入它只是多一个依赖，且与宪法"状态管理统一用 Zustand"及"依赖最小化"冲突，故不采用。
 
 ## 2. 暗色模式的 CSS 令牌与切换机制
 
 **Decision**: 沿用 Tailwind CSS 4 的 CSS-first 配置方式，在 `main.css` 中：
+
 1. 新增 `@custom-variant dark (&:where(.dark, .dark *));`，将 `dark:` 变体的判定依据从默认的 `prefers-color-scheme` 媒体查询改为"祖先带 `.dark` class"，使暗色模式由应用内的手动开关驱动，而非跟随系统设置。
 2. 新增一个与现有 `:root` 结构一一对应的 `.dark { ... }` 覆盖块，为 `--background`、`--foreground`、`--card`、`--popover`、`--primary`、`--secondary`、`--muted`、`--accent`、`--destructive`、`--border`、`--input`、`--ring`、`--chart-1`~`--chart-5`、`--sidebar*` 等全部现有令牌提供暗色数值（沿用 oklch 色彩空间，仅调整明度/对比关系，与浅色令牌保持同一套变量名，`@theme inline` 映射不用变）。
 3. 主题切换 = 给根元素（`<html>`）添加/移除 `dark` class，一次 DOM 操作即可让所有已经使用语义 Tailwind 类（`bg-background`、`text-muted-foreground`、`border-border` 等）的组件自动重新取值，无需逐组件改代码。
@@ -26,6 +29,7 @@
 **Rationale**: 现状审计（见下方"3. 暗色可读性风险点普查"）确认 shadcn 基础组件层（`button.tsx`/`badge.tsx`/`input.tsx`/`dropdown-menu.tsx`/`dialog.tsx` 等）已经在生成时预置了部分 `dark:` 变体，说明项目脚手架本就是按"迟早要接入 class 策略暗色模式"设计的，只是此前 `main.css` 从未定义 `.dark` 覆盖块（`specs/001-app-shell-ui/spec.md` 的假设明确写了"本期仅浅色"）。采用 class 策略而非媒体查询策略，是因为 spec 要求"点击图标手动切换"，媒体查询策略无法脱离系统设置独立切换。
 
 **Alternatives considered**:
+
 - 仅用 `prefers-color-scheme` 媒体查询驱动 `dark:`：无法满足"点击按钮手动切换"的核心交互需求，排除。
 - 每个组件内部各自维护 `if (theme === 'dark') ...` 条件类名：与 Tailwind/shadcn 语义化令牌体系背道而驰，维护成本随组件数量线性增长，排除。
 
@@ -59,23 +63,27 @@
 ## 5. "按钮位置为圆心向外扩散"过渡动画的技术方案
 
 **Decision**: 使用浏览器原生 View Transitions API（`document.startViewTransition()`），在触发切换的回调中：
+
 1. 记录点击事件的视口坐标 `(x, y)`（即切换图标当时所在位置）。
 2. 计算该点到视口四个角的最大欧氏距离，作为扩散终态的圆形半径 `endRadius`。
 3. 切换前先 `document.startViewTransition(() => { 在此回调内切换 dark class / Zustand 状态 })`，浏览器会自动为切换前后的两帧画面各拍一张快照。
 4. 在 `transition.ready` resolve 之后，用 Web Animations API 对 `::view-transition-new(root)`（或 `::view-transition-old(root)`，取决于哪一态应表现为"从圆心扩散覆盖"的那一层）播放一个 `clip-path` 从 `circle(0px at {x}px {y}px)` 到 `circle({endRadius}px at {x}px {y}px)` 的动画。
 
 **Rationale**:
+
 - Electron 39 内置的 Chromium 版本远高于 View Transitions API 的最低要求（Chromium 111+），且 Electron 应用只面向自带的 Chromium 渲染，不存在"目标浏览器不支持"的兼容性顾虑，属于零新增依赖、原生实现。
 - `clip-path` 动画由合成器（compositor）线程驱动，不触发布局/重绘（layout/paint），是"注意渲染性能与优化"这一要求下的标准最佳实践；View Transitions API 天然基于"新旧两帧快照 + 合成层动画"模型，恰好避免了手写 DOM 覆盖层截图/克隆节点等更重的实现方式。
 - 该 API 原生处理"新主题的完整渲染结果"作为动画素材，不需要额外用 `html2canvas` 之类的库手动截图新状态，规避了额外依赖与截图性能开销。
 
 **Alternatives considered**:
+
 - 手写一个覆盖全屏的 `<div>`，配合 `clip-path`/`mask-image` 径向渐变从按钮位置扩散，扩散完成后再真正切换主题：需要自行处理"覆盖层要显示新主题完整渲染结果"的问题（往往需要克隆 DOM 或者截图），实现复杂度和维护成本明显更高，故不采用。
 - 单纯用 CSS `transition: background-color` 做全局淡入淡出：无法呈现"以按钮为圆心扩散"的效果，不满足 FR-005，排除。
 
 ## 6. 无障碍降级（减弱动态效果）与连续点击防抖
 
 **Decision**:
+
 - 每次点击时（而非模块加载时缓存）读取 `window.matchMedia('(prefers-reduced-motion: reduce)').matches`；为真时跳过 `startViewTransition` 的动画部分，直接同步切换 `dark` class，满足 FR-007 / SC-005。
 - 用一个模块级/组件级的"动画进行中"标志位守卫点击处理函数：`startViewTransition` 返回的 `transition.finished` Promise 未 resolve 之前，忽略后续点击，满足 FR-008。
 

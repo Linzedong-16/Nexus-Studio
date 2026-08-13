@@ -12,6 +12,7 @@ import { useShellStore } from '@/store/shellStore'
 import { useKeybindingStore } from '@/store/keybindingStore'
 import { useConnectionStore } from '@/store/connectionStore'
 import { useLogStore } from '@/store/logStore'
+import { useWorkspaceStore } from '@/store/workspaceStore'
 import { installGlobalKeybindingDispatcher } from '@/lib/keybinding/dispatcher'
 import { queryService } from '@/services/queryService'
 
@@ -37,6 +38,11 @@ export default function AppShell(): React.JSX.Element {
 
   useEffect(() => {
     void useConnectionStore.getState().hydrateSavedConnections()
+  }, [])
+
+  // 恢复文件标签页内容
+  useEffect(() => {
+    void useWorkspaceStore.getState().hydrateFileTabs()
   }, [])
 
   // 无论日志面板是否展开都持续拉取/订阅，避免关闭期间错过日志

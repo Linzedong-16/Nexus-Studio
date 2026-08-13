@@ -6,7 +6,7 @@
 import type { ConnectionConfig, QueryResult } from './ipc'
 
 /** 标签页类型 */
-export type WorkspaceTabType = 'connection' | 'query' | 'table' | 'er-analysis'
+export type WorkspaceTabType = 'connection' | 'query' | 'table' | 'er-analysis' | 'file'
 
 /** 查询标签页载荷 */
 export interface QueryTabState {
@@ -64,6 +64,25 @@ export interface OpenErAnalysisTabPayload {
   database: string
 }
 
+/** 文件标签页载荷 */
+export interface FileTabState {
+  /** 文件绝对路径 */
+  filePath: string
+  /** 文件名（用于标题） */
+  fileName: string
+  /** 文件内容 */
+  content: string
+  /** 是否为二进制文件（为 true 时不渲染编辑器，展示不支持预览提示） */
+  isBinary?: boolean
+}
+
+/** 打开文件标签页的参数 */
+export interface OpenFileTabPayload {
+  filePath: string
+  fileName: string
+  content: string
+}
+
 /** 工作区标签页 */
 export interface WorkspaceTab {
   id: string
@@ -73,7 +92,7 @@ export interface WorkspaceTab {
   /** 是否固定（固定标签页在"关闭所有"时保留） */
   pinned: boolean
   /** 连接/查询/表/ER 分析标签页各自的载荷 */
-  state?: ConnectionTabState | QueryTabState | TableTabState | ErAnalysisTabState
+  state?: ConnectionTabState | QueryTabState | TableTabState | ErAnalysisTabState | FileTabState
   /** 查询标签页的瞬时结果（不持久化） */
   result?: QueryResult | null
   error?: string
@@ -115,6 +134,8 @@ export interface WorkspaceState {
   openTableTab: (payload: OpenTableTabPayload) => string
   /** 打开一个 ER 分析标签页（同连接 + 同数据库去重） */
   openErAnalysisTab: (payload: OpenErAnalysisTabPayload) => string
+  /** 打开一个文件标签页（同文件路径去重） */
+  openFileTab: (payload: OpenFileTabPayload) => string
   /** 更新表标签页的分页状态 */
   updateTableTab: (
     id: string,
@@ -140,4 +161,10 @@ export interface WorkspaceState {
   closeAllTabs: () => void
   /** 切换标签页固定状态 */
   togglePin: (id: string) => void
+  /** 恢复文件标签页内容（启动时调用） */
+  hydrateFileTabs: () => Promise<void>
+  /** 关闭所有属于指定路径（文件本身，或目录及其下全部内容）的文件标签页 */
+  closeFileTabsUnderPath: (rootPath: string) => void
+  /** 将匹配旧路径（文件本身，或目录及其下全部内容）的文件标签页更新为新路径 */
+  renameFileTab: (oldPath: string, newPath: string) => void
 }

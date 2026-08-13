@@ -6,11 +6,11 @@
 
 ## 请求
 
-| 参数 | 类型 | 必填 | 说明 |
-|---|---|---|---|
-| `connectionId` | `string` | 是 | 目标连接 ID，用于 `DriverManager` 定位已连接的驱动实例 |
-| `database` | `string` | 是 | 目标数据库名 |
-| `schemas` | `string[]` | 是 | 需要覆盖的 schema 列表，由调用方先行调用 `getSchemas` 得到；不可为空数组（渲染层在数组为空时不应发起本次调用） |
+| 参数           | 类型       | 必填 | 说明                                                                                                           |
+| -------------- | ---------- | ---- | -------------------------------------------------------------------------------------------------------------- |
+| `connectionId` | `string`   | 是   | 目标连接 ID，用于 `DriverManager` 定位已连接的驱动实例                                                         |
+| `database`     | `string`   | 是   | 目标数据库名                                                                                                   |
+| `schemas`      | `string[]` | 是   | 需要覆盖的 schema 列表，由调用方先行调用 `getSchemas` 得到；不可为空数组（渲染层在数组为空时不应发起本次调用） |
 
 ## 响应
 
@@ -18,11 +18,11 @@
 
 失败：Promise reject，`error.message` 为可读中文错误信息，覆盖以下已知场景：
 
-| 场景 | 错误信息示例 |
-|---|---|
-| 驱动未实现该能力（FR-020） | `当前数据库类型暂不支持 ER 分析` |
-| 连接不存在/已断开 | `连接不存在或已断开，请重新连接后再试` |
-| SQL 执行失败（权限不足等） | 原样透出驱动层抛出的数据库错误信息 |
+| 场景                       | 错误信息示例                           |
+| -------------------------- | -------------------------------------- |
+| 驱动未实现该能力（FR-020） | `当前数据库类型暂不支持 ER 分析`       |
+| 连接不存在/已断开          | `连接不存在或已断开，请重新连接后再试` |
+| SQL 执行失败（权限不足等） | 原样透出驱动层抛出的数据库错误信息     |
 
 ## 主进程侧实现契约
 
@@ -52,7 +52,8 @@ async getErDiagramData(connectionId: string, database: string, schemas: string[]
 ```typescript
 createIPCHandler<[string, string, string[]], ErDiagramData>(
   'db:get-er-diagram-data',
-  async (connectionId, database, schemas) => driverManager.getErDiagramData(connectionId, database, schemas)
+  async (connectionId, database, schemas) =>
+    driverManager.getErDiagramData(connectionId, database, schemas)
 )
 ```
 

@@ -14,10 +14,6 @@ export default function SchemaTree(): React.JSX.Element {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-9 shrink-0 items-center gap-1 border-b px-3">
-        <span className="text-xs font-medium text-muted-foreground">数据库结构</span>
-      </div>
-
       <ScrollArea className="flex-1">
         {connectionIds.length === 0 ? (
           <div className="p-4 text-center text-xs text-muted-foreground">

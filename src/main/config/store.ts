@@ -13,7 +13,8 @@ const defaults: ConfigStore = {
   fontSize: 14,
   pageSize: 100,
   connections: [],
-  recentFiles: []
+  recentFiles: [],
+  recentProjects: []
 }
 
 export const configStore = new Store<ConfigStore>({

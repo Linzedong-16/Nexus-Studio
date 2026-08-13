@@ -18,6 +18,7 @@ import type {
   DbLogEntry
 } from '../renderer/src/types/ipc'
 import type { KeybindingEntry } from '../renderer/src/types/keybinding'
+import type { FileNode } from '../renderer/src/types/fileExplorer'
 
 // ─── 窗口控制 API ───
 
@@ -138,6 +139,35 @@ export interface AppApi {
   getVersions(): Promise<AppVersions>
 }
 
+// ─── 文件系统 API ───
+
+export interface FileSystemApi {
+  /** 唤起系统目录选择器，返回选中路径或 null */
+  pickFolder(): Promise<string | null>
+  /** 读取目录内容（排除隐藏文件），返回直接子节点 */
+  readDir(dirPath: string): Promise<FileNode[]>
+  /** 读取文件内容（UTF-8） */
+  readFile(filePath: string): Promise<string>
+  /** 写入文件内容（UTF-8） */
+  writeFile(filePath: string, content: string): Promise<void>
+  /** 在系统文件管理器中定位文件 */
+  showItemInFolder(filePath: string): Promise<void>
+  /** 检查文件是否存在 */
+  fileExists(filePath: string): Promise<boolean>
+  /** 在指定目录下新建空文件，同名条目已存在时抛错 */
+  createFile(parentDir: string, name: string): Promise<string>
+  /** 在指定目录下新建空文件夹，同名条目已存在时抛错 */
+  createDirectory(parentDir: string, name: string): Promise<string>
+  /** 重命名文件或文件夹（同目录内改名），目标名称冲突或原路径不存在时抛错 */
+  rename(oldPath: string, newName: string): Promise<string>
+  /** 删除文件或文件夹（移入系统回收站，可恢复） */
+  deleteItem(path: string): Promise<void>
+  /** 将文件或文件夹移动到目标目录下，目标已有同名条目或目标是源自身/子孙目录时抛错 */
+  moveItem(sourcePath: string, targetDirPath: string): Promise<string>
+  /** 安全读取文件：先探测是否为二进制文件，二进制文件不读取全文内容 */
+  readFileSafe(path: string): Promise<{ isBinary: boolean; content?: string }>
+}
+
 // ─── 全局 API ───
 
 export interface Api {
@@ -148,6 +178,7 @@ export interface Api {
   log: LogApi
   avatar: AvatarApi
   app: AppApi
+  fs: FileSystemApi
 }
 
 declare global {

@@ -58,7 +58,7 @@ export default function SidebarNav({ collapsed = false }: SidebarNavProps): Reac
   return (
     <nav
       className={cn(
-        'min-h-0 flex-1 overflow-y-auto py-2',
+        'min-h-0 overflow-y-auto py-2',
         collapsed ? 'space-y-2 px-1.5' : 'space-y-3 px-2'
       )}
     >

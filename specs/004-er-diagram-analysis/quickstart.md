@@ -59,13 +59,13 @@
 
 ## 边界与异常场景
 
-| 场景 | 验证步骤 | 期望结果 |
-|---|---|---|
-| 空数据库（无表） | 对无表数据库触发 ER 分析 | 显示「该数据库暂无表」空状态提示，非空白画布（FR-014） |
-| 有表无外键 | 对该数据库触发 ER 分析 | 所有表以网格布局展示，并提示未发现关联关系（FR-015） |
-| 加载中重复触发 | 加载尚未完成时再次通过入口触发同一目标 | 显示加载状态指示，不重复发起请求/不产生重复标签页 |
-| 查询失败 | 断开网络或使用无权限账号连接后触发 | 标签页内显示可读错误信息，并提供重试按钮（FR-016） |
-| 连接被手动断开 | ER 分析标签页打开期间，在连接管理面板中断开该连接 | 标签页提示连接已断开，不展示过期/错误数据 |
+| 场景                       | 验证步骤                                                | 期望结果                                                                                     |
+| -------------------------- | ------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| 空数据库（无表）           | 对无表数据库触发 ER 分析                                | 显示「该数据库暂无表」空状态提示，非空白画布（FR-014）                                       |
+| 有表无外键                 | 对该数据库触发 ER 分析                                  | 所有表以网格布局展示，并提示未发现关联关系（FR-015）                                         |
+| 加载中重复触发             | 加载尚未完成时再次通过入口触发同一目标                  | 显示加载状态指示，不重复发起请求/不产生重复标签页                                            |
+| 查询失败                   | 断开网络或使用无权限账号连接后触发                      | 标签页内显示可读错误信息，并提供重试按钮（FR-016）                                           |
+| 连接被手动断开             | ER 分析标签页打开期间，在连接管理面板中断开该连接       | 标签页提示连接已断开，不展示过期/错误数据                                                    |
 | 非 PostgreSQL 类型（预留） | 当前系统仅有 PostgreSQL，可跳过；未来新增适配器后需验证 | 未实现 `getErDiagramData` 的驱动类型触发时，提示「当前数据库类型暂不支持 ER 分析」（FR-020） |
 
 ## 收尾检查
@@ -81,16 +81,16 @@ pnpm lint
 
 > 本次验证方式：**代码路径静态核对**（逐条对照 5 个场景与边界表格追踪实际实现代码），非真实 PostgreSQL 实例 + 界面交互的现场走查——当前执行环境无可用的图形界面与数据库实例。建议在具备真实连接的开发环境中按上述步骤补充一次现场走查。
 
-| 场景 | 结果 | 依据 |
-|---|---|---|
-| 场景 1 入口/去重 | 通过 | `DatabaseNode.tsx` 下拉菜单「ER 分析」→ `workspaceStore.openErAnalysisTab` 按 `connectionId+database` 去重复用标签页（FR-009） |
-| 场景 2 悬浮面板筛选 | 通过 | `ERPickerPanel.tsx` 连接下拉 + 名称筛选，未匹配时提示「未找到匹配连接」并禁止继续；选中数据库后复用 `openErAnalysisTab` |
-| 场景 3 核心可视化 | 通过 | `ERTableNode` 展示列名/类型/主键图标；`EREdge` 渲染外键连线；`ERLayoutEngine.computeLayout`（elkjs layered）计算初始无重叠布局；`ReactFlow` 原生支持滚轮缩放/平移/节点拖拽 |
-| 场景 4 多标签页独立状态 | 通过 | `erStore.nodePositions`/`isLayouting` 按 `tabId` 隔离；`workspaceStore.closeTab/closeOtherTabs/closeAllTabs` 才调用 `clearTabState`（本次实现过程中修复了此前误在标签页切换时清理的回归） |
-| 场景 5 导出图片 | 通过 | `ERToolbar` 导出按钮 → `ERDiagram.handleExport` 用 `getNodesBounds`/`getViewportForBounds` + `html-to-image` 生成 PNG |
-| 边界：空数据库 | 通过 | `tableCount === 0` 展示「该数据库暂无表」（FR-014） |
-| 边界：有表无外键 | 通过 | `foreignKeyCount === 0` 展示「未发现关联关系」提示；`computeLayout` 对无边图仍产出无重叠布局 |
-| 边界：加载中重复触发 | 通过 | 标签页去重避免重复挂载；`load()` 内 `requestSeqRef` 防止并发请求竞态覆盖 |
-| 边界：查询失败 | 通过 | `getSchemas`/`getErDiagramData` 异常被捕获，展示错误信息与「重试」按钮（FR-016） |
-| 边界：连接被手动断开 | 部分通过 | 无专门的「连接已断开」文案，但复用现有错误态展示驱动/IPC 层抛出的错误信息，不展示过期数据；与项目其他标签页（query/table）对断连的处理方式一致，非本功能引入的缺口 |
-| 边界：非 PostgreSQL 类型 | 通过 | `DriverManager.getErDiagramData` 检测驱动未实现该方法时抛出「当前数据库类型暂不支持 ER 分析」（FR-020） |
+| 场景                     | 结果     | 依据                                                                                                                                                                                      |
+| ------------------------ | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 场景 1 入口/去重         | 通过     | `DatabaseNode.tsx` 下拉菜单「ER 分析」→ `workspaceStore.openErAnalysisTab` 按 `connectionId+database` 去重复用标签页（FR-009）                                                            |
+| 场景 2 悬浮面板筛选      | 通过     | `ERPickerPanel.tsx` 连接下拉 + 名称筛选，未匹配时提示「未找到匹配连接」并禁止继续；选中数据库后复用 `openErAnalysisTab`                                                                   |
+| 场景 3 核心可视化        | 通过     | `ERTableNode` 展示列名/类型/主键图标；`EREdge` 渲染外键连线；`ERLayoutEngine.computeLayout`（elkjs layered）计算初始无重叠布局；`ReactFlow` 原生支持滚轮缩放/平移/节点拖拽                |
+| 场景 4 多标签页独立状态  | 通过     | `erStore.nodePositions`/`isLayouting` 按 `tabId` 隔离；`workspaceStore.closeTab/closeOtherTabs/closeAllTabs` 才调用 `clearTabState`（本次实现过程中修复了此前误在标签页切换时清理的回归） |
+| 场景 5 导出图片          | 通过     | `ERToolbar` 导出按钮 → `ERDiagram.handleExport` 用 `getNodesBounds`/`getViewportForBounds` + `html-to-image` 生成 PNG                                                                     |
+| 边界：空数据库           | 通过     | `tableCount === 0` 展示「该数据库暂无表」（FR-014）                                                                                                                                       |
+| 边界：有表无外键         | 通过     | `foreignKeyCount === 0` 展示「未发现关联关系」提示；`computeLayout` 对无边图仍产出无重叠布局                                                                                              |
+| 边界：加载中重复触发     | 通过     | 标签页去重避免重复挂载；`load()` 内 `requestSeqRef` 防止并发请求竞态覆盖                                                                                                                  |
+| 边界：查询失败           | 通过     | `getSchemas`/`getErDiagramData` 异常被捕获，展示错误信息与「重试」按钮（FR-016）                                                                                                          |
+| 边界：连接被手动断开     | 部分通过 | 无专门的「连接已断开」文案，但复用现有错误态展示驱动/IPC 层抛出的错误信息，不展示过期数据；与项目其他标签页（query/table）对断连的处理方式一致，非本功能引入的缺口                        |
+| 边界：非 PostgreSQL 类型 | 通过     | `DriverManager.getErDiagramData` 检测驱动未实现该方法时抛出「当前数据库类型暂不支持 ER 分析」（FR-020）                                                                                   |

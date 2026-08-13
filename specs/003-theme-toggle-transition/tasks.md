@@ -166,9 +166,9 @@ Task: "修改 SecurityNode.tsx 追加对应 dark: 变体"
 ### Incremental Delivery
 
 1. Setup + Foundational → 基础闭环就位
-2. + User Story 1 → 独立验证 → 可视为 MVP
-3. + User Story 2 → 独立验证暗色可读性 → 无遗留颜色覆盖问题
-4. + User Story 3 → 独立验证扩散动画 → 完整体验交付
+2. - User Story 1 → 独立验证 → 可视为 MVP
+3. - User Story 2 → 独立验证暗色可读性 → 无遗留颜色覆盖问题
+4. - User Story 3 → 独立验证扩散动画 → 完整体验交付
 5. 各阶段互不破坏前一阶段已交付的能力
 
 ---

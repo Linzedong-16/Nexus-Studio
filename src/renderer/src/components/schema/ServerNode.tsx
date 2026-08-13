@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { ChevronDown, ChevronRight, Loader2, Plus, RefreshCw, Server, Unplug } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -29,19 +28,15 @@ export default function ServerNode({ connectionId }: ServerNodeProps): React.JSX
   const conn = useConnectionStore((s) => s.connections[connectionId])
   const loadDatabases = useConnectionStore((s) => s.loadDatabases)
   const disconnect = useConnectionStore((s) => s.disconnect)
-  const activate = useConnectionStore((s) => s.activate)
+  const toggleConnectionNode = useConnectionStore((s) => s.toggleConnectionNode)
   const openQueryTab = useWorkspaceStore((s) => s.openQueryTab)
-  const [expanded, setExpanded] = useState(false)
 
   if (!conn) return null
 
+  const expanded = conn.expanded
+
   const handleToggle = (): void => {
-    activate(connectionId)
-    const next = !expanded
-    setExpanded(next)
-    if (next && !conn.databases) {
-      void loadDatabases(connectionId)
-    }
+    toggleConnectionNode(connectionId)
   }
 
   const handleRefresh = (e: React.MouseEvent): void => {

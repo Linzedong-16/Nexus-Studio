@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 
 /**
  * 侧边栏容器（FR-011/013/015）
- * 展开 260px ⇄ 折叠 56px 图标窄栏，宽度过渡 ≤300ms；折叠态导航仍可用
+ * 展开 220px ⇄ 折叠 56px 图标窄栏，宽度过渡 ≤300ms；折叠态导航仍可用
  * US3：底部集成 UserPanel（滚动区之外）
  */
 export default function Sidebar(): React.JSX.Element {
@@ -16,13 +16,15 @@ export default function Sidebar(): React.JSX.Element {
     <aside
       className={cn(
         'flex shrink-0 flex-col bg-sidebar transition-[width] duration-150 ease-out',
-        collapsed ? 'w-14' : 'w-65'
+        collapsed ? 'w-14' : 'w-55'
       )}
     >
       <div className={cn('pb-1 pt-2', collapsed ? 'px-1.5' : 'px-3')}>
         <ModeSwitcher collapsed={collapsed} />
       </div>
-      <SidebarNav collapsed={collapsed} />
+      <div className="min-h-0 flex-1 flex flex-col">
+        <SidebarNav collapsed={collapsed} />
+      </div>
       <UserPanel collapsed={collapsed} />
     </aside>
   )

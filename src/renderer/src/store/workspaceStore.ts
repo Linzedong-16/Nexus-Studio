@@ -8,9 +8,12 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { v4 as uuidv4 } from 'uuid'
 import { useErStore } from '@/store/erStore'
+import { fsService } from '@/services/fsService'
 import type {
   ErAnalysisTabState,
+  FileTabState,
   OpenErAnalysisTabPayload,
+  OpenFileTabPayload,
   OpenQueryTabPayload,
   OpenTableTabPayload,
   QueryTabState,
@@ -23,6 +26,18 @@ import type {
 function extractTableName(sql: string): string {
   const match = sql.match(/FROM\s+"?([^"\s.]+)"?"?\.?"?([^"\s;]+)"?/i)
   return match?.[2] ?? match?.[1] ?? '查询'
+}
+
+/** 判断 filePath 是否为 rootPath 自身或其下的路径（支持 `/` 与 `\` 混合分隔符） */
+function isPathUnder(filePath: string, rootPath: string): boolean {
+  if (filePath === rootPath) return true
+  return filePath.startsWith(`${rootPath}/`) || filePath.startsWith(`${rootPath}\\`)
+}
+
+/** 取路径的末段名称（文件名） */
+function basenameOfPath(p: string): string {
+  const idx = Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\'))
+  return idx === -1 ? p : p.slice(idx + 1)
 }
 
 /** 持久化时剥离瞬时状态（SQL 内容、结果、加载态） */
@@ -41,6 +56,15 @@ function sanitizeForPersist(tabs: WorkspaceTab[]): WorkspaceTab[] {
       return {
         ...tab,
         state: { ...((tab.state as TableTabState) ?? {}), page: 1 },
+        result: null,
+        error: undefined,
+        loading: false
+      }
+    }
+    if (tab.type === 'file') {
+      return {
+        ...tab,
+        state: { ...((tab.state as FileTabState) ?? {}), content: '' },
         result: null,
         error: undefined,
         loading: false
@@ -195,6 +219,39 @@ export const useWorkspaceStore = create<WorkspaceState>()(
         return newId
       },
 
+      openFileTab: (payload: OpenFileTabPayload) => {
+        let newId = ''
+        set((state) => {
+          const existing = state.tabs.find((t) => {
+            if (t.type !== 'file') return false
+            const s = t.state as FileTabState | undefined
+            return s?.filePath === payload.filePath
+          })
+          if (existing) {
+            newId = existing.id
+            return { activeTabId: existing.id }
+          }
+          newId = uuidv4()
+          const newTab: WorkspaceTab = {
+            id: newId,
+            type: 'file',
+            title: payload.fileName,
+            closable: true,
+            pinned: false,
+            state: {
+              filePath: payload.filePath,
+              fileName: payload.fileName,
+              content: payload.content
+            } as FileTabState
+          }
+          return {
+            tabs: [...state.tabs, newTab],
+            activeTabId: newId
+          }
+        })
+        return newId
+      },
+
       updateTableTab: (id, patch) => {
         set((state) => ({
           tabs: state.tabs.map((t) =>
@@ -312,6 +369,63 @@ export const useWorkspaceStore = create<WorkspaceState>()(
       togglePin: (id) => {
         set((state) => ({
           tabs: state.tabs.map((t) => (t.id === id ? { ...t, pinned: !t.pinned } : t))
+        }))
+      },
+
+      hydrateFileTabs: async () => {
+        const { tabs } = useWorkspaceStore.getState()
+        for (const tab of tabs) {
+          if (tab.type !== 'file') continue
+          const state = tab.state as FileTabState | undefined
+          if (!state?.filePath) continue
+          try {
+            const result = await fsService.readFileSafe(state.filePath)
+            const updatedTab: WorkspaceTab = {
+              ...tab,
+              state: { ...state, content: result.content ?? '', isBinary: result.isBinary }
+            }
+            set((s) => ({
+              tabs: s.tabs.map((t) => (t.id === tab.id ? updatedTab : t))
+            }))
+          } catch {
+            // 文件不存在则关闭该标签页
+            set((s) => ({
+              tabs: s.tabs.filter((t) => t.id !== tab.id)
+            }))
+          }
+        }
+      },
+
+      closeFileTabsUnderPath: (rootPath) => {
+        set((state) => {
+          const nextTabs = state.tabs.filter((t) => {
+            if (t.type !== 'file') return true
+            const filePath = (t.state as FileTabState | undefined)?.filePath
+            return !filePath || !isPathUnder(filePath, rootPath)
+          })
+          if (nextTabs.length === state.tabs.length) return state
+          let nextActiveId = state.activeTabId
+          if (nextActiveId && !nextTabs.some((t) => t.id === nextActiveId)) {
+            nextActiveId = nextTabs[0]?.id ?? null
+          }
+          return { tabs: nextTabs, activeTabId: nextActiveId }
+        })
+      },
+
+      renameFileTab: (oldPath, newPath) => {
+        set((state) => ({
+          tabs: state.tabs.map((t) => {
+            if (t.type !== 'file') return t
+            const fileState = t.state as FileTabState | undefined
+            if (!fileState?.filePath || !isPathUnder(fileState.filePath, oldPath)) return t
+            const updatedFilePath = newPath + fileState.filePath.slice(oldPath.length)
+            const fileName = basenameOfPath(updatedFilePath)
+            return {
+              ...t,
+              title: fileName,
+              state: { ...fileState, filePath: updatedFilePath, fileName }
+            }
+          })
         }))
       }
     }),

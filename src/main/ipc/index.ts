@@ -6,6 +6,7 @@ import { registerKeybindingsIPC } from './keybindings'
 import { registerLogIPC } from './log'
 import { registerAvatarIPC } from './avatar'
 import { registerAppIPC } from './app'
+import { registerFsIPC } from './fs'
 
 /**
  * IPC 统一注册入口
@@ -21,4 +22,5 @@ export function registerAllIPC(mainWindow: BrowserWindow): void {
   registerLogIPC(mainWindow)
   registerAvatarIPC()
   registerAppIPC()
+  registerFsIPC()
 }

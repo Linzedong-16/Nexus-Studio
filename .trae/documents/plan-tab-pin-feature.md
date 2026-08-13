@@ -3,6 +3,7 @@
 ## 摘要
 
 为 Work 工作区标签页实现固定（Pin）功能，对标 VSCode：
+
 - 右键点击标签页弹出上下文菜单，提供「固定 / 取消固定」选项
 - 固定后的标签页在「关闭所有标签页」快捷键操作时保留
 - 固定标签页显示 Pin 图标以区分
@@ -11,13 +12,13 @@
 
 ### 现有架构
 
-| 文件 | 角色 |
-|------|------|
-| [types/workspace.ts](file:///d:/coding/project/desktop/DB-client/src/renderer/src/types/workspace.ts) | 定义 `WorkspaceTab` 接口，含 `closable: boolean`，无 `pinned` 字段 |
-| [store/workspaceStore.ts](file:///d:/coding/project/desktop/DB-client/src/renderer/src/store/workspaceStore.ts) | Zustand 状态管理，`closeAllTabs()` 清空 **全部** 标签页，无 pin 逻辑 |
-| [components/work/WorkspaceTab.tsx](file:///d:/coding/project/desktop/DB-client/src/renderer/src/components/work/WorkspaceTab.tsx) | 单个标签页渲染，无右键菜单，无 pin 图标 |
-| [components/work/WorkspaceTabs.tsx](file:///d:/coding/project/desktop/DB-client/src/renderer/src/components/work/WorkspaceTabs.tsx) | 标签栏容器，无右键菜单传递 |
-| [lib/keybinding/actionRegistry.ts](file:///d:/coding/project/desktop/DB-client/src/renderer/src/lib/keybinding/actionRegistry.ts) | `workspace.closeAllTabs` 直接调用 `closeAllTabs()` |
+| 文件                                                                                                                                | 角色                                                                 |
+| ----------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| [types/workspace.ts](file:///d:/coding/project/desktop/DB-client/src/renderer/src/types/workspace.ts)                               | 定义 `WorkspaceTab` 接口，含 `closable: boolean`，无 `pinned` 字段   |
+| [store/workspaceStore.ts](file:///d:/coding/project/desktop/DB-client/src/renderer/src/store/workspaceStore.ts)                     | Zustand 状态管理，`closeAllTabs()` 清空 **全部** 标签页，无 pin 逻辑 |
+| [components/work/WorkspaceTab.tsx](file:///d:/coding/project/desktop/DB-client/src/renderer/src/components/work/WorkspaceTab.tsx)   | 单个标签页渲染，无右键菜单，无 pin 图标                              |
+| [components/work/WorkspaceTabs.tsx](file:///d:/coding/project/desktop/DB-client/src/renderer/src/components/work/WorkspaceTabs.tsx) | 标签栏容器，无右键菜单传递                                           |
+| [lib/keybinding/actionRegistry.ts](file:///d:/coding/project/desktop/DB-client/src/renderer/src/lib/keybinding/actionRegistry.ts)   | `workspace.closeAllTabs` 直接调用 `closeAllTabs()`                   |
 
 ### 关键发现
 
@@ -49,7 +50,7 @@ pnpm add @radix-ui/react-context-menu
 **`WorkspaceTab` 接口**新增字段：
 
 ```ts
-pinned: boolean  // 是否固定，默认 false
+pinned: boolean // 是否固定，默认 false
 ```
 
 **`WorkspaceState` 接口**新增方法签名：
@@ -66,9 +67,7 @@ togglePin: (id: string) => void
 ```ts
 togglePin: (id) => {
   set((state) => ({
-    tabs: state.tabs.map((t) =>
-      t.id === id ? { ...t, pinned: !t.pinned } : t
-    )
+    tabs: state.tabs.map((t) => (t.id === id ? { ...t, pinned: !t.pinned } : t))
   }))
 }
 ```
@@ -103,7 +102,8 @@ closeOtherTabs: (id) => {
     const pinned = state.tabs.filter((t) => t.id !== id && t.pinned)
     if (!keep) return state
     for (const t of state.tabs) {
-      if (t.id !== id && !t.pinned && t.type === 'er-analysis') useErStore.getState().clearTabState(t.id)
+      if (t.id !== id && !t.pinned && t.type === 'er-analysis')
+        useErStore.getState().clearTabState(t.id)
     }
     return {
       tabs: [keep, ...pinned],
@@ -133,9 +133,7 @@ closeOtherTabs: (id) => {
 
 ```tsx
 <ContextMenu>
-  <ContextMenuTrigger>
-    {/* 现有标签页内容 */}
-  </ContextMenuTrigger>
+  <ContextMenuTrigger>{/* 现有标签页内容 */}</ContextMenuTrigger>
   <ContextMenuContent>
     <ContextMenuItem onClick={handleTogglePin}>
       <Pin /> {tab.pinned ? '取消固定' : '固定'}
@@ -169,15 +167,15 @@ const togglePin = useWorkspaceStore((s) => s.togglePin)
 
 ## 行为定义
 
-| 操作 | 未固定标签页 | 已固定标签页 |
-|------|-------------|-------------|
-| 点击 × 关闭 | 关闭 | 关闭 |
-| 中键点击关闭 | 关闭 | 关闭 |
-| Ctrl+W 关闭 | 关闭 | 关闭 |
-| 关闭其他 | 关闭（保留当前 + 所有 pinned） | 关闭其他（保留当前 + 所有 pinned） |
-| 关闭所有 (快捷键) | 关闭 | **保留** |
-| 右键菜单 | 显示「固定」 | 显示「取消固定」 |
-| Pin 图标 | 不显示 | 显示 📌 |
+| 操作              | 未固定标签页                   | 已固定标签页                       |
+| ----------------- | ------------------------------ | ---------------------------------- |
+| 点击 × 关闭       | 关闭                           | 关闭                               |
+| 中键点击关闭      | 关闭                           | 关闭                               |
+| Ctrl+W 关闭       | 关闭                           | 关闭                               |
+| 关闭其他          | 关闭（保留当前 + 所有 pinned） | 关闭其他（保留当前 + 所有 pinned） |
+| 关闭所有 (快捷键) | 关闭                           | **保留**                           |
+| 右键菜单          | 显示「固定」                   | 显示「取消固定」                   |
+| Pin 图标          | 不显示                         | 显示 📌                            |
 
 ## 验证步骤
 

@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import type { PanelImperativeHandle } from 'react-resizable-panels'
 import { cn } from '@/lib/utils'
-import SchemaTree from '@/components/schema/SchemaTree'
+import ExplorerPanel from './ExplorerPanel'
 import WorkspaceTabs from './WorkspaceTabs'
 import WorkspacePanel from './WorkspacePanel'
 import { useShellStore } from '@/store/shellStore'
@@ -66,7 +66,7 @@ export default function WorkspaceHome(): React.JSX.Element {
           }}
         >
           <div ref={schemaTreeWrapRef} className="h-full">
-            <SchemaTree />
+            <ExplorerPanel />
           </div>
         </Panel>
         <Separator

@@ -58,8 +58,8 @@ export default function UserPanel({ collapsed = false }: UserPanelProps): React.
           collapsed ? 'px-1.5 pb-10 pt-3' : 'px-3 py-3'
         )}
       >
-        <div className={cn('relative flex h-7 items-center', collapsed && 'justify-center')}>
-          {collapsed ? (
+        {collapsed ? (
+          <div className="relative flex h-7 items-center justify-center">
             <Tooltip>
               <TooltipTrigger asChild>
                 <button type="button" onClick={() => setProfileOpen(true)}>
@@ -68,34 +68,37 @@ export default function UserPanel({ collapsed = false }: UserPanelProps): React.
               </TooltipTrigger>
               <TooltipContent side="right">{userStore.displayName}</TooltipContent>
             </Tooltip>
-          ) : (
-            <>
-              <button type="button" onClick={() => setProfileOpen(true)}>
-                {avatar}
-              </button>
-              <button
-                type="button"
-                onClick={() => setProfileOpen(true)}
-                className="min-w-0 flex-1 truncate pl-2 pr-7 text-left text-[13px] font-medium hover:text-foreground/80"
-              >
-                {userStore.displayName}
-              </button>
-            </>
-          )}
-          <button
-            type="button"
-            title="设置"
-            onClick={() => setSettingsOpen(true)}
-            className={cn(
-              'absolute left-1/2 top-1/2 flex size-6 items-center justify-center rounded-md text-muted-foreground transition-transform duration-150 ease-out will-change-transform hover:bg-sidebar-accent hover:text-foreground',
-              collapsed
-                ? 'translate-x-[-50%] translate-y-[calc(-50%+32px)]'
-                : 'translate-x-26.5 translate-y-[-50%]'
-            )}
-          >
-            <Settings className="size-3.5" />
-          </button>
-        </div>
+            <button
+              type="button"
+              title="设置"
+              onClick={() => setSettingsOpen(true)}
+              className="absolute left-1/2 top-[calc(100%+8px)] flex size-6 -translate-x-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
+            >
+              <Settings className="size-3.5" />
+            </button>
+          </div>
+        ) : (
+          <div className="flex h-7 items-center gap-1">
+            <button type="button" className="shrink-0" onClick={() => setProfileOpen(true)}>
+              {avatar}
+            </button>
+            <button
+              type="button"
+              onClick={() => setProfileOpen(true)}
+              className="min-w-0 flex-1 truncate text-left text-[13px] font-medium hover:text-foreground/80"
+            >
+              {userStore.displayName}
+            </button>
+            <button
+              type="button"
+              title="设置"
+              onClick={() => setSettingsOpen(true)}
+              className="flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
+            >
+              <Settings className="size-3.5" />
+            </button>
+          </div>
+        )}
       </div>
 
       <UserProfileDialog

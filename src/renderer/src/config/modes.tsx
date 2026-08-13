@@ -44,15 +44,6 @@ function buildWorkMenuGroups(): MenuGroup[] {
           onClick: () => useErStore.getState().setPickerOpen(true)
         }
       ]
-    },
-    {
-      id: 'task-list',
-      title: '连接管理',
-      headerActions: [
-        { icon: ListCollapse, label: '收起全部' },
-        { icon: ListFilter, label: '筛选' }
-      ],
-      items: [{ id: 'sample-project', label: '示例项目', icon: Folder, path: null }]
     }
   ]
 }

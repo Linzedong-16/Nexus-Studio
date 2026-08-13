@@ -78,6 +78,8 @@ export interface ShellUIState {
   contentInsetLeft: number
   /** 当前路由内额外的左侧结构树宽度（瞬态，如 Work 模式的 Schema 树，含分隔条）；无结构树时为 0 */
   schemaTreeExtraWidth: number
+  /** 结构树面板当前展示视图：数据库连接树 / 文件资源管理器（持久化） */
+  explorerPanelView: 'connections' | 'files'
   toggleSidebar: () => void
   setSearchOpen: (open: boolean) => void
   setSettingsOpen: (open: boolean) => void
@@ -88,4 +90,5 @@ export interface ShellUIState {
   setWindowMaximized: (maximized: boolean) => void
   setContentInsetLeft: (px: number) => void
   setSchemaTreeExtraWidth: (px: number) => void
+  setExplorerPanelView: (view: 'connections' | 'files') => void
 }

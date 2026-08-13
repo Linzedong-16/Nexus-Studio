@@ -34,16 +34,16 @@
 
 _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
-| 原则 | 评估 | 结论 |
-|---|---|---|
-| I. 进程隔离与安全 | 数据库访问（新 SQL 查询）只在主进程驱动层执行；渲染进程通过 `window.api.db.getErDiagramData` 经 `contextBridge` 访问，不直接触达 `pg`/Node API；连接凭据不经过本功能任何新代码路径 | 通过 |
-| II. TypeScript 全栈类型安全 | 新增 `ForeignKeyInfo`/`ErDiagramTable`/`ErDiagramData` 作为跨进程共享类型定义在 `types/ipc.ts`，主进程与渲染进程共同引用，IPC 参数/返回值类型化（见 contracts/ipc-er-diagram.md） | 通过 |
-| III. 组件化与关注点分离 | 渲染层新增组件（`ERDiagram`/`ERTableNode`/`EREdge`/`ERToolbar`/`ERPickerPanel`）各自单一职责；`ERLayoutEngine` 作为独立纯函数模块封装布局引擎细节；Service 层（`queryService`）保持组件不直接调用 `window.api` | 通过 |
-| IV. 数据库适配器模式 | 新方法 `getErDiagramData` 声明为 `IDatabaseDriver` 上的可选方法，与现有 `getRoles?`/`getFunctions?` 同模式；未实现的驱动类型走明确的"不支持"提示分支，IPC 层与 UI 层不感知具体数据库类型（见 research.md R-007） | 通过 |
-| V. IPC 通信契约 | 新增 `db:get-er-diagram-data` 通道遵循 `模块:操作` 命名规范，用 `createIPCHandler`/`createInvoke` 既有工厂函数实现，请求/响应类型化（见 contracts/ipc-er-diagram.md） | 通过 |
-| VI. 分阶段交付与向后兼容 | 新功能不修改任何现有 IPC 通道签名、不修改现有 `WorkspaceTabType` 成员的语义、不修改现有 `DatabaseNode` 左键点击展开行为的既有效果（仅追加下拉菜单能力），纯增量交付 | 通过（实现阶段需验证下拉菜单触发与原有展开点击的交互细节不产生回归，见 contracts/renderer-store-component.md 末尾说明） |
-| VII. 中文文档与注释规范 | 本 plan 及全部 Phase 0/1 产出物（research.md/data-model.md/contracts/quickstart.md）均使用中文撰写 | 通过 |
-| VIII. 依赖最小化 | 新增 4 个依赖（`@xyflow/react`/`elkjs`/`framer-motion`/`html-to-image`），均超出宪法推荐技术栈表，需要 Complexity Tracking 中逐一证明必要性 | 需在 Complexity Tracking 中证明，见下文 |
+| 原则                        | 评估                                                                                                                                                                                                             | 结论                                                                                                                    |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| I. 进程隔离与安全           | 数据库访问（新 SQL 查询）只在主进程驱动层执行；渲染进程通过 `window.api.db.getErDiagramData` 经 `contextBridge` 访问，不直接触达 `pg`/Node API；连接凭据不经过本功能任何新代码路径                               | 通过                                                                                                                    |
+| II. TypeScript 全栈类型安全 | 新增 `ForeignKeyInfo`/`ErDiagramTable`/`ErDiagramData` 作为跨进程共享类型定义在 `types/ipc.ts`，主进程与渲染进程共同引用，IPC 参数/返回值类型化（见 contracts/ipc-er-diagram.md）                                | 通过                                                                                                                    |
+| III. 组件化与关注点分离     | 渲染层新增组件（`ERDiagram`/`ERTableNode`/`EREdge`/`ERToolbar`/`ERPickerPanel`）各自单一职责；`ERLayoutEngine` 作为独立纯函数模块封装布局引擎细节；Service 层（`queryService`）保持组件不直接调用 `window.api`   | 通过                                                                                                                    |
+| IV. 数据库适配器模式        | 新方法 `getErDiagramData` 声明为 `IDatabaseDriver` 上的可选方法，与现有 `getRoles?`/`getFunctions?` 同模式；未实现的驱动类型走明确的"不支持"提示分支，IPC 层与 UI 层不感知具体数据库类型（见 research.md R-007） | 通过                                                                                                                    |
+| V. IPC 通信契约             | 新增 `db:get-er-diagram-data` 通道遵循 `模块:操作` 命名规范，用 `createIPCHandler`/`createInvoke` 既有工厂函数实现，请求/响应类型化（见 contracts/ipc-er-diagram.md）                                            | 通过                                                                                                                    |
+| VI. 分阶段交付与向后兼容    | 新功能不修改任何现有 IPC 通道签名、不修改现有 `WorkspaceTabType` 成员的语义、不修改现有 `DatabaseNode` 左键点击展开行为的既有效果（仅追加下拉菜单能力），纯增量交付                                              | 通过（实现阶段需验证下拉菜单触发与原有展开点击的交互细节不产生回归，见 contracts/renderer-store-component.md 末尾说明） |
+| VII. 中文文档与注释规范     | 本 plan 及全部 Phase 0/1 产出物（research.md/data-model.md/contracts/quickstart.md）均使用中文撰写                                                                                                               | 通过                                                                                                                    |
+| VIII. 依赖最小化            | 新增 4 个依赖（`@xyflow/react`/`elkjs`/`framer-motion`/`html-to-image`），均超出宪法推荐技术栈表，需要 Complexity Tracking 中逐一证明必要性                                                                      | 需在 Complexity Tracking 中证明，见下文                                                                                 |
 
 **结论**：除依赖引入需要在 Complexity Tracking 中正式证明外，其余原则均直接通过，无需变更设计。
 
@@ -117,9 +117,9 @@ src/
 
 > 本节证明 Constitution Check 中"依赖最小化"原则下引入的 4 个新依赖的必要性（宪法 Governance 第 6 条）。
 
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-| --- | --- | --- |
-| 新增依赖 `@xyflow/react` | 渲染 ER 图画布——表节点、外键连线、缩放/平移/拖拽/框选/MiniMap 均需要（FR-010~FR-013） | 手写 SVG/Canvas 需自行实现平移缩放矩阵、命中测试、拖拽阈值等交互底层逻辑，开发与维护成本远高于收益（见 research.md R-001） |
-| 新增依赖 `elkjs` | 首次打开自动生成无重叠、可读的分层布局（FR-012/FR-015），且外键连线密集时需要正交路由保证可读性 | `dagre` 边路由为直线/贝塞尔曲线，密集外键场景交叉线可读性差；纯手动摆放直接违反 FR-012（见 research.md R-002） |
-| 新增依赖 `framer-motion` | 自动布局重新计算后节点位置整体跳变，需要过渡动画避免用户感知为"画面错乱"（SC-005） | 纯 CSS transition 难以表达入场 scale+opacity 与位置过渡两种曲线组合，且与状态驱动重渲染时机协调更繁琐（见 research.md R-003） |
-| 新增依赖 `html-to-image` | 实现 FR-019 图片导出；React Flow v12 不再内置导出能力 | 手写 Canvas 重绘所有节点/连线需要维护两套平行的视觉渲染逻辑，成本过高；主进程截图无法裁剪到画布区域且需要额外窗口级 IPC（见 research.md R-004） |
+| Violation                | Why Needed                                                                                      | Simpler Alternative Rejected Because                                                                                                            |
+| ------------------------ | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| 新增依赖 `@xyflow/react` | 渲染 ER 图画布——表节点、外键连线、缩放/平移/拖拽/框选/MiniMap 均需要（FR-010~FR-013）           | 手写 SVG/Canvas 需自行实现平移缩放矩阵、命中测试、拖拽阈值等交互底层逻辑，开发与维护成本远高于收益（见 research.md R-001）                      |
+| 新增依赖 `elkjs`         | 首次打开自动生成无重叠、可读的分层布局（FR-012/FR-015），且外键连线密集时需要正交路由保证可读性 | `dagre` 边路由为直线/贝塞尔曲线，密集外键场景交叉线可读性差；纯手动摆放直接违反 FR-012（见 research.md R-002）                                  |
+| 新增依赖 `framer-motion` | 自动布局重新计算后节点位置整体跳变，需要过渡动画避免用户感知为"画面错乱"（SC-005）              | 纯 CSS transition 难以表达入场 scale+opacity 与位置过渡两种曲线组合，且与状态驱动重渲染时机协调更繁琐（见 research.md R-003）                   |
+| 新增依赖 `html-to-image` | 实现 FR-019 图片导出；React Flow v12 不再内置导出能力                                           | 手写 Canvas 重绘所有节点/连线需要维护两套平行的视觉渲染逻辑，成本过高；主进程截图无法裁剪到画布区域且需要额外窗口级 IPC（见 research.md R-004） |

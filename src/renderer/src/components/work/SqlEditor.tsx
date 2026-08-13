@@ -15,6 +15,8 @@ interface SqlEditorProps {
   database?: string
   /** 当前查询作用的 Schema（用于补全上下文） */
   schema?: string
+  /** Monaco language id，默认 `pgsql`；仅 `pgsql` 时注册 SQL 补全提供者 */
+  language?: string
 }
 
 /**
@@ -29,7 +31,8 @@ export default function SqlEditor({
   onExecute,
   connectionId,
   database,
-  schema
+  schema,
+  language = 'pgsql'
 }: SqlEditorProps): React.JSX.Element {
   const mode = useThemeStore((s) => s.mode)
   const executeRef = useRef(onExecute)
@@ -67,7 +70,9 @@ export default function SqlEditor({
       run: () => executeRef.current()
     })
 
-    // 注册 SQL 补全提供者
+    // 仅 PostgreSQL SQL 编辑场景注册补全提供者
+    if (language !== 'pgsql') return
+
     const disposeCompletion = registerCompletionProvider(monaco, {
       dbType: 'postgresql',
       getContext: () => ctxRef.current
@@ -82,7 +87,7 @@ export default function SqlEditor({
   return (
     <Editor
       height="100%"
-      language="pgsql"
+      language={language}
       theme={mode === 'dark' ? 'vs-dark' : 'vs'}
       value={value}
       onChange={(val) => onChange(val ?? '')}

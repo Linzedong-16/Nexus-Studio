@@ -28,8 +28,8 @@ description: 'Task list template for feature implementation'
 
 **Purpose**: 安装新增依赖、搭建渲染层新目录与最基础的类型定义
 
-- [X] T001 在根目录执行 `pnpm add @xyflow/react elkjs framer-motion html-to-image`，安装 research.md R-001~R-004 决策的 4 个新依赖
-- [X] T002 [P] 创建 `src/renderer/src/components/er/types.ts`，定义 `ERTableNodeData`（tableId/schema/tableName/columns/comment?/foreignKeyColumnNames）与 `Node<ERTableNodeData>`/`Edge` 类型别名（per data-model.md 3.2、contracts/renderer-store-component.md）
+- [x] T001 在根目录执行 `pnpm add @xyflow/react elkjs framer-motion html-to-image`，安装 research.md R-001~R-004 决策的 4 个新依赖
+- [x] T002 [P] 创建 `src/renderer/src/components/er/types.ts`，定义 `ERTableNodeData`（tableId/schema/tableName/columns/comment?/foreignKeyColumnNames）与 `Node<ERTableNodeData>`/`Edge` 类型别名（per data-model.md 3.2、contracts/renderer-store-component.md）
 
 ---
 
@@ -39,16 +39,16 @@ description: 'Task list template for feature implementation'
 
 **⚠️ CRITICAL**: 本阶段完成前，任何用户故事均无法开始
 
-- [X] T003 [P] 在 `src/renderer/src/types/ipc.ts` 新增 `ForeignKeyInfo`、`ErDiagramTable`、`ErDiagramData` 类型，并为 `DatabaseApi` 追加 `getErDiagramData(connectionId, database, schemas)` 方法签名（per data-model.md 一、contracts/ipc-er-diagram.md）
-- [X] T004 在 `src/main/db/core/IDatabaseDriver.ts` 为 `IDatabaseDriver` 新增可选方法 `getErDiagramData?(database: string, schemas: string[]): Promise<ErDiagramData>`（依赖 T003；per research.md R-007）
-- [X] T005 在 `src/main/db/core/DriverManager.ts` 实现 `getErDiagramData(connectionId, database, schemas)` 委派方法：定位驱动实例后检测 `driver.getErDiagramData` 是否存在，不存在则抛出「当前数据库类型暂不支持 ER 分析」（依赖 T004；per contracts/ipc-er-diagram.md）
-- [X] T006 [P] 在 `src/main/db/driver/pg/PostgreSQLDriver.ts` 实现 `getErDiagramData`：用 contracts/ipc-er-diagram.md 给出的 2 条批量 SQL（表+列元数据、外键关系，均按 `schema = ANY($1)`）取数并聚合为 `ErDiagramTable[]`/`ForeignKeyInfo[]`（依赖 T004）
-- [X] T007 在 `src/main/ipc/db.ts` 注册 `db:get-er-diagram-data` IPC 通道，委派给 `driverManager.getErDiagramData`（依赖 T005）
-- [X] T008 [P] 在 `src/preload/index.ts` 的 `api.db` 上暴露 `getErDiagramData: createInvoke<[string, string, string[]], ErDiagramData>('db:get-er-diagram-data')`（依赖 T003）
-- [X] T009 [P] 在 `src/renderer/src/services/queryService.ts` 新增 `getErDiagramData(connectionId, database, schemas)` 薄封装，透传 `window.api.db.getErDiagramData`（依赖 T008）
-- [X] T010 [P] 在 `src/renderer/src/types/workspace.ts` 将 `WorkspaceTabType` 扩展为包含 `'er-analysis'`，新增 `ErAnalysisTabState`、`OpenErAnalysisTabPayload` 类型（per data-model.md 3.1）
-- [X] T011 在 `src/renderer/src/store/workspaceStore.ts` 实现 `openErAnalysisTab(payload)`：按 `connectionId + database` 查找既有标签页，存在则 `activateTab` 复用，否则新建并激活（依赖 T010；per contracts/renderer-store-component.md，满足 FR-008/FR-009）
-- [X] T012 [P] 新建 `src/renderer/src/store/erStore.ts`：`pickerOpen`/`nodePositions`（`Record<tabId, Record<tableId, {x,y}>>`）/`isLayouting`（`Record<tabId, boolean>`）及对应 `setPickerOpen`/`setNodePositions`/`setLayouting`/`clearTabState` actions，不使用 `persist` 中间件（per data-model.md 3.3）
+- [x] T003 [P] 在 `src/renderer/src/types/ipc.ts` 新增 `ForeignKeyInfo`、`ErDiagramTable`、`ErDiagramData` 类型，并为 `DatabaseApi` 追加 `getErDiagramData(connectionId, database, schemas)` 方法签名（per data-model.md 一、contracts/ipc-er-diagram.md）
+- [x] T004 在 `src/main/db/core/IDatabaseDriver.ts` 为 `IDatabaseDriver` 新增可选方法 `getErDiagramData?(database: string, schemas: string[]): Promise<ErDiagramData>`（依赖 T003；per research.md R-007）
+- [x] T005 在 `src/main/db/core/DriverManager.ts` 实现 `getErDiagramData(connectionId, database, schemas)` 委派方法：定位驱动实例后检测 `driver.getErDiagramData` 是否存在，不存在则抛出「当前数据库类型暂不支持 ER 分析」（依赖 T004；per contracts/ipc-er-diagram.md）
+- [x] T006 [P] 在 `src/main/db/driver/pg/PostgreSQLDriver.ts` 实现 `getErDiagramData`：用 contracts/ipc-er-diagram.md 给出的 2 条批量 SQL（表+列元数据、外键关系，均按 `schema = ANY($1)`）取数并聚合为 `ErDiagramTable[]`/`ForeignKeyInfo[]`（依赖 T004）
+- [x] T007 在 `src/main/ipc/db.ts` 注册 `db:get-er-diagram-data` IPC 通道，委派给 `driverManager.getErDiagramData`（依赖 T005）
+- [x] T008 [P] 在 `src/preload/index.ts` 的 `api.db` 上暴露 `getErDiagramData: createInvoke<[string, string, string[]], ErDiagramData>('db:get-er-diagram-data')`（依赖 T003）
+- [x] T009 [P] 在 `src/renderer/src/services/queryService.ts` 新增 `getErDiagramData(connectionId, database, schemas)` 薄封装，透传 `window.api.db.getErDiagramData`（依赖 T008）
+- [x] T010 [P] 在 `src/renderer/src/types/workspace.ts` 将 `WorkspaceTabType` 扩展为包含 `'er-analysis'`，新增 `ErAnalysisTabState`、`OpenErAnalysisTabPayload` 类型（per data-model.md 3.1）
+- [x] T011 在 `src/renderer/src/store/workspaceStore.ts` 实现 `openErAnalysisTab(payload)`：按 `connectionId + database` 查找既有标签页，存在则 `activateTab` 复用，否则新建并激活（依赖 T010；per contracts/renderer-store-component.md，满足 FR-008/FR-009）
+- [x] T012 [P] 新建 `src/renderer/src/store/erStore.ts`：`pickerOpen`/`nodePositions`（`Record<tabId, Record<tableId, {x,y}>>`）/`isLayouting`（`Record<tabId, boolean>`）及对应 `setPickerOpen`/`setNodePositions`/`setLayouting`/`clearTabState` actions，不使用 `persist` 中间件（per data-model.md 3.3）
 
 **Checkpoint**: 基础设施就绪——批量查询、标签页去重、画布状态 Store 均可用，用户故事可以开始实现
 
@@ -62,11 +62,11 @@ description: 'Task list template for feature implementation'
 
 ### Implementation for User Story 1
 
-- [X] T013 [P] [US1] 在 `src/renderer/src/components/er/layout/ERLayoutEngine.ts` 实现 `computeLayout(nodes, edges)`：封装 `elkjs` 的 `org.eclipse.elk.layered` 分层算法，输入输出均为 React Flow 原生 `Node`/`Edge` 类型（依赖 T002；per research.md R-002、contracts/renderer-store-component.md）
-- [X] T014 [P] [US1] 在 `src/renderer/src/components/er/ERTableNode.tsx` 实现自定义表节点：展示表名/schema、各列列名与数据类型、主键列图标标识（依赖 T002；per 09-ER图实现提示词.md 视觉规范、SC-003）
-- [X] T015 [US1] 在 `src/renderer/src/components/er/ERDiagram.tsx` 实现标签页根组件：调用 `queryService.getSchemas` + `queryService.getErDiagramData` 取数，将 `ErDiagramData` 转换为 `Node<ERTableNodeData>[]`/`Edge[]`（按 `sourceTable` 聚合出每表 `foreignKeyColumnNames`），调用 `ERLayoutEngine.computeLayout` 得到初始位置，渲染 `<ReactFlow>` + `<Controls>` + `<Background>` + `<MiniMap>`，支持鼠标滚轮缩放、空白区域拖拽平移、节点拖拽移动（依赖 T009、T012、T013、T014；per contracts/renderer-store-component.md，满足 FR-010/FR-011/FR-012/FR-013）
-- [X] T016 [US1] 在 `src/renderer/src/components/schema/DatabaseNode.tsx` 用 shadcn `DropdownMenu` 包裹现有数据库节点按钮，新增「ER 分析」`DropdownMenuItem`，`onSelect` 调用 `useWorkspaceStore.getState().openErAnalysisTab({ connectionId, connectionName, database: database.name })`，保留原有左键展开/激活行为（依赖 T011；per contracts/renderer-store-component.md，满足 FR-001/FR-002）
-- [X] T017 [US1] 在 `src/renderer/src/components/work/WorkspacePanel.tsx` 新增 `activeTab?.type === 'er-analysis' && <ERDiagram tab={activeTab} />` 分发分支（依赖 T015）
+- [x] T013 [P] [US1] 在 `src/renderer/src/components/er/layout/ERLayoutEngine.ts` 实现 `computeLayout(nodes, edges)`：封装 `elkjs` 的 `org.eclipse.elk.layered` 分层算法，输入输出均为 React Flow 原生 `Node`/`Edge` 类型（依赖 T002；per research.md R-002、contracts/renderer-store-component.md）
+- [x] T014 [P] [US1] 在 `src/renderer/src/components/er/ERTableNode.tsx` 实现自定义表节点：展示表名/schema、各列列名与数据类型、主键列图标标识（依赖 T002；per 09-ER图实现提示词.md 视觉规范、SC-003）
+- [x] T015 [US1] 在 `src/renderer/src/components/er/ERDiagram.tsx` 实现标签页根组件：调用 `queryService.getSchemas` + `queryService.getErDiagramData` 取数，将 `ErDiagramData` 转换为 `Node<ERTableNodeData>[]`/`Edge[]`（按 `sourceTable` 聚合出每表 `foreignKeyColumnNames`），调用 `ERLayoutEngine.computeLayout` 得到初始位置，渲染 `<ReactFlow>` + `<Controls>` + `<Background>` + `<MiniMap>`，支持鼠标滚轮缩放、空白区域拖拽平移、节点拖拽移动（依赖 T009、T012、T013、T014；per contracts/renderer-store-component.md，满足 FR-010/FR-011/FR-012/FR-013）
+- [x] T016 [US1] 在 `src/renderer/src/components/schema/DatabaseNode.tsx` 用 shadcn `DropdownMenu` 包裹现有数据库节点按钮，新增「ER 分析」`DropdownMenuItem`，`onSelect` 调用 `useWorkspaceStore.getState().openErAnalysisTab({ connectionId, connectionName, database: database.name })`，保留原有左键展开/激活行为（依赖 T011；per contracts/renderer-store-component.md，满足 FR-001/FR-002）
+- [x] T017 [US1] 在 `src/renderer/src/components/work/WorkspacePanel.tsx` 新增 `activeTab?.type === 'er-analysis' && <ERDiagram tab={activeTab} />` 分发分支（依赖 T015）
 
 **Checkpoint**: User Story 1 应完全可独立运行与验证——从连接管理面板打开数据库的 ER 分析标签页，看到渲染完成、可交互的 ER 图
 
@@ -80,9 +80,9 @@ description: 'Task list template for feature implementation'
 
 ### Implementation for User Story 2
 
-- [X] T018 [P] [US2] 在 `src/renderer/src/config/modes.tsx` 新增 Work 模式侧边栏「ER 分析」菜单项，`onClick` 调用 `useErStore.getState().setPickerOpen(true)`（依赖 T012；per research.md R-009）
-- [X] T019 [US2] 新建 `src/renderer/src/components/er/ERPickerPanel.tsx`：复用 `SearchPalette.tsx` 的 Radix Dialog 居中悬浮模式，内部维护 `selectedConnectionId` 私有状态；提供连接下拉列表 + 连接名称筛选输入框（读取 `connectionStore` 中已连接的连接列表，前端按输入字符串过滤，未匹配到时提示「未找到匹配连接」并禁止继续）；连接确认后调用 `connectionStore.loadDatabases`（若未加载）展示业务数据库列表；选中数据库后调用 `openErAnalysisTab` 并 `setPickerOpen(false)`（依赖 T011、T012；per contracts/renderer-store-component.md，满足 FR-004/FR-005/FR-006/FR-007，Edge Case：未匹配连接）
-- [X] T020 [US2] 在 Work 模式 Shell 根组件（`SearchPalette` 当前挂载的同级位置）挂载 `<ERPickerPanel />`，使其在 `erStore.pickerOpen` 为真时全局可见（依赖 T019）
+- [x] T018 [P] [US2] 在 `src/renderer/src/config/modes.tsx` 新增 Work 模式侧边栏「ER 分析」菜单项，`onClick` 调用 `useErStore.getState().setPickerOpen(true)`（依赖 T012；per research.md R-009）
+- [x] T019 [US2] 新建 `src/renderer/src/components/er/ERPickerPanel.tsx`：复用 `SearchPalette.tsx` 的 Radix Dialog 居中悬浮模式，内部维护 `selectedConnectionId` 私有状态；提供连接下拉列表 + 连接名称筛选输入框（读取 `connectionStore` 中已连接的连接列表，前端按输入字符串过滤，未匹配到时提示「未找到匹配连接」并禁止继续）；连接确认后调用 `connectionStore.loadDatabases`（若未加载）展示业务数据库列表；选中数据库后调用 `openErAnalysisTab` 并 `setPickerOpen(false)`（依赖 T011、T012；per contracts/renderer-store-component.md，满足 FR-004/FR-005/FR-006/FR-007，Edge Case：未匹配连接）
+- [x] T020 [US2] 在 Work 模式 Shell 根组件（`SearchPalette` 当前挂载的同级位置）挂载 `<ERPickerPanel />`，使其在 `erStore.pickerOpen` 为真时全局可见（依赖 T019）
 
 **Checkpoint**: User Story 1 与 User Story 2 均可独立工作——两条入口最终打开的 ER 分析标签页呈现能力一致（FR-008）
 
@@ -96,11 +96,11 @@ description: 'Task list template for feature implementation'
 
 ### Implementation for User Story 3
 
-- [X] T021 [US3] 在 `src/renderer/src/components/er/ERDiagram.tsx` 补充加载态：数据获取期间显示加载指示，加载完成前禁止重复触发（依赖 T015；per FR-016 前半、Edge Case「加载中重复触发」）
-- [X] T022 [US3] 在 `src/renderer/src/components/er/ERDiagram.tsx` 补充错误态：`getErDiagramData`/`getSchemas` 失败时展示可读中文错误信息与「重试」按钮，不静默失败（依赖 T015；per FR-016 后半）
-- [X] T023 [US3] 在 `src/renderer/src/components/er/ERDiagram.tsx` 补充空状态：`tables.length === 0` 时展示「该数据库暂无表」提示，替代空白画布（依赖 T015；per FR-014）
-- [X] T024 [US3] 在 `src/renderer/src/components/er/ERDiagram.tsx`（或 `ERLayoutEngine.ts`）补充无外键分支：`foreignKeys.length === 0` 时所有表仍按网格排列展示，并附带「未发现关联关系」提示（依赖 T013、T015；per FR-015）
-- [X] T025 [P] [US3] 新建 `src/renderer/src/components/er/EREdge.tsx` 或在 `ERDiagram.tsx` 中配置默认 Edge 样式：外键连线颜色、箭头样式、以 `constraintName` 缩写作为标签（依赖 T002；per 09-ER图实现提示词.md 视觉规范，SC-002 的可视化呈现）
+- [x] T021 [US3] 在 `src/renderer/src/components/er/ERDiagram.tsx` 补充加载态：数据获取期间显示加载指示，加载完成前禁止重复触发（依赖 T015；per FR-016 前半、Edge Case「加载中重复触发」）
+- [x] T022 [US3] 在 `src/renderer/src/components/er/ERDiagram.tsx` 补充错误态：`getErDiagramData`/`getSchemas` 失败时展示可读中文错误信息与「重试」按钮，不静默失败（依赖 T015；per FR-016 后半）
+- [x] T023 [US3] 在 `src/renderer/src/components/er/ERDiagram.tsx` 补充空状态：`tables.length === 0` 时展示「该数据库暂无表」提示，替代空白画布（依赖 T015；per FR-014）
+- [x] T024 [US3] 在 `src/renderer/src/components/er/ERDiagram.tsx`（或 `ERLayoutEngine.ts`）补充无外键分支：`foreignKeys.length === 0` 时所有表仍按网格排列展示，并附带「未发现关联关系」提示（依赖 T013、T015；per FR-015）
+- [x] T025 [P] [US3] 新建 `src/renderer/src/components/er/EREdge.tsx` 或在 `ERDiagram.tsx` 中配置默认 Edge 样式：外键连线颜色、箭头样式、以 `constraintName` 缩写作为标签（依赖 T002；per 09-ER图实现提示词.md 视觉规范，SC-002 的可视化呈现）
 
 **Checkpoint**: User Story 1/2/3 共同构成完整、健壮的核心 ER 分析能力，覆盖 spec.md 全部 Edge Cases 中与"查看"相关的场景
 
@@ -114,8 +114,8 @@ description: 'Task list template for feature implementation'
 
 ### Implementation for User Story 4
 
-- [X] T026 [US4] 在 `src/renderer/src/components/er/ERDiagram.tsx` 的节点拖拽结束回调中调用 `erStore.setNodePositions(tabId, positions)`，并在组件挂载/数据加载完成时优先读取 `erStore.nodePositions[tabId]` 覆盖 `ERLayoutEngine` 计算出的默认位置（依赖 T012、T015；per FR-018）
-- [X] T027 [US4] 在 `src/renderer/src/components/er/ERDiagram.tsx` 的卸载清理逻辑（或 `workspaceStore.closeTab` 关闭 `er-analysis` 标签页的调用点）中调用 `erStore.clearTabState(tabId)`，避免状态随标签页反复开关堆积（依赖 T012、T015；per FR-017）
+- [x] T026 [US4] 在 `src/renderer/src/components/er/ERDiagram.tsx` 的节点拖拽结束回调中调用 `erStore.setNodePositions(tabId, positions)`，并在组件挂载/数据加载完成时优先读取 `erStore.nodePositions[tabId]` 覆盖 `ERLayoutEngine` 计算出的默认位置（依赖 T012、T015；per FR-018）
+- [x] T027 [US4] 在 `src/renderer/src/components/er/ERDiagram.tsx` 的卸载清理逻辑（或 `workspaceStore.closeTab` 关闭 `er-analysis` 标签页的调用点）中调用 `erStore.clearTabState(tabId)`，避免状态随标签页反复开关堆积（依赖 T012、T015；per FR-017）
 
 **Checkpoint**: 多个 ER 分析标签页可同时存在且互不干扰（SC-006）
 
@@ -129,9 +129,9 @@ description: 'Task list template for feature implementation'
 
 ### Implementation for User Story 5
 
-- [X] T028 [P] [US5] 新建 `src/renderer/src/components/er/ERToolbar.tsx`：提供「自动布局」「导出图片」操作按钮，`isLayouting` 时禁用自动布局按钮（依赖 T002）
-- [X] T029 [US5] 在 `src/renderer/src/components/er/ERDiagram.tsx` 实现导出处理函数：结合 `@xyflow/react` 的 `getNodesBounds`/`getViewportForBounds` 计算导出边界，用 `html-to-image` 对画布 DOM 容器截图生成 PNG 文件（依赖 T015；per research.md R-004，满足 FR-019）
-- [X] T030 [US5] 在 `src/renderer/src/components/er/ERDiagram.tsx` 挂载 `<ERToolbar>`，将「自动布局」按钮接回 T013 的 `computeLayout`（重新计算并通过 T026 的位置写入路径更新画布），「导出图片」按钮接入 T029（依赖 T026、T028、T029）
+- [x] T028 [P] [US5] 新建 `src/renderer/src/components/er/ERToolbar.tsx`：提供「自动布局」「导出图片」操作按钮，`isLayouting` 时禁用自动布局按钮（依赖 T002）
+- [x] T029 [US5] 在 `src/renderer/src/components/er/ERDiagram.tsx` 实现导出处理函数：结合 `@xyflow/react` 的 `getNodesBounds`/`getViewportForBounds` 计算导出边界，用 `html-to-image` 对画布 DOM 容器截图生成 PNG 文件（依赖 T015；per research.md R-004，满足 FR-019）
+- [x] T030 [US5] 在 `src/renderer/src/components/er/ERDiagram.tsx` 挂载 `<ERToolbar>`，将「自动布局」按钮接回 T013 的 `computeLayout`（重新计算并通过 T026 的位置写入路径更新画布），「导出图片」按钮接入 T029（依赖 T026、T028、T029）
 
 **Checkpoint**: 全部 5 个用户故事均已交付，功能范围与 spec.md 完全对齐
 
@@ -141,10 +141,10 @@ description: 'Task list template for feature implementation'
 
 **Purpose**: 动效、主题适配与最终验证
 
-- [X] T031 [P] 在 `src/renderer/src/components/er/ERTableNode.tsx` 使用 `framer-motion` 添加节点入场动画（fade + scale），在 `ERDiagram.tsx` 中为自动布局触发后的节点位置变化添加过渡动画（依赖 T014、T015、T024/T030；per research.md R-003）
-- [X] T032 [P] 核对 `ERTableNode`/`EREdge`/`ERToolbar`/`ERPickerPanel` 在暗色主题下的配色与项目现有主题变量一致（依赖 T014、T019、T025、T028）
-- [X] T033 执行 `pnpm typecheck` 与 `pnpm lint`，修复本功能引入的全部类型错误与代码规范问题
-- [X] T034 按 [quickstart.md](./quickstart.md) 完整走一遍全部 5 个用户故事场景与边界/异常场景表格，记录结果
+- [x] T031 [P] 在 `src/renderer/src/components/er/ERTableNode.tsx` 使用 `framer-motion` 添加节点入场动画（fade + scale），在 `ERDiagram.tsx` 中为自动布局触发后的节点位置变化添加过渡动画（依赖 T014、T015、T024/T030；per research.md R-003）
+- [x] T032 [P] 核对 `ERTableNode`/`EREdge`/`ERToolbar`/`ERPickerPanel` 在暗色主题下的配色与项目现有主题变量一致（依赖 T014、T019、T025、T028）
+- [x] T033 执行 `pnpm typecheck` 与 `pnpm lint`，修复本功能引入的全部类型错误与代码规范问题
+- [x] T034 按 [quickstart.md](./quickstart.md) 完整走一遍全部 5 个用户故事场景与边界/异常场景表格，记录结果
 
 ---
 
