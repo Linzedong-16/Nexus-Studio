@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow } from 'electron'
+import { app, shell, BrowserWindow, Tray, Menu, nativeImage } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -17,7 +17,48 @@ import { registerAllIPC } from './ipc'
 import { driverManager } from './db/core/DriverManager'
 import { taskScheduler } from './scheduler'
 
-function createWindow(): void {
+let tray: Tray | null = null
+
+function createTray(mainWindow: BrowserWindow): void {
+  const trayIcon = nativeImage
+    .createFromPath(join(__dirname, '../../resources/icon.png'))
+    .resize({ width: 16, height: 16 })
+
+  tray = new Tray(trayIcon)
+  tray.setToolTip('Nexus Studio')
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: '显示主窗口',
+      click: (): void => {
+        mainWindow.show()
+        mainWindow.focus()
+      }
+    },
+    { type: 'separator' },
+    {
+      label: '退出',
+      click: (): void => {
+        if (taskScheduler.hasRunningTasks()) {
+          mainWindow.show()
+          mainWindow.webContents.send('task:confirm-close')
+        } else {
+          app.quit()
+        }
+      }
+    }
+  ])
+
+  tray.setContextMenu(contextMenu)
+
+  // 左键单击托盘图标：显示主窗口
+  tray.on('click', () => {
+    mainWindow.show()
+    mainWindow.focus()
+  })
+}
+
+function createWindow(): BrowserWindow {
   // 无边框窗口：自定义标题栏（顶栏拖拽区 + 窗口控制按钮在渲染进程实现）
   const mainWindow = new BrowserWindow({
     width: 1280,
@@ -25,7 +66,7 @@ function createWindow(): void {
     minWidth: 940,
     minHeight: 600,
     show: false,
-    backgroundColor: '#fafafa',
+    // backgroundColor: '#fafafa',
     frame: false,
     autoHideMenuBar: true,
     icon,
@@ -46,12 +87,10 @@ function createWindow(): void {
   // 启动定时任务调度器（恢复已启用任务 + 补偿执行）
   taskScheduler.bootstrap()
 
-  // 关闭窗口时检查是否有运行中的定时任务，如有则弹确认框
+  // 关闭窗口时：隐藏到托盘而非退出
   mainWindow.on('close', (e) => {
-    if (taskScheduler.hasRunningTasks()) {
-      e.preventDefault()
-      mainWindow.webContents.send('task:confirm-close')
-    }
+    e.preventDefault()
+    mainWindow.hide()
   })
 
   mainWindow.on('ready-to-show', () => {
@@ -71,6 +110,8 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
+
+  return mainWindow
 }
 
 // This method will be called when Electron has finished
@@ -88,6 +129,9 @@ app.whenReady().then(() => {
   })
 
   createWindow()
+
+  const mainWindow = BrowserWindow.getAllWindows()[0]
+  createTray(mainWindow)
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
