@@ -20,6 +20,12 @@ import type {
 import type { KeybindingEntry } from '../renderer/src/types/keybinding'
 import type { FileNode } from '../renderer/src/types/fileExplorer'
 import type { TaskStatusChangePayload } from '../renderer/src/types/task'
+import type {
+  AgentChatRequest,
+  AgentRun,
+  AgentToolSummary,
+  ToolExecutionResult
+} from '../renderer/src/types/agent'
 
 /**
  * 渲染进程可用 API —— 使用工厂函数创建，声明式定义
@@ -150,6 +156,14 @@ const api: Api = {
     forceClose: createInvoke('task:force-close'),
     onStatusChange: createListener<TaskStatusChangePayload>('task:status-changed'),
     onConfirmClose: createListener('task:confirm-close')
+  },
+
+  // ─── Agent 对话（Code 模式） ───
+  agent: {
+    chat: createInvoke<[AgentChatRequest], AgentRun>('agent:chat'),
+    confirmToolCall: createInvoke<[string, boolean], AgentRun>('agent:confirm-tool-call'),
+    listTools: createInvoke<[], AgentToolSummary[]>('agent:list-tools'),
+    runTool: createInvoke<[string, unknown], ToolExecutionResult<unknown>>('agent:run-tool')
   }
 }
 

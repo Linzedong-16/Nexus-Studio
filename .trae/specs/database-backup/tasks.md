@@ -23,5 +23,6 @@
   - [x] 仅在 Work 模式下显示（避免 Code 模式下出现无关操作）
 
 # Task Dependencies
+
 - Task 2 依赖 Task 1（对话框组件需要调用 IPC 通道）
 - Task 3 依赖 Task 2（三点菜单需要引用对话框组件）

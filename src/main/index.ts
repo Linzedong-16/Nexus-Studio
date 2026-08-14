@@ -1,17 +1,21 @@
 import { app, shell, BrowserWindow, Tray, Menu, nativeImage } from 'electron'
-import { join } from 'path'
+import { join, dirname } from 'path'
+import dotenv from 'dotenv'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 
-// 解决 Windows 控制台中文乱码（UTF-8 字节被 GBK 错解）
-// 原理：stdout 默认编码设为 utf-8，确保 Node.js 输出到终端的字节流是 UTF-8
-if (process.platform === 'win32') {
-  try {
-    process.stdout.setDefaultEncoding('utf-8')
-  } catch {
-    // 忽略失败
-  }
-}
+// 加载 .env 到 process.env，必须在其他模块（尤其是 registerAllIPC 触发的 Agent 配置读取）之前完成
+// 开发态用项目根目录（process.cwd() 即项目根）；打包态用可执行文件所在目录，方便用户在安装后自行编辑密钥
+// 不用 app.isPackaged 判断：本机开发环境下该值判断异常（与下方 ELECTRON_RENDERER_URL 判断逻辑同款问题）
+const envPath = process.env['ELECTRON_RENDERER_URL']
+  ? join(process.cwd(), '.env')
+  : join(dirname(app.getPath('exe')), '.env')
+dotenv.config({ path: envPath })
+
+// 屏蔽 Node 的 DeprecationWarning 输出：openai SDK 依赖的 node-fetch 传递依赖了
+// whatwg-url/tr46，后者内部 require('punycode') 触发 [DEP0040] 警告，与本应用行为无关，
+// 且发生在模块加载期（require('openai') 时），必须在下方 './ipc' 触发该 require 之前设置
+process.noDeprecation = true
 
 import { registerAllIPC } from './ipc'
 import { driverManager } from './db/core/DriverManager'

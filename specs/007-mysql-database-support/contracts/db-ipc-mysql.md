@@ -9,31 +9,31 @@
 
 ### 必须实现的方法（无 `?` 修饰，接口强制）
 
-| 方法 | 契约 | MySQL 实现要点 |
-| --- | --- | --- |
-| `connect(config): Promise<ConnectionResult>` | 建立服务器级管理连接，成功返回 `{ success: true, serverVersion, latencyMs }`，失败返回 `{ success: false, error }` | 见 research.md §3，不强制 `database` |
-| `disconnect(): Promise<void>` | 关闭该连接下全部数据库连接池 | 遍历 `Map<string, Pool>` 逐一 `pool.end()` |
-| `getDatabases(): Promise<DatabaseInfo[]>` | 返回当前账号可访问的全部数据库 | `SHOW DATABASES`，不过滤系统库（research.md §4） |
-| `query(database, sql, params?): Promise<QueryResult>` | 对指定数据库执行任意 SQL，返回字段信息、行数据、行数、耗时；执行失败抛出携带数据库原始错误信息的 `Error` | 使用 `?` 占位符参数化查询（宪法 I 意图对齐，research.md 前置结论） |
-| `getSchemas(database): Promise<SchemaInfo[]>` | 返回数据库下的 schema 列表 | 合成单元素数组（research.md §5） |
-| `getTables(database, schema): Promise<TableInfo[]>` | 返回表与视图列表，标注类型 | `information_schema.TABLES` |
-| `getColumns(database, schema, table): Promise<ColumnInfo[]>` | 返回列的完整定义 | `information_schema.COLUMNS` |
-| `getIndexes(database, schema, table): Promise<IndexInfo[]>` | 返回索引列表 | `information_schema.STATISTICS`（research.md §7） |
-| `getTriggers(database, schema, table): Promise<TriggerInfo[]>` | 返回触发器列表 | `SHOW CREATE TRIGGER`（research.md §7） |
-| `importRows(database, schema, table, columns, rows): Promise<ImportResult>` | 整体事务性按行导入 | `beginTransaction`/`commit`/`rollback`（research.md §11） |
-| `importSql(database, statements): Promise<ImportResult>` | 整体事务性按语句导入 | 同上 |
-| `getStatus(): ConnectionStatus` | 返回当前连接状态枚举 | 复用与 `PostgreSQLDriver` 相同的状态字段维护逻辑 |
+| 方法                                                                        | 契约                                                                                                               | MySQL 实现要点                                                     |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| `connect(config): Promise<ConnectionResult>`                                | 建立服务器级管理连接，成功返回 `{ success: true, serverVersion, latencyMs }`，失败返回 `{ success: false, error }` | 见 research.md §3，不强制 `database`                               |
+| `disconnect(): Promise<void>`                                               | 关闭该连接下全部数据库连接池                                                                                       | 遍历 `Map<string, Pool>` 逐一 `pool.end()`                         |
+| `getDatabases(): Promise<DatabaseInfo[]>`                                   | 返回当前账号可访问的全部数据库                                                                                     | `SHOW DATABASES`，不过滤系统库（research.md §4）                   |
+| `query(database, sql, params?): Promise<QueryResult>`                       | 对指定数据库执行任意 SQL，返回字段信息、行数据、行数、耗时；执行失败抛出携带数据库原始错误信息的 `Error`           | 使用 `?` 占位符参数化查询（宪法 I 意图对齐，research.md 前置结论） |
+| `getSchemas(database): Promise<SchemaInfo[]>`                               | 返回数据库下的 schema 列表                                                                                         | 合成单元素数组（research.md §5）                                   |
+| `getTables(database, schema): Promise<TableInfo[]>`                         | 返回表与视图列表，标注类型                                                                                         | `information_schema.TABLES`                                        |
+| `getColumns(database, schema, table): Promise<ColumnInfo[]>`                | 返回列的完整定义                                                                                                   | `information_schema.COLUMNS`                                       |
+| `getIndexes(database, schema, table): Promise<IndexInfo[]>`                 | 返回索引列表                                                                                                       | `information_schema.STATISTICS`（research.md §7）                  |
+| `getTriggers(database, schema, table): Promise<TriggerInfo[]>`              | 返回触发器列表                                                                                                     | `SHOW CREATE TRIGGER`（research.md §7）                            |
+| `importRows(database, schema, table, columns, rows): Promise<ImportResult>` | 整体事务性按行导入                                                                                                 | `beginTransaction`/`commit`/`rollback`（research.md §11）          |
+| `importSql(database, statements): Promise<ImportResult>`                    | 整体事务性按语句导入                                                                                               | 同上                                                               |
+| `getStatus(): ConnectionStatus`                                             | 返回当前连接状态枚举                                                                                               | 复用与 `PostgreSQLDriver` 相同的状态字段维护逻辑                   |
 
 ### 可选实现的方法（`?` 修饰，本功能范围内必须提供，因 FR 明确要求）
 
-| 方法 | 对应 FR | MySQL 实现要点 |
-| --- | --- | --- |
-| `getRoles?(): Promise<RoleInfo[]>` | FR-017 | 查询 `mysql.user`（research.md §8） |
-| `getFunctions?(database, schema): Promise<RoutineInfo[]>` | FR-008 | `information_schema.ROUTINES` where `ROUTINE_TYPE='FUNCTION'` |
-| `getProcedures?(database, schema): Promise<RoutineInfo[]>` | FR-008 | 同上 where `='PROCEDURE'` |
-| `getErDiagramData?(database, schemas): Promise<ErDiagramData>` | FR-013 | `KEY_COLUMN_USAGE` + `REFERENTIAL_CONSTRAINTS`（research.md §9） |
-| `getTableDdl?(database, schema, table): Promise<string>` | FR-010 | `SHOW CREATE TABLE`（research.md §6） |
-| `getViewDdl?(database, schema, view): Promise<string>` | FR-010 | `SHOW CREATE VIEW`（research.md §6） |
+| 方法                                                           | 对应 FR | MySQL 实现要点                                                   |
+| -------------------------------------------------------------- | ------- | ---------------------------------------------------------------- |
+| `getRoles?(): Promise<RoleInfo[]>`                             | FR-017  | 查询 `mysql.user`（research.md §8）                              |
+| `getFunctions?(database, schema): Promise<RoutineInfo[]>`      | FR-008  | `information_schema.ROUTINES` where `ROUTINE_TYPE='FUNCTION'`    |
+| `getProcedures?(database, schema): Promise<RoutineInfo[]>`     | FR-008  | 同上 where `='PROCEDURE'`                                        |
+| `getErDiagramData?(database, schemas): Promise<ErDiagramData>` | FR-013  | `KEY_COLUMN_USAGE` + `REFERENTIAL_CONSTRAINTS`（research.md §9） |
+| `getTableDdl?(database, schema, table): Promise<string>`       | FR-010  | `SHOW CREATE TABLE`（research.md §6）                            |
+| `getViewDdl?(database, schema, view): Promise<string>`         | FR-010  | `SHOW CREATE VIEW`（research.md §6）                             |
 
 **契约约束**：`DriverManager.ts` 对全部可选方法均已实现"方法存在性防御式分发"（`typeof driver.xxx === 'function'` 判断后才调用，否则抛出"该数据库类型不支持此操作"之类的统一错误），因此 `MySQLDriver` 提供以上全部可选方法后，无需改动 `DriverManager.ts` 即可被正确分发调用。
 

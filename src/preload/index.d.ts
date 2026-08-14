@@ -31,6 +31,12 @@ import type {
   TaskRunLog,
   TaskStatusChangePayload
 } from '../renderer/src/types/task'
+import type {
+  AgentChatRequest,
+  AgentRun,
+  AgentToolSummary,
+  ToolExecutionResult
+} from '../renderer/src/types/agent'
 
 // ─── 窗口控制 API ───
 
@@ -258,6 +264,19 @@ export interface TaskApi {
   onConfirmClose(callback: () => void): () => void
 }
 
+// ─── Agent 对话 API（Code 模式） ───
+
+export interface AgentApi {
+  /** 发起一次单轮 Agent 对话，返回本轮运行的最终快照（含工具调用轨迹） */
+  chat(request: AgentChatRequest): Promise<AgentRun>
+  /** 确认或拒绝某次暂停中的修改类工具调用，恢复对应运行 */
+  confirmToolCall(runId: string, approved: boolean): Promise<AgentRun>
+  /** 列出全部已注册工具及其面向模型/开发者的展示信息 */
+  listTools(): Promise<AgentToolSummary[]>
+  /** 绕过对话与确认流程，直接调用指定工具（FR-012 独立测试入口） */
+  runTool(toolName: string, input: unknown): Promise<ToolExecutionResult<unknown>>
+}
+
 // ─── 全局 API ───
 
 export interface Api {
@@ -271,6 +290,7 @@ export interface Api {
   theme: ThemeApi
   fs: FileSystemApi
   task: TaskApi
+  agent: AgentApi
 }
 
 declare global {

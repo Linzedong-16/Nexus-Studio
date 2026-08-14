@@ -27,7 +27,12 @@
       "Bash(pnpm install *)",
       "Bash(dir /s /b \"d:\\\\coding\\\\project\\\\desktop\\\\DB-client\\\\node_modules\\\\mysql2\\\\*.d.ts\")",
       "Bash(xargs grep -ln \"QueryValues\")",
-      "Bash(git checkout *)"
+      "Bash(git checkout *)",
+      "Bash(powershell -NoProfile -ExecutionPolicy Bypass -File .specify/scripts/powershell/setup-tasks.ps1 -Json)",
+      "Bash(powershell -NoProfile -ExecutionPolicy Bypass -File .specify/scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks)",
+      "Bash(node -e ' *)",
+      "Bash(xargs -I{} dirname {})",
+      "Bash(xargs -I{} basename {})"
     ]
   }
 }

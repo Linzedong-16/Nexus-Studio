@@ -23,7 +23,8 @@ import type {
   RoutineInfo,
   RoleInfo,
   ErDiagramData,
-  ImportResult
+  ImportResult,
+  DatabaseType
 } from '../../../renderer/src/types/ipc'
 import type { IDatabaseDriver } from './IDatabaseDriver'
 import { createDriver } from '../factory'
@@ -100,6 +101,12 @@ export class DriverManager extends EventEmitter {
   async getDatabases(connectionId: string): Promise<DatabaseInfo[]> {
     const driver = await this.ensureConnection(connectionId)
     return driver.getDatabases()
+  }
+
+  /** 获取连接对应的数据库方言，供 Agent 工具层做语句类型判定（见 contracts/tool-catalog.md） */
+  async getDriverType(connectionId: string): Promise<DatabaseType> {
+    const driver = await this.ensureConnection(connectionId)
+    return driver.type
   }
 
   /** 驱动未实现 getRoles 时返回空数组而非抛错，见 contracts/db-ipc.md 错误契约 */

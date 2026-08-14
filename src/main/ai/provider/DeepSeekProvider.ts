@@ -1,0 +1,155 @@
+import OpenAI from 'openai'
+import type { ModelProviderConfig } from '../config'
+import type {
+  ChatMessage,
+  ChatToolCall,
+  IModelProvider,
+  ModelResponse,
+  ModelToolSpec
+} from './IModelProvider'
+import { ModelProviderError } from './IModelProvider'
+
+type ChatCompletionMessageParam = OpenAI.Chat.Completions.ChatCompletionMessageParam
+type ChatCompletionTool = OpenAI.Chat.Completions.ChatCompletionTool
+type ChatCompletionMessageToolCall = OpenAI.Chat.Completions.ChatCompletionMessageToolCall
+
+/** 将内部 `ChatMessage[]` 转换为 openai SDK 所需的消息格式 */
+function toOpenAIMessages(messages: ChatMessage[]): ChatCompletionMessageParam[] {
+  return messages.map((msg): ChatCompletionMessageParam => {
+    if (msg.role === 'tool') {
+      return { role: 'tool', content: msg.content, tool_call_id: msg.toolCallId ?? '' }
+    }
+    if (msg.role === 'assistant') {
+      if (msg.toolCalls?.length) {
+        return {
+          role: 'assistant',
+          content: msg.content || null,
+          tool_calls: msg.toolCalls.map((tc) => ({
+            id: tc.id,
+            type: 'function',
+            function: {
+              name: sanitizeToolName(tc.toolName),
+              arguments: JSON.stringify(tc.input ?? {})
+            }
+          }))
+        }
+      }
+      return { role: 'assistant', content: msg.content }
+    }
+    if (msg.role === 'system') {
+      return { role: 'system', content: msg.content }
+    }
+    return { role: 'user', content: msg.content }
+  })
+}
+
+/**
+ * DeepSeek（与 OpenAI 一致）要求 `tools[].function.name` 匹配 `^[a-zA-Z0-9_-]+$`，
+ * 而工具注册表的命名约定是 `<namespace>.<method>`（如 `schema.listColumns`），点号不合法。
+ * 用 `_` 替换点号发给模型，收到 `tool_calls` 后再用 `nameMap` 还原为注册表原名。
+ */
+function sanitizeToolName(name: string): string {
+  return name.replace(/[^a-zA-Z0-9_-]/g, '_')
+}
+
+/** 将工具注册表派生的工具说明转换为 openai function-calling 所需的 `tools` 参数（research.md §4） */
+function toOpenAITools(tools: ModelToolSpec[], nameMap: Map<string, string>): ChatCompletionTool[] {
+  return tools.map((tool) => {
+    const sanitized = sanitizeToolName(tool.name)
+    nameMap.set(sanitized, tool.name)
+    return {
+      type: 'function',
+      function: {
+        name: sanitized,
+        description: tool.description,
+        parameters: tool.inputJsonSchema as Record<string, unknown>
+      }
+    }
+  })
+}
+
+/** 将模型返回的 `tool_calls` 转换为内部 `ChatToolCall[]`；`arguments` 是 JSON 字符串，解析失败时按空对象处理 */
+function fromOpenAIToolCalls(
+  toolCalls: ChatCompletionMessageToolCall[],
+  nameMap: Map<string, string>
+): ChatToolCall[] {
+  return toolCalls.map((tc) => {
+    let input: unknown = {}
+    try {
+      input = JSON.parse(tc.function.arguments)
+    } catch {
+      input = {}
+    }
+    const toolName = nameMap.get(tc.function.name) ?? tc.function.name
+    return { id: tc.id, toolName, input }
+  })
+}
+
+/**
+ * 将 openai SDK 抛出的异常映射为结构化的 `ModelProviderError`（research.md §7）
+ *
+ * 超时判定必须先于通用 `APIError` 判定：`APIConnectionTimeoutError` 继承自
+ * `APIConnectionError`/`APIError`，但其 `status` 为 `undefined`，若先判 `status`
+ * 会被错误地归入 `provider_unavailable`。
+ */
+function toProviderError(error: unknown): ModelProviderError {
+  if (error instanceof OpenAI.APIConnectionTimeoutError) {
+    return new ModelProviderError('provider_timeout', 'DeepSeek 服务响应超时')
+  }
+  if (error instanceof OpenAI.APIError) {
+    if (error.status === 401 || error.status === 403) {
+      return new ModelProviderError('provider_auth_failed', 'DeepSeek 密钥校验失败')
+    }
+    if (error.status === 429) {
+      return new ModelProviderError('provider_rate_limited', 'DeepSeek 服务当前限流')
+    }
+  }
+  return new ModelProviderError(
+    'provider_unavailable',
+    error instanceof Error ? error.message : String(error)
+  )
+}
+
+/**
+ * `IModelProvider` 的 DeepSeek 实现
+ *
+ * 通过 openai SDK 调用 DeepSeek 的 OpenAI 兼容 Chat Completions 接口（research.md §1），
+ * 携带工具注册表派生的 JSON Schema 作为 function-calling 的 `tools` 参数。
+ */
+export class DeepSeekProvider implements IModelProvider {
+  private readonly client: OpenAI
+  private readonly model: string
+
+  constructor(config: ModelProviderConfig) {
+    this.client = new OpenAI({
+      apiKey: config.apiKey ?? '',
+      baseURL: config.baseURL,
+      timeout: config.requestTimeoutMs
+    })
+    this.model = config.model
+  }
+
+  /**
+   * 发起一次 Chat Completions 调用
+   *
+   * @throws {ModelProviderError} 鉴权失败（401/403）/限流（429）/超时/服务不可用
+   */
+  async chat(messages: ChatMessage[], tools: ModelToolSpec[]): Promise<ModelResponse> {
+    const nameMap = new Map<string, string>()
+    try {
+      const response = await this.client.chat.completions.create({
+        model: this.model,
+        messages: toOpenAIMessages(messages),
+        tools: tools.length > 0 ? toOpenAITools(tools, nameMap) : undefined
+      })
+      const choice = response.choices[0]?.message
+      if (choice?.tool_calls?.length) {
+        return { kind: 'tool_calls', toolCalls: fromOpenAIToolCalls(choice.tool_calls, nameMap) }
+      }
+      return { kind: 'final', content: choice?.content ?? '' }
+    } catch (error) {
+      if (error instanceof ModelProviderError) throw error
+      throw toProviderError(error)
+    }
+  }
+}
