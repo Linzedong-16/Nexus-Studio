@@ -26,7 +26,8 @@ import type {
   TestResult,
   ErDiagramData,
   ErDiagramTable,
-  ForeignKeyInfo
+  ForeignKeyInfo,
+  ImportResult
 } from '../../../../renderer/src/types/ipc'
 import type { IDatabaseDriver } from '../../core/IDatabaseDriver'
 import { dbLogger } from '../../../logger/dbLogger'
@@ -358,6 +359,291 @@ export class PostgreSQLDriver implements IDatabaseDriver {
       [schema, table]
     )
     return result.rows as unknown as TriggerInfo[]
+  }
+
+  /**
+   * 获取表的完整 DDL 文本（列定义 + 主键/唯一约束/外键 + 索引）
+   *
+   * PostgreSQL 无原生 SHOW CREATE TABLE，通过组合 information_schema 与
+   * pg_catalog 系统目录拼装生成，见 research.md §5。
+   *
+   * @param database - 目标数据库名
+   * @param schema - 表所属 schema
+   * @param table - 表名
+   * @returns 拼装完成的 `CREATE TABLE` 语句，附带非主键索引的 `CREATE INDEX` 语句
+   * @throws 当表不存在或当前用户无权限查看其结构时抛出错误
+   */
+  async getTableDdl(database: string, schema: string, table: string): Promise<string> {
+    const [columnsResult, pkResult, uniqueResult, fkResult, indexResult] = await Promise.all([
+      this.query(
+        database,
+        `
+          SELECT
+            c.column_name AS name,
+            CASE
+              WHEN c.data_type = 'character varying' AND c.character_maximum_length IS NOT NULL
+                THEN 'varchar(' || c.character_maximum_length || ')'
+              WHEN c.data_type = 'character' AND c.character_maximum_length IS NOT NULL
+                THEN 'char(' || c.character_maximum_length || ')'
+              WHEN c.data_type = 'numeric' AND c.numeric_precision IS NOT NULL
+                THEN 'numeric(' || c.numeric_precision || COALESCE(',' || c.numeric_scale, '') || ')'
+              ELSE c.data_type
+            END AS "typeText",
+            (c.is_nullable = 'YES') AS nullable,
+            c.column_default AS "defaultValue"
+          FROM information_schema.columns c
+          WHERE c.table_schema = $1 AND c.table_name = $2
+          ORDER BY c.ordinal_position
+        `,
+        [schema, table]
+      ),
+      this.query(
+        database,
+        `
+          SELECT kcu.column_name AS "columnName"
+          FROM information_schema.table_constraints tc
+          JOIN information_schema.key_column_usage kcu
+            ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
+          WHERE tc.constraint_type = 'PRIMARY KEY' AND tc.table_schema = $1 AND tc.table_name = $2
+          ORDER BY kcu.ordinal_position
+        `,
+        [schema, table]
+      ),
+      this.query(
+        database,
+        `
+          SELECT tc.constraint_name AS "constraintName", kcu.column_name AS "columnName"
+          FROM information_schema.table_constraints tc
+          JOIN information_schema.key_column_usage kcu
+            ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
+          WHERE tc.constraint_type = 'UNIQUE' AND tc.table_schema = $1 AND tc.table_name = $2
+          ORDER BY tc.constraint_name, kcu.ordinal_position
+        `,
+        [schema, table]
+      ),
+      this.query(
+        database,
+        `
+          SELECT
+            tc.constraint_name AS "constraintName",
+            kcu.column_name AS "columnName",
+            ccu.table_schema AS "targetSchema",
+            ccu.table_name AS "targetTable",
+            ccu.column_name AS "targetColumn",
+            rc.update_rule AS "updateRule",
+            rc.delete_rule AS "deleteRule"
+          FROM information_schema.table_constraints tc
+          JOIN information_schema.key_column_usage kcu
+            ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
+          JOIN information_schema.referential_constraints rc
+            ON tc.constraint_name = rc.constraint_name AND tc.constraint_schema = rc.constraint_schema
+          JOIN information_schema.constraint_column_usage ccu
+            ON rc.unique_constraint_name = ccu.constraint_name
+            AND rc.unique_constraint_schema = ccu.constraint_schema
+          WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_schema = $1 AND tc.table_name = $2
+          ORDER BY tc.constraint_name, kcu.ordinal_position
+        `,
+        [schema, table]
+      ),
+      this.query(
+        database,
+        `
+          SELECT
+            idx.relname AS name,
+            ix.indisprimary AS "isPrimary",
+            pg_catalog.pg_get_indexdef(idx.oid) AS "indexDef"
+          FROM pg_catalog.pg_index ix
+          JOIN pg_catalog.pg_class tab ON tab.oid = ix.indrelid
+          JOIN pg_catalog.pg_class idx ON idx.oid = ix.indexrelid
+          JOIN pg_catalog.pg_namespace n ON n.oid = tab.relnamespace
+          WHERE n.nspname = $1 AND tab.relname = $2
+          ORDER BY idx.relname
+        `,
+        [schema, table]
+      )
+    ])
+
+    if (columnsResult.rows.length === 0) {
+      throw new Error(`表 ${schema}.${table} 不存在或当前用户无权限查看其结构`)
+    }
+
+    const columnLines = columnsResult.rows.map((row) => {
+      const parts = [`  "${row.name as string}" ${row.typeText as string}`]
+      if (!row.nullable) parts.push('NOT NULL')
+      if (row.defaultValue) parts.push(`DEFAULT ${row.defaultValue as string}`)
+      return parts.join(' ')
+    })
+
+    const constraintLines: string[] = []
+
+    const pkColumns = pkResult.rows.map((row) => row.columnName as string)
+    if (pkColumns.length > 0) {
+      constraintLines.push(`  PRIMARY KEY (${pkColumns.map((c) => `"${c}"`).join(', ')})`)
+    }
+
+    const uniqueGroups = new Map<string, string[]>()
+    for (const row of uniqueResult.rows) {
+      const name = row.constraintName as string
+      const cols = uniqueGroups.get(name) ?? []
+      cols.push(row.columnName as string)
+      uniqueGroups.set(name, cols)
+    }
+    for (const [name, cols] of uniqueGroups) {
+      constraintLines.push(
+        `  CONSTRAINT "${name}" UNIQUE (${cols.map((c) => `"${c}"`).join(', ')})`
+      )
+    }
+
+    interface FkGroup {
+      columns: string[]
+      targetSchema: string
+      targetTable: string
+      targetColumns: string[]
+      updateRule?: string
+      deleteRule?: string
+    }
+    const fkGroups = new Map<string, FkGroup>()
+    for (const row of fkResult.rows) {
+      const name = row.constraintName as string
+      let group = fkGroups.get(name)
+      if (!group) {
+        group = {
+          columns: [],
+          targetSchema: row.targetSchema as string,
+          targetTable: row.targetTable as string,
+          targetColumns: [],
+          updateRule: row.updateRule as string | undefined,
+          deleteRule: row.deleteRule as string | undefined
+        }
+        fkGroups.set(name, group)
+      }
+      group.columns.push(row.columnName as string)
+      group.targetColumns.push(row.targetColumn as string)
+    }
+    for (const [name, group] of fkGroups) {
+      constraintLines.push(
+        `  CONSTRAINT "${name}" FOREIGN KEY (${group.columns.map((c) => `"${c}"`).join(', ')}) ` +
+          `REFERENCES "${group.targetSchema}"."${group.targetTable}" ` +
+          `(${group.targetColumns.map((c) => `"${c}"`).join(', ')}) ` +
+          `ON UPDATE ${group.updateRule} ON DELETE ${group.deleteRule}`
+      )
+    }
+
+    const bodyLines = [...columnLines, ...constraintLines].join(',\n')
+    const createTable = `CREATE TABLE "${schema}"."${table}" (\n${bodyLines}\n);`
+
+    const indexStatements = indexResult.rows
+      .filter((row) => !row.isPrimary)
+      .map((row) => `${row.indexDef as string};`)
+
+    return [createTable, ...indexStatements].join('\n\n')
+  }
+
+  /**
+   * 获取视图的完整定义语句，基于 pg_get_viewdef 生成
+   *
+   * @param database - 目标数据库名
+   * @param schema - 视图所属 schema
+   * @param view - 视图名（含普通视图与物化视图）
+   * @returns `CREATE OR REPLACE VIEW ... AS ...` 完整语句
+   * @throws 当视图不存在或当前用户无权限查看其定义时抛出错误
+   */
+  async getViewDdl(database: string, schema: string, view: string): Promise<string> {
+    const result = await this.query(
+      database,
+      `
+        SELECT pg_catalog.pg_get_viewdef(c.oid, true) AS definition
+        FROM pg_catalog.pg_class c
+        JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = $1 AND c.relname = $2 AND c.relkind IN ('v', 'm')
+      `,
+      [schema, view]
+    )
+    const definition = result.rows[0]?.definition as string | undefined
+    if (!definition) {
+      throw new Error(`视图 ${schema}.${view} 不存在或当前用户无权限查看其定义`)
+    }
+    return `CREATE OR REPLACE VIEW "${schema}"."${view}" AS\n${definition}`
+  }
+
+  /**
+   * 按行导入数据：单一事务内逐行参数化 INSERT，任意一行失败立即回滚并返回失败行号与原因
+   *
+   * @param database - 目标数据库名
+   * @param schema - 目标表所属 schema
+   * @param table - 目标表名
+   * @param columns - 按顺序对应每行数据的目标列名
+   * @param rows - 待写入的行数据，每行元素顺序与 columns 一一对应
+   * @returns 全部成功时 `succeededCount` 为总行数；任意一行失败则整体回滚，`succeededCount` 为 0 并附带 `failedAt`
+   */
+  async importRows(
+    database: string,
+    schema: string,
+    table: string,
+    columns: string[],
+    rows: unknown[][]
+  ): Promise<ImportResult> {
+    const pool = this.getPool(database)
+    const client = await pool.connect()
+    const columnList = columns.map((c) => `"${c}"`).join(', ')
+    const placeholders = columns.map((_, i) => `$${i + 1}`).join(', ')
+    const insertSql = `INSERT INTO "${schema}"."${table}" (${columnList}) VALUES (${placeholders})`
+    try {
+      await client.query('BEGIN')
+      for (let index = 0; index < rows.length; index++) {
+        try {
+          await client.query(insertSql, rows[index])
+        } catch (error) {
+          await client.query('ROLLBACK')
+          return {
+            succeededCount: 0,
+            failedAt: {
+              index,
+              message: error instanceof Error ? error.message : '导入失败'
+            },
+            rolledBack: true
+          }
+        }
+      }
+      await client.query('COMMIT')
+      return { succeededCount: rows.length, rolledBack: false }
+    } finally {
+      client.release()
+    }
+  }
+
+  /**
+   * 按顺序导入 SQL 语句：单一事务内依次执行，任意一条失败立即回滚并返回失败语句序号与原因
+   *
+   * @param database - 目标数据库名
+   * @param statements - 待顺序执行的 SQL 语句数组
+   * @returns 全部成功时 `succeededCount` 为总语句数；任意一条失败则整体回滚，`succeededCount` 为 0 并附带 `failedAt`
+   */
+  async importSql(database: string, statements: string[]): Promise<ImportResult> {
+    const pool = this.getPool(database)
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
+      for (let index = 0; index < statements.length; index++) {
+        try {
+          await client.query(statements[index])
+        } catch (error) {
+          await client.query('ROLLBACK')
+          return {
+            succeededCount: 0,
+            failedAt: {
+              index,
+              message: error instanceof Error ? error.message : '导入失败'
+            },
+            rolledBack: true
+          }
+        }
+      }
+      await client.query('COMMIT')
+      return { succeededCount: statements.length, rolledBack: false }
+    } finally {
+      client.release()
+    }
   }
 
   getStatus(): ConnectionStatus {

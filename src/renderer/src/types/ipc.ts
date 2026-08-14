@@ -148,6 +148,114 @@ export interface TriggerInfo {
   enabled: boolean
 }
 
+// ─── DDL 查看 ───
+
+/** 查看表/视图 DDL 的结果 */
+export interface DdlResult {
+  /** 对象类型：表或视图 */
+  objectType: 'table' | 'view'
+  /** 所属 schema 名 */
+  schema: string
+  /** 表名或视图名 */
+  name: string
+  /** 拼装完成的完整 DDL 文本 */
+  ddl: string
+}
+
+// ─── 导出任务 ───
+
+/** 一次查询结果导出操作（CSV/JSON），组件本地状态，不经 IPC 传递 */
+export interface ExportJob {
+  /** 导出目标格式 */
+  format: 'csv' | 'json'
+  /** 来自 fs:pick-save-file 的返回值 */
+  filePath: string
+  /** 导出前已知的结果集行数（QueryResult.rowCount） */
+  rowCount: number
+  /** 导出流程当前阶段 */
+  status: 'preparing' | 'writing' | 'done' | 'error'
+  /** 失败原因；仅 status 为 error 时存在 */
+  errorMessage?: string
+}
+
+// ─── 行数据复制 ───
+
+/** 一次选中行复制操作（INSERT/JSON/CSV），组件本地状态，不经 IPC 传递 */
+export interface RowClipboardPayload {
+  /** 复制目标格式 */
+  format: 'insert' | 'json' | 'csv'
+  /** null 表示来源表不可确定（如多表 JOIN 查询结果），此时 INSERT 语句使用占位符表名 */
+  sourceTable: { schema: string; name: string } | null
+  /** 本次复制涉及的行数 */
+  rowCount: number
+  /** 最终写入系统剪贴板的文本 */
+  text: string
+}
+
+// ─── 数据导入 ───
+
+/** 导入向导单个字段的列映射结果 */
+export interface ColumnMapping {
+  /** 源文件中的字段名（CSV 表头 / JSON 键名） */
+  sourceField: string
+  /** 映射到的目标表列名，null 表示未映射 */
+  targetColumn: string | null
+  /** 目标列是否为必填（非空且无默认值），未映射时应阻止进入确认步骤 */
+  required: boolean
+}
+
+/** 导入向导组件本地状态，不经 IPC 传递 */
+export interface ImportWizardState {
+  /** 用户选择的本地源文件 */
+  sourceFile: {
+    /** 本地文件路径 */
+    path: string
+    /** 文件格式，决定解析方式 */
+    format: 'csv' | 'json' | 'sql'
+    /** 文件编码，当前仅支持 UTF-8 */
+    encoding: 'utf-8'
+  }
+  /** 导入目标表 */
+  targetTable: {
+    schema: string
+    name: string
+  }
+  /** 源字段 → 目标列的映射；字段名与目标列名完全一致时可省略 */
+  columnMapping?: ColumnMapping[]
+  /** 导入前预览的前若干行数据 */
+  previewRows: Record<string, unknown>[]
+  /** 向导当前所处步骤 */
+  status: 'selecting-file' | 'mapping-columns' | 'confirming' | 'importing' | 'done' | 'error'
+}
+
+/** 按行导入请求（CSV/JSON 来源） */
+export interface ImportRowsRequest {
+  /** 目标表所属 schema */
+  schema: string
+  /** 目标表名 */
+  table: string
+  /** 按顺序对应每行数据的目标列名 */
+  columns: string[]
+  /** 待写入的行数据，每行元素顺序与 columns 一一对应 */
+  rows: unknown[][]
+}
+
+/** 按 SQL 语句导入请求（SQL 文件来源） */
+export interface ImportSqlRequest {
+  /** 待顺序执行的 SQL 语句数组 */
+  statements: string[]
+}
+
+/** 导入操作结果：失败时整体回滚，`succeededCount` 为 0 */
+export interface ImportResult {
+  /** 成功写入/执行的行数或语句数 */
+  succeededCount: number
+  /** 首个失败项的位置与原因；全部成功时不存在 */
+  failedAt?: { index: number; message: string }
+  /** 是否发生了回滚（存在失败项时必为 true） */
+  rolledBack: boolean
+}
+
 // ─── ER 图分析 ───
 
 /** ER 图中的一张表（含全部列） */
@@ -274,6 +382,32 @@ export interface DatabaseApi {
     database: string,
     schemas: string[]
   ): Promise<ErDiagramData>
+  /** 获取表的完整 DDL 文本（列定义 + 约束 + 索引） */
+  getTableDdl(
+    connectionId: string,
+    database: string,
+    schema: string,
+    table: string
+  ): Promise<DdlResult>
+  /** 获取视图的完整定义语句 */
+  getViewDdl(
+    connectionId: string,
+    database: string,
+    schema: string,
+    view: string
+  ): Promise<DdlResult>
+  /** 按行导入数据到目标表，整体事务，任意一行失败即回滚 */
+  importRows(
+    connectionId: string,
+    database: string,
+    request: ImportRowsRequest
+  ): Promise<ImportResult>
+  /** 按顺序执行 SQL 语句导入数据，整体事务，任意一条失败即回滚 */
+  importSql(
+    connectionId: string,
+    database: string,
+    request: ImportSqlRequest
+  ): Promise<ImportResult>
   onStatusChange(callback: (status: ConnectionStatus) => void): () => void
 }
 

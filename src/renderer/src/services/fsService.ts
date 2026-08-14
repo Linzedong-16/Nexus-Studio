@@ -13,6 +13,19 @@ export const fsService = {
     return window.api.fs.pickFolder()
   },
 
+  /** 唤起系统保存文件对话框，用户取消返回 null */
+  async pickSaveFile(
+    defaultFileName: string,
+    filters: { name: string; extensions: string[] }[]
+  ): Promise<string | null> {
+    return window.api.fs.pickSaveFile(defaultFileName, filters)
+  },
+
+  /** 唤起系统打开文件对话框，用户取消返回 null */
+  async pickOpenFile(filters: { name: string; extensions: string[] }[]): Promise<string | null> {
+    return window.api.fs.pickOpenFile(filters)
+  },
+
   /** 读取目录内容（排除隐藏文件），返回直接子节点 */
   async readDir(dirPath: string): Promise<FileNode[]> {
     return window.api.fs.readDir(dirPath)

@@ -10,7 +10,11 @@ import type {
   TriggerInfo,
   RoleInfo,
   ErDiagramData,
-  DbLogEntry
+  DdlResult,
+  DbLogEntry,
+  ImportRowsRequest,
+  ImportSqlRequest,
+  ImportResult
 } from '../renderer/src/types/ipc'
 import type { KeybindingEntry } from '../renderer/src/types/keybinding'
 import type { FileNode } from '../renderer/src/types/fileExplorer'
@@ -54,6 +58,10 @@ const api: Api = {
     getErDiagramData: createInvoke<[string, string, string[]], ErDiagramData>(
       'db:get-er-diagram-data'
     ),
+    getTableDdl: createInvoke<[string, string, string, string], DdlResult>('db:get-table-ddl'),
+    getViewDdl: createInvoke<[string, string, string, string], DdlResult>('db:get-view-ddl'),
+    importRows: createInvoke<[string, string, ImportRowsRequest], ImportResult>('db:import-rows'),
+    importSql: createInvoke<[string, string, ImportSqlRequest], ImportResult>('db:import-sql'),
     onStatusChange: createListener('db:status-changed')
   },
 
@@ -103,6 +111,12 @@ const api: Api = {
   // ─── 文件系统操作 ───
   fs: {
     pickFolder: createInvoke<[], string | null>('fs:pick-folder'),
+    pickSaveFile: createInvoke<[string, { name: string; extensions: string[] }[]], string | null>(
+      'fs:pick-save-file'
+    ),
+    pickOpenFile: createInvoke<[{ name: string; extensions: string[] }[]], string | null>(
+      'fs:pick-open-file'
+    ),
     readDir: createInvoke<[string], FileNode[]>('fs:read-dir'),
     readFile: createInvoke<[string], string>('fs:read-file'),
     writeFile: createInvoke<[string, string], void>('fs:write-file'),

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Play } from 'lucide-react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import { Badge } from '@/components/ui/badge'
@@ -24,6 +25,16 @@ export default function QueryPanel({ tab }: QueryPanelProps): React.JSX.Element 
   const updateQueryTab = useWorkspaceStore((s) => s.updateQueryTab)
   const setQueryLoading = useWorkspaceStore((s) => s.setQueryLoading)
   const setQueryResult = useWorkspaceStore((s) => s.setQueryResult)
+  const [selectedRowIndexes, setSelectedRowIndexes] = useState<Set<number>>(() => new Set())
+
+  const toggleRowSelected = (rowIndex: number): void => {
+    setSelectedRowIndexes((prev) => {
+      const next = new Set(prev)
+      if (next.has(rowIndex)) next.delete(rowIndex)
+      else next.add(rowIndex)
+      return next
+    })
+  }
 
   /** 执行成功后根据 SQL 类型自动刷新对应数据列表 */
   const autoRefresh = (state: QueryTabState): void => {
@@ -59,6 +70,7 @@ export default function QueryPanel({ tab }: QueryPanelProps): React.JSX.Element 
   const runQuery = async (): Promise<void> => {
     if (!state.sql.trim() || tab.loading) return
     setQueryLoading(tab.id, true)
+    setSelectedRowIndexes(new Set())
     try {
       const result = await queryService.execute(state.connectionId, state.database, state.sql)
       setQueryResult(tab.id, result)
@@ -121,6 +133,8 @@ export default function QueryPanel({ tab }: QueryPanelProps): React.JSX.Element 
                 result={tab.result ?? null}
                 error={tab.error}
                 loading={tab.loading ?? false}
+                selectedRowIndexes={selectedRowIndexes}
+                onToggleRow={toggleRowSelected}
               />
             </div>
           </Panel>

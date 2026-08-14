@@ -18,7 +18,11 @@ import type {
   RoutineInfo,
   RoleInfo,
   TestResult,
-  ErDiagramData
+  ErDiagramData,
+  DdlResult,
+  ImportRowsRequest,
+  ImportSqlRequest,
+  ImportResult
 } from '../../renderer/src/types/ipc'
 
 /**
@@ -134,6 +138,41 @@ export function registerDbIPC(mainWindow: BrowserWindow): void {
     'db:get-er-diagram-data',
     async (connectionId, database, schemas) => {
       return driverManager.getErDiagramData(connectionId, database, schemas)
+    }
+  )
+
+  createIPCHandler<[string, string, string, string], DdlResult>(
+    'db:get-table-ddl',
+    async (connectionId, database, schema, table) => {
+      const ddl = await driverManager.getTableDdl(connectionId, database, schema, table)
+      return { objectType: 'table', schema, name: table, ddl }
+    }
+  )
+
+  createIPCHandler<[string, string, string, string], DdlResult>(
+    'db:get-view-ddl',
+    async (connectionId, database, schema, view) => {
+      const ddl = await driverManager.getViewDdl(connectionId, database, schema, view)
+      return { objectType: 'view', schema, name: view, ddl }
+    }
+  )
+
+  createIPCHandler<[string, string, ImportRowsRequest], ImportResult>(
+    'db:import-rows',
+    async (connectionId, database, request) => {
+      const { schema, table, columns, rows } = request
+      const invalidRow = rows.findIndex((row) => row.length !== columns.length)
+      if (invalidRow !== -1) {
+        throw new Error(`第 ${invalidRow + 1} 行的字段数与列数不一致，未写入任何数据`)
+      }
+      return driverManager.importRows(connectionId, database, schema, table, columns, rows)
+    }
+  )
+
+  createIPCHandler<[string, string, ImportSqlRequest], ImportResult>(
+    'db:import-sql',
+    async (connectionId, database, request) => {
+      return driverManager.importSql(connectionId, database, request.statements)
     }
   )
 }

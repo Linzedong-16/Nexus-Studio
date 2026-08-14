@@ -22,7 +22,8 @@ import type {
   TriggerInfo,
   RoutineInfo,
   RoleInfo,
-  ErDiagramData
+  ErDiagramData,
+  ImportResult
 } from '../../../renderer/src/types/ipc'
 import type { IDatabaseDriver } from './IDatabaseDriver'
 import { createDriver } from '../factory'
@@ -193,6 +194,57 @@ export class DriverManager extends EventEmitter {
       throw new Error('当前数据库类型暂不支持 ER 分析')
     }
     return driver.getErDiagramData(database, schemas)
+  }
+
+  /** 驱动未实现 getTableDdl 时抛出明确的不支持提示，见 contracts/db-ipc-productivity.md */
+  async getTableDdl(
+    connectionId: string,
+    database: string,
+    schema: string,
+    table: string
+  ): Promise<string> {
+    const driver = await this.ensureConnection(connectionId)
+    if (typeof driver.getTableDdl !== 'function') {
+      throw new Error('不支持当前数据库类型的 DDL 查看')
+    }
+    return driver.getTableDdl(database, schema, table)
+  }
+
+  /** 驱动未实现 getViewDdl 时抛出明确的不支持提示，见 contracts/db-ipc-productivity.md */
+  async getViewDdl(
+    connectionId: string,
+    database: string,
+    schema: string,
+    view: string
+  ): Promise<string> {
+    const driver = await this.ensureConnection(connectionId)
+    if (typeof driver.getViewDdl !== 'function') {
+      throw new Error('不支持当前数据库类型的 DDL 查看')
+    }
+    return driver.getViewDdl(database, schema, view)
+  }
+
+  /** 按行导入数据到目标表，必需方法，直接透传 */
+  async importRows(
+    connectionId: string,
+    database: string,
+    schema: string,
+    table: string,
+    columns: string[],
+    rows: unknown[][]
+  ): Promise<ImportResult> {
+    const driver = await this.ensureConnection(connectionId)
+    return driver.importRows(database, schema, table, columns, rows)
+  }
+
+  /** 按顺序执行 SQL 语句导入数据，必需方法，直接透传 */
+  async importSql(
+    connectionId: string,
+    database: string,
+    statements: string[]
+  ): Promise<ImportResult> {
+    const driver = await this.ensureConnection(connectionId)
+    return driver.importSql(database, statements)
   }
 
   getStatus(connectionId: string): ConnectionStatus {

@@ -15,7 +15,11 @@ import type {
   ConnectionStatus,
   ConfigStore,
   ErDiagramData,
-  DbLogEntry
+  DdlResult,
+  DbLogEntry,
+  ImportRowsRequest,
+  ImportSqlRequest,
+  ImportResult
 } from '../renderer/src/types/ipc'
 import type { KeybindingEntry } from '../renderer/src/types/keybinding'
 import type { FileNode } from '../renderer/src/types/fileExplorer'
@@ -83,6 +87,32 @@ export interface DatabaseApi {
     database: string,
     schemas: string[]
   ): Promise<ErDiagramData>
+  /** 获取表的完整 DDL 文本（列定义 + 约束 + 索引） */
+  getTableDdl(
+    connectionId: string,
+    database: string,
+    schema: string,
+    table: string
+  ): Promise<DdlResult>
+  /** 获取视图的完整定义语句 */
+  getViewDdl(
+    connectionId: string,
+    database: string,
+    schema: string,
+    view: string
+  ): Promise<DdlResult>
+  /** 按行导入数据到目标表，整体事务，任意一行失败即回滚 */
+  importRows(
+    connectionId: string,
+    database: string,
+    request: ImportRowsRequest
+  ): Promise<ImportResult>
+  /** 按顺序执行 SQL 语句导入数据，整体事务，任意一条失败即回滚 */
+  importSql(
+    connectionId: string,
+    database: string,
+    request: ImportSqlRequest
+  ): Promise<ImportResult>
   /** 订阅连接状态变化；返回取消订阅函数 */
   onStatusChange(callback: (status: ConnectionStatus) => void): () => void
 }
@@ -160,6 +190,13 @@ export interface ThemeApi {
 export interface FileSystemApi {
   /** 唤起系统目录选择器，返回选中路径或 null */
   pickFolder(): Promise<string | null>
+  /** 唤起系统保存文件对话框，用户取消返回 null */
+  pickSaveFile(
+    defaultFileName: string,
+    filters: { name: string; extensions: string[] }[]
+  ): Promise<string | null>
+  /** 唤起系统打开文件对话框，用户取消返回 null */
+  pickOpenFile(filters: { name: string; extensions: string[] }[]): Promise<string | null>
   /** 读取目录内容（排除隐藏文件），返回直接子节点 */
   readDir(dirPath: string): Promise<FileNode[]>
   /** 读取文件内容（UTF-8） */

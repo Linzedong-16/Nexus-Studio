@@ -117,6 +117,32 @@ export function registerFsIPC(): void {
     return result.filePaths[0]
   })
 
+  // 唤起系统保存文件对话框，用户取消返回 null
+  createIPCHandler<[string, { name: string; extensions: string[] }[]], string | null>(
+    'fs:pick-save-file',
+    async (defaultFileName: string, filters: { name: string; extensions: string[] }[]) => {
+      const result = await dialog.showSaveDialog({
+        defaultPath: defaultFileName,
+        filters
+      })
+      if (result.canceled || !result.filePath) return null
+      return result.filePath
+    }
+  )
+
+  // 唤起系统打开文件对话框，用户取消返回 null
+  createIPCHandler<[{ name: string; extensions: string[] }[]], string | null>(
+    'fs:pick-open-file',
+    async (filters: { name: string; extensions: string[] }[]) => {
+      const result = await dialog.showOpenDialog({
+        filters,
+        properties: ['openFile']
+      })
+      if (result.canceled || result.filePaths.length === 0) return null
+      return result.filePaths[0]
+    }
+  )
+
   // 读取目录内容（懒加载，仅返回直接子节点）
   createIPCHandler<[string], FileNode[]>('fs:read-dir', async (dirPath: string) => {
     return readDirTree(dirPath)

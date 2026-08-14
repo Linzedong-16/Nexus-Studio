@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import {
   ChevronDown,
   ChevronRight,
+  FileText,
   KeyRound,
   ListTree,
   Loader2,
@@ -11,14 +13,22 @@ import {
   Zap
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { ContextMenu, ContextMenuContent, ContextMenuTrigger } from '@/components/ui/context-menu'
-import type { TableInfo, ColumnInfo, IndexInfo, TriggerInfo } from '@/types/ipc'
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger
+} from '@/components/ui/context-menu'
+import type { TableInfo, ColumnInfo, IndexInfo, TriggerInfo, DdlResult } from '@/types/ipc'
 import type { TableModuleKind } from '@/types/database'
 import { useConnectionStore } from '@/store/connectionStore'
 import { useWorkspaceStore } from '@/store/workspaceStore'
 import { getSqlTemplate } from '@/lib/sqlTemplates'
+import { queryService } from '@/services/queryService'
 import AddToConversationMenuItem from '@/components/code/AddToConversationMenuItem'
 import { useInCodeMode } from '@/components/code/useInCodeMode'
+import DdlViewerDialog from '@/components/work/DdlViewerDialog'
 import { cn } from '@/lib/utils'
 
 interface TableNodeProps {
@@ -71,6 +81,10 @@ export default function TableNode({
   const openTableTab = useWorkspaceStore((s) => s.openTableTab)
   const inCodeMode = useInCodeMode()
 
+  const [ddlOpen, setDdlOpen] = useState(false)
+  const [ddlResult, setDdlResult] = useState<DdlResult | null>(null)
+  const [ddlError, setDdlError] = useState<string | null>(null)
+
   const expanded = node?.expanded ?? false
 
   const handleToggle = (): void => {
@@ -79,6 +93,18 @@ export default function TableNode({
   const handleOpenData = (): void => {
     if (inCodeMode) return
     openTableTab({ connectionId, connectionName, database, schema, table: table.name })
+  }
+  const handleViewDdl = (): void => {
+    setDdlResult(null)
+    setDdlError(null)
+    setDdlOpen(true)
+    const fetchDdl =
+      table.type === 'view'
+        ? queryService.getViewDdl(connectionId, database, schema, table.name)
+        : queryService.getTableDdl(connectionId, database, schema, table.name)
+    fetchDdl
+      .then((result) => setDdlResult(result))
+      .catch((err: unknown) => setDdlError(err instanceof Error ? err.message : String(err)))
   }
 
   return (
@@ -163,16 +189,29 @@ export default function TableNode({
           )}
         </div>
       </ContextMenuTrigger>
-      {inCodeMode && (
-        <ContextMenuContent>
-          <AddToConversationMenuItem
-            id={`table:${connectionId}:${database}:${schema}:${table.name}`}
-            type="table"
-            label={table.name}
-            detail={`${schema}.${table.name}`}
-          />
-        </ContextMenuContent>
-      )}
+      <ContextMenuContent>
+        {inCodeMode && (
+          <>
+            <AddToConversationMenuItem
+              id={`table:${connectionId}:${database}:${schema}:${table.name}`}
+              type="table"
+              label={table.name}
+              detail={`${schema}.${table.name}`}
+            />
+            <ContextMenuSeparator />
+          </>
+        )}
+        <ContextMenuItem onSelect={handleViewDdl}>
+          <FileText className="size-3.5" />
+          查看 DDL
+        </ContextMenuItem>
+      </ContextMenuContent>
+      <DdlViewerDialog
+        open={ddlOpen}
+        onOpenChange={setDdlOpen}
+        result={ddlResult}
+        error={ddlError}
+      />
     </ContextMenu>
   )
 }

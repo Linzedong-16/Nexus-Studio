@@ -5,6 +5,7 @@ import {
   ChevronLast,
   ChevronLeft,
   ChevronRight,
+  FileUp,
   Loader2,
   Plus,
   SquarePen,
@@ -35,6 +36,7 @@ import { queryService } from '@/services/queryService'
 import { useConnectionStore } from '@/store/connectionStore'
 import { useWorkspaceStore } from '@/store/workspaceStore'
 import AddRowDialog from './AddRowDialog'
+import ImportDataDialog from './ImportDataDialog'
 import ResultTable from './ResultTable'
 
 interface DataBrowserProps {
@@ -65,6 +67,7 @@ export default function DataBrowser({ tab }: DataBrowserProps): React.JSX.Elemen
   const [columns, setColumns] = useState<ColumnInfo[]>([])
   const [selectedRowIndexes, setSelectedRowIndexes] = useState<Set<number>>(() => new Set())
   const [addRowOpen, setAddRowOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -288,6 +291,24 @@ export default function DataBrowser({ tab }: DataBrowserProps): React.JSX.Elemen
       )
     },
     {
+      key: 'import-data',
+      content: (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7"
+              onClick={() => setImportOpen(true)}
+            >
+              <FileUp className="size-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">导入数据</TooltipContent>
+        </Tooltip>
+      )
+    },
+    {
       key: 'delete-rows',
       content: (
         <Tooltip>
@@ -374,9 +395,10 @@ export default function DataBrowser({ tab }: DataBrowserProps): React.JSX.Elemen
           error={tab.error}
           loading={tab.loading ?? false}
           editMode={editMode}
-          selectedRowIndexes={selectedRowIndexes}
+          selectedRowIndexes={editMode ? selectedRowIndexes : undefined}
           onToggleRow={toggleRowSelected}
           onCellCommit={commitCellEdit}
+          sourceTable={{ schema: state.schema, name: state.table }}
         />
 
         {/* 分页栏 */}
@@ -457,6 +479,16 @@ export default function DataBrowser({ tab }: DataBrowserProps): React.JSX.Elemen
         schema={state.schema}
         table={state.table}
         onInserted={() => loadPage(state.page, state.pageSize)}
+      />
+
+      <ImportDataDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        connectionId={connectionId}
+        database={state.database}
+        defaultSchema={state.schema}
+        defaultTable={state.table}
+        onImported={() => loadPage(state.page, state.pageSize)}
       />
 
       <Dialog

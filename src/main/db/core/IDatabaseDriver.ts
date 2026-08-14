@@ -18,7 +18,8 @@ import type {
   RoutineInfo,
   RoleInfo,
   TestResult,
-  ErDiagramData
+  ErDiagramData,
+  ImportResult
 } from '../../../renderer/src/types/ipc'
 import type { DatabaseType } from './types'
 
@@ -51,6 +52,22 @@ export interface IDatabaseDriver {
 
   /** 获取 ER 图分析所需的表结构与外键数据；不支持该能力的类型可不实现 */
   getErDiagramData?(database: string, schemas: string[]): Promise<ErDiagramData>
+
+  /** 获取表的完整 DDL 文本；PostgreSQL 无原生 SHOW CREATE TABLE，需组合系统目录查询拼装；不支持该能力的类型可不实现 */
+  getTableDdl?(database: string, schema: string, table: string): Promise<string>
+  /** 获取视图的完整定义语句，基于 pg_get_viewdef；不支持该能力的类型可不实现 */
+  getViewDdl?(database: string, schema: string, view: string): Promise<string>
+
+  /** 按行导入数据到目标表，整体事务：任意一行失败立即回滚 */
+  importRows(
+    database: string,
+    schema: string,
+    table: string,
+    columns: string[],
+    rows: unknown[][]
+  ): Promise<ImportResult>
+  /** 按顺序执行 SQL 语句数组导入数据，整体事务：任意一条失败立即回滚 */
+  importSql(database: string, statements: string[]): Promise<ImportResult>
 
   getStatus(): ConnectionStatus
 }

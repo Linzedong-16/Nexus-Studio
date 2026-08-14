@@ -12,7 +12,11 @@ import type {
   RoutineInfo,
   RoleInfo,
   ErDiagramData,
-  DbLogEntry
+  DdlResult,
+  DbLogEntry,
+  ImportRowsRequest,
+  ImportSqlRequest,
+  ImportResult
 } from '../types/ipc'
 
 /**
@@ -173,6 +177,52 @@ export const queryService = {
     schemas: string[]
   ): Promise<ErDiagramData> {
     return window.api.db.getErDiagramData(connectionId, database, schemas)
+  },
+
+  /**
+   * 获取表的完整 DDL 文本（列定义 + 约束 + 索引）
+   */
+  async getTableDdl(
+    connectionId: string,
+    database: string,
+    schema: string,
+    table: string
+  ): Promise<DdlResult> {
+    return window.api.db.getTableDdl(connectionId, database, schema, table)
+  },
+
+  /**
+   * 获取视图的完整定义语句
+   */
+  async getViewDdl(
+    connectionId: string,
+    database: string,
+    schema: string,
+    view: string
+  ): Promise<DdlResult> {
+    return window.api.db.getViewDdl(connectionId, database, schema, view)
+  },
+
+  /**
+   * 按行导入数据到目标表，整体事务，任意一行失败即回滚
+   */
+  async importRows(
+    connectionId: string,
+    database: string,
+    request: ImportRowsRequest
+  ): Promise<ImportResult> {
+    return window.api.db.importRows(connectionId, database, request)
+  },
+
+  /**
+   * 按顺序执行 SQL 语句导入数据，整体事务，任意一条失败即回滚
+   */
+  async importSql(
+    connectionId: string,
+    database: string,
+    request: ImportSqlRequest
+  ): Promise<ImportResult> {
+    return window.api.db.importSql(connectionId, database, request)
   },
 
   /**
