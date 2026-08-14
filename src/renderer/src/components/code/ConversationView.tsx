@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, memo } from 'react'
 import {
   X,
   MessageSquare,
@@ -25,7 +25,9 @@ import { Button } from '@/components/ui/button'
 import { useConversationStore } from '@/store/conversationStore'
 import type { ConversationTurn } from '@/store/conversationStore'
 import type { ReferenceType } from '@/types/conversation'
-import type { AgentErrorCode } from '@/types/agent'
+import type { AgentErrorCode, AgentToolCallRecord } from '@/types/agent'
+import MemoizedMarkdown from './MarkdownContent'
+import { markdownKey } from '@/lib/markdownUtils'
 
 const toolBtnClass =
   'flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground'
@@ -40,7 +42,7 @@ const REFERENCE_ICON: Record<ReferenceType, typeof File> = {
   moduleGroup: Package
 }
 
-/** `AgentErrorCode` → 面向用户的中文提示（contracts/ipc-contract.md 通用错误提示语表） */
+/** `AgentErrorCode` → 面向用户的中文提示 */
 const ERROR_CODE_TEXT: Record<AgentErrorCode, string> = {
   provider_not_configured:
     '尚未配置 DeepSeek API 密钥，请在 .env 中填入 DEEPSEEK_API_KEY 后重启应用',
@@ -51,13 +53,11 @@ const ERROR_CODE_TEXT: Record<AgentErrorCode, string> = {
   max_iterations_exceeded: '未能在限定步数内完成任务，已在结果中列出目前收集到的信息'
 }
 
-/** 单条工具调用轨迹（FR-010：逐条展示工具名/参数/状态） */
-function ToolCallTraceItem({
+/** 单条工具调用轨迹 */
+const ToolCallTraceItem = memo(function ToolCallTraceItem({
   toolCall
 }: {
-  toolCall: ConversationTurn['run'] extends null
-    ? never
-    : NonNullable<ConversationTurn['run']>['toolCalls'][number]
+  toolCall: AgentToolCallRecord
 }): React.JSX.Element {
   const StatusIcon =
     toolCall.confirmation === 'rejected'
@@ -67,6 +67,8 @@ function ToolCallTraceItem({
         : toolCall.result?.status === 'success'
           ? CheckCircle2
           : Loader2
+
+  const errorMsg = toolCall.result?.status === 'error' ? toolCall.result.error.message : undefined
 
   return (
     <div className="flex items-start gap-2 rounded-md border bg-muted/30 px-2.5 py-1.5 text-xs">
@@ -91,18 +93,21 @@ function ToolCallTraceItem({
         <div className="truncate text-muted-foreground" title={JSON.stringify(toolCall.input)}>
           {JSON.stringify(toolCall.input)}
         </div>
-        {toolCall.result?.status === 'error' && (
-          <div className="text-destructive">{toolCall.result.error.message}</div>
-        )}
+        {errorMsg && <div className="text-destructive">{errorMsg}</div>}
       </div>
     </div>
   )
-}
+})
 
-/** 单轮"用户指令 → Agent 结果"展示 */
-function ConversationTurnItem({ turn }: { turn: ConversationTurn }): React.JSX.Element {
-  const confirmPendingToolCall = useConversationStore((s) => s.confirmPendingToolCall)
-  const { run, pending, dispatchError } = turn
+/** 单轮"用户指令 → Agent 结果"展示（memo 优化避免不必要重渲染） */
+const ConversationTurnItem = memo(function ConversationTurnItem({
+  turn,
+  confirmPendingToolCall
+}: {
+  turn: ConversationTurn
+  confirmPendingToolCall: (approved: boolean) => void
+}): React.JSX.Element {
+  const { run, pending, dispatchError, streamingText } = turn
 
   return (
     <div className="space-y-2">
@@ -113,7 +118,7 @@ function ConversationTurnItem({ turn }: { turn: ConversationTurn }): React.JSX.E
 
       {/* Agent 响应 */}
       <div className="max-w-[90%] space-y-2 text-sm">
-        {pending && (
+        {pending && !streamingText && !run && (
           <div className="flex items-center gap-2 text-muted-foreground">
             <Loader2 className="size-3.5 animate-spin" />
             正在处理…
@@ -135,9 +140,21 @@ function ConversationTurnItem({ turn }: { turn: ConversationTurn }): React.JSX.E
           </div>
         )}
 
-        {run?.status === 'completed' && run.finalMessage && (
-          <div className="whitespace-pre-wrap rounded-xl bg-muted px-3.5 py-2.5">
-            {run.finalMessage}
+        {/* 流式文本（实时逐 token 渲染） */}
+        {streamingText && (
+          <div className="rounded-xl bg-muted px-3.5 py-2.5">
+            <MemoizedMarkdown
+              content={streamingText}
+              isStreaming
+              key={markdownKey(streamingText)}
+            />
+          </div>
+        )}
+
+        {/* 完整结果（Markdown 渲染） */}
+        {!streamingText && run?.status === 'completed' && run.finalMessage && (
+          <div className="rounded-xl bg-muted px-3.5 py-2.5">
+            <MemoizedMarkdown content={run.finalMessage} key={markdownKey(run.finalMessage)} />
           </div>
         )}
 
@@ -155,18 +172,14 @@ function ConversationTurnItem({ turn }: { turn: ConversationTurn }): React.JSX.E
               {run.pendingConfirmation.summary}
             </div>
             <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                disabled={pending}
-                onClick={() => void confirmPendingToolCall(true)}
-              >
+              <Button size="sm" disabled={pending} onClick={() => confirmPendingToolCall(true)}>
                 确认执行
               </Button>
               <Button
                 size="sm"
                 variant="outline"
                 disabled={pending}
-                onClick={() => void confirmPendingToolCall(false)}
+                onClick={() => confirmPendingToolCall(false)}
               >
                 取消
               </Button>
@@ -176,13 +189,14 @@ function ConversationTurnItem({ turn }: { turn: ConversationTurn }): React.JSX.E
       </div>
     </div>
   )
-}
+})
 
 export default function ConversationView(): React.JSX.Element {
   const references = useConversationStore((s) => s.references)
   const removeReference = useConversationStore((s) => s.removeReference)
   const turns = useConversationStore((s) => s.turns)
-  const sendInstruction = useConversationStore((s) => s.sendInstruction)
+  const sendInstructionStream = useConversationStore((s) => s.sendInstructionStream)
+  const confirmPendingToolCall = useConversationStore((s) => s.confirmPendingToolCall)
   const loadConversationList = useConversationStore((s) => s.loadConversationList)
   const selectConversation = useConversationStore((s) => s.selectConversation)
   const createConversation = useConversationStore((s) => s.createConversation)
@@ -190,7 +204,13 @@ export default function ConversationView(): React.JSX.Element {
   const [input, setInput] = useState('')
   const isBusy = turns.length > 0 && turns[turns.length - 1].pending
 
-  // 挂载时加载对话列表，并自动选中最近对话或创建新对话（009 US1 多轮入口）
+  // 滚动容器 ref
+  const scrollRef = useRef<HTMLDivElement>(null)
+  // 是否自动跟随滚动到底部
+  const [shouldAutoScroll, setShouldAutoScroll] = useState(true)
+  const prevTurnsLength = useRef(turns.length)
+
+  // 挂载时加载对话列表
   useEffect(() => {
     void (async () => {
       await loadConversationList()
@@ -203,11 +223,37 @@ export default function ConversationView(): React.JSX.Element {
     })()
   }, [loadConversationList, selectConversation, createConversation])
 
+  // 新消息到达时自动滚到底部
+  useEffect(() => {
+    if (turns.length > prevTurnsLength.current) {
+      setShouldAutoScroll(true)
+    }
+    prevTurnsLength.current = turns.length
+  }, [turns.length])
+
+  // 自动滚动（requestAnimationFrame 节流）
+  useEffect(() => {
+    if (!shouldAutoScroll || !scrollRef.current) return
+    const el = scrollRef.current
+    const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 200
+    if (isNearBottom) {
+      requestAnimationFrame(() => {
+        el.scrollTop = el.scrollHeight
+      })
+    }
+  })
+
+  const handleScroll = (): void => {
+    const el = scrollRef.current
+    if (!el) return
+    setShouldAutoScroll(el.scrollHeight - el.scrollTop - el.clientHeight < 100)
+  }
+
   const handleSend = (): void => {
     const instruction = input.trim()
     if (!instruction || isBusy) return
     setInput('')
-    void sendInstruction(instruction)
+    void sendInstructionStream(instruction)
   }
 
   return (
@@ -242,10 +288,16 @@ export default function ConversationView(): React.JSX.Element {
         </div>
       ) : (
         <>
-          <div className="flex-1 space-y-4 overflow-y-auto p-6">
-            {turns.map((turn) => (
-              <ConversationTurnItem key={turn.id} turn={turn} />
-            ))}
+          <div ref={scrollRef} className="flex-1 overflow-y-auto p-6" onScroll={handleScroll}>
+            <div className="flex flex-col gap-4">
+              {turns.map((turn) => (
+                <ConversationTurnItem
+                  key={turn.id}
+                  turn={turn}
+                  confirmPendingToolCall={confirmPendingToolCall}
+                />
+              ))}
+            </div>
           </div>
           <div className="mx-auto w-full max-w-2xl p-4">
             <ConversationInputCard
@@ -272,7 +324,7 @@ interface ConversationInputCardProps {
   disabled: boolean
 }
 
-/** 输入框卡片：指令输入 + 引用小图标 + 工具栏，US1 送单轮指令的唯一入口 */
+/** 输入框卡片：指令输入 + 引用小图标 + 工具栏 */
 function ConversationInputCard({
   input,
   setInput,

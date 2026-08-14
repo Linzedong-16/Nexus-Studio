@@ -5,7 +5,8 @@ import type {
   ChatToolCall,
   IModelProvider,
   ModelResponse,
-  ModelToolSpec
+  ModelToolSpec,
+  StreamEvent
 } from './IModelProvider'
 import { ModelProviderError } from './IModelProvider'
 
@@ -147,6 +148,71 @@ export class DeepSeekProvider implements IModelProvider {
         return { kind: 'tool_calls', toolCalls: fromOpenAIToolCalls(choice.tool_calls, nameMap) }
       }
       return { kind: 'final', content: choice?.content ?? '' }
+    } catch (error) {
+      if (error instanceof ModelProviderError) throw error
+      throw toProviderError(error)
+    }
+  }
+
+  /**
+   * 流式 Chat Completions 调用
+   *
+   * 通过 `stream: true` 启动 SSE 流式响应，逐 token 产出文本增量或工具调用。
+   * 每接收到一块模型输出即 yield 对应的 `StreamEvent`，供 ReAct 循环实时推送到渲染进程。
+   *
+   * @throws {ModelProviderError} 鉴权失败/限流/超时/服务不可用
+   */
+  async *chatStream(messages: ChatMessage[], tools: ModelToolSpec[]): AsyncGenerator<StreamEvent> {
+    const nameMap = new Map<string, string>()
+    try {
+      const stream = await this.client.chat.completions.create({
+        model: this.model,
+        messages: toOpenAIMessages(messages),
+        tools: tools.length > 0 ? toOpenAITools(tools, nameMap) : undefined,
+        stream: true
+      })
+
+      // 累积 tool_calls delta 的临时存储
+      const toolCallAccumulator = new Map<number, { id: string; name: string; arguments: string }>()
+
+      for await (const chunk of stream) {
+        const delta = chunk.choices[0]?.delta
+
+        // 文本增量
+        if (delta?.content) {
+          yield { kind: 'text-delta', content: delta.content }
+        }
+
+        // tool_calls 增量（OpenAI streaming 模式下分多块返回，每块含 index）
+        if (delta?.tool_calls) {
+          for (const tc of delta.tool_calls) {
+            const idx = tc.index
+            const existing = toolCallAccumulator.get(idx) ?? { id: '', name: '', arguments: '' }
+            if (tc.id) existing.id = tc.id
+            if (tc.function?.name) existing.name = tc.function.name
+            if (tc.function?.arguments) existing.arguments += tc.function.arguments
+            toolCallAccumulator.set(idx, existing)
+          }
+        }
+
+        // 检查是否结束：有 finish_reason 表示本块是最后一块
+        if (chunk.choices[0]?.finish_reason === 'tool_calls') {
+          // 累积的 tool_calls 全部到达，解析并 yield
+          const toolCalls: ChatToolCall[] = []
+          for (const [, tc] of toolCallAccumulator) {
+            let input: unknown = {}
+            try {
+              input = JSON.parse(tc.arguments)
+            } catch {
+              input = {}
+            }
+            const toolName = nameMap.get(tc.name) ?? tc.name
+            toolCalls.push({ id: tc.id, toolName, input })
+          }
+          yield { kind: 'tool_calls', toolCalls }
+        }
+      }
+      yield { kind: 'done' }
     } catch (error) {
       if (error instanceof ModelProviderError) throw error
       throw toProviderError(error)

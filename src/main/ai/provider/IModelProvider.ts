@@ -42,6 +42,12 @@ export class ModelProviderError extends Error {
   }
 }
 
+/** 流式响应的单个增量事件：文本片段（累积到 finalMessage）或完整的工具调用列表 */
+export type StreamEvent =
+  | { kind: 'text-delta'; content: string }
+  | { kind: 'tool_calls'; toolCalls: ChatToolCall[] }
+  | { kind: 'done' }
+
 /**
  * 模型提供方抽象接口
  *
@@ -58,4 +64,17 @@ export interface IModelProvider {
    * @throws {ModelProviderError} 鉴权失败/限流/超时/服务不可用
    */
   chat(messages: ChatMessage[], tools: ModelToolSpec[]): Promise<ModelResponse>
+
+  /**
+   * 发起一次流式模型调用，通过 AsyncGenerator 逐 token 产出内容
+   *
+   * 与 `chat()` 接口并行存在，ReAct 循环可根据需要选择流式或非流式调用。
+   * 流式产出事件序列：`text-delta`... → `done` 或 `tool_calls` → `done`
+   *
+   * @param messages - 对话历史 + 本轮工具结果（若有）
+   * @param tools - 派生自工具注册表的模型可调用工具列表
+   * @yields 增量文本片段或工具调用列表
+   * @throws {ModelProviderError} 鉴权失败/限流/超时/服务不可用
+   */
+  chatStream(messages: ChatMessage[], tools: ModelToolSpec[]): AsyncGenerator<StreamEvent>
 }

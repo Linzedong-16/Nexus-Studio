@@ -29,6 +29,22 @@ export const agentService = {
   },
 
   /**
+   * 发起流式 Agent 对话，返回 { runId, conversationId }
+   *
+   * 增量内容通过 `window.api.agent.onStreamEvent(callback)` 推送，
+   * 在 store 层订阅事件并累积到 ConversationTurn.streamingText。
+   */
+  async chatStream(
+    instruction: string,
+    connectionId: string | null,
+    database: string | null,
+    conversationId?: string
+  ): Promise<{ runId: string; conversationId: string }> {
+    const request: AgentChatRequest = { instruction, connectionId, database, conversationId }
+    return window.api.agent.chatStream(request)
+  },
+
+  /**
    * 确认或拒绝某次暂停中的修改类工具调用，恢复对应运行
    */
   async confirmToolCall(runId: string, approved: boolean): Promise<AgentRun> {

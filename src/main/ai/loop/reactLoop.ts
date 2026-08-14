@@ -95,6 +95,11 @@ function trimHistory(
 /**
  * 将 AgentMessage 转换为 LLM 所需的 ChatMessage 格式
  *
+ * DeepSeek/OpenAI 协议要求：assistant 消息若携带 `tool_calls`，必须紧跟对应数量的
+ * `role: 'tool'` 消息逐一回应每个 `tool_call_id`，否则下一次请求会被 API 以 400 拒绝
+ * （insufficient tool messages following tool_calls message）。持久化的历史消息里
+ * 工具调用结果保存在 `AgentToolCallRecord.result` 中，这里需要还原为对应的 tool 消息。
+ *
  * @param historyMessages - 对话历史消息
  * @returns ChatMessage 数组（不含 system prompt 和当前用户指令）
  */
@@ -116,12 +121,38 @@ function historyToChatMessages(historyMessages: AgentMessage[]): ChatMessage[] {
               }))
             : undefined
       })
+      for (const tc of msg.toolCalls) {
+        result.push({
+          role: 'tool',
+          content: JSON.stringify(tc.result ?? { status: 'error', error: { message: '未执行' } }),
+          toolCallId: tc.id
+        })
+      }
     }
   }
   return result
 }
 
-/** 承载一次模型调用的 provider/config/工具说明，贯穿整个循环生命周期，确认恢复时无需重新构造 */
+/** 流式运行回调：ReAct 循环在运行时通过此回调向外部推送增量更新 */
+export interface StreamCallbacks {
+  /** 本轮开始新的工具调用 */
+  onToolCallStart?: (toolCall: {
+    id: string
+    toolName: string
+    input: unknown
+    mutates: boolean
+  }) => void
+  /** 工具调用完成 */
+  onToolCallEnd?: (toolCallId: string, result: ToolExecutionResult<unknown>) => void
+  /** 流式文本增量（累积到 finalMessage） */
+  onTextDelta?: (delta: string) => void
+  /** 运行完成 */
+  onCompleted?: (finalMessage: string) => void
+  /** 运行暂停等待确认 */
+  onPaused?: (toolCallId: string, summary: string) => void
+  /** 运行失败 */
+  onFailed?: (error: { code: string; message: string }) => void
+}
 interface LoopContext {
   provider: IModelProvider
   config: ModelProviderConfig
@@ -383,4 +414,183 @@ export async function resumeRun(state: LoopState, approved: boolean): Promise<Lo
     pendingBatch: [],
     context: state.context
   })
+}
+
+/**
+ * 流式 ReAct 循环主体（优化版 runLoop）
+ *
+ * 与非流式 `runLoop` 的区别：
+ * 1. 工具调用阶段使用 `provider.chat()`（非流式，快速完成）
+ * 2. 最终答案阶段使用 `provider.chatStream()`（逐 token 产出增量文本）
+ * 3. 通过 `callbacks` 向外部实时推送增量更新
+ *
+ * @param state - 初始循环状态
+ * @param callbacks - 流式更新回调
+ * @returns 完成后的循环状态
+ */
+async function runLoopStream(state: LoopState, callbacks: StreamCallbacks): Promise<LoopState> {
+  let run = state.run
+  let messages = state.messages
+  const { context } = state
+
+  while (run.status === 'running') {
+    if (run.iterationCount >= context.config.maxIterations) {
+      run = failRun(
+        run,
+        'max_iterations_exceeded',
+        '未能在限定步数内完成任务，已在结果中列出目前收集到的信息'
+      )
+      callbacks.onFailed?.({ code: 'max_iterations_exceeded', message: run.error?.message ?? '' })
+      break
+    }
+    run = incrementIteration(run)
+
+    // 试用工具调用阶段使用非流式调用（快速完成工具选择）
+    try {
+      const response = await context.provider.chat(messages, context.tools)
+
+      if (response.kind === 'final') {
+        // 最终答案阶段：切换到流式调用
+        let finalContent = ''
+        const finalMessages = [...messages]
+
+        try {
+          for await (const event of context.provider.chatStream(finalMessages, context.tools)) {
+            if (event.kind === 'text-delta') {
+              finalContent += event.content
+              callbacks.onTextDelta?.(event.content)
+            } else if (event.kind === 'tool_calls') {
+              // 流式过程中模型又选择了工具调用 → 处理之
+              messages = [
+                ...finalMessages,
+                { role: 'assistant', content: '', toolCalls: event.toolCalls }
+              ]
+              const batchResult = await processBatch(event.toolCalls, run, messages)
+              run = batchResult.run
+              messages = batchResult.messages
+              if (batchResult.paused) {
+                if (batchResult.remaining.length > 0) {
+                  state.pendingBatch = batchResult.remaining
+                }
+                return { run, messages, pendingBatch: state.pendingBatch, context }
+              }
+              // 工具结果返回后继续循环
+              break
+            }
+          }
+        } catch (error) {
+          const providerError = toModelProviderError(error)
+          run = failRun(run, providerError.code, providerError.message)
+          callbacks.onFailed?.({
+            code: providerError.code,
+            message: providerError.message
+          })
+          break
+        }
+
+        if (finalContent) {
+          run = completeRun(run, finalContent)
+          callbacks.onCompleted?.(finalContent)
+          break
+        }
+
+        // 如果流式调用后没有 finalContent（可能走了工具调用分支），继续循环
+        if (run.status !== 'completed' && run.status !== 'failed') continue
+        break
+      }
+
+      // 工具调用阶段：通知 renderer 并执行
+      for (const tc of response.toolCalls) {
+        let mutates = false
+        try {
+          mutates = toolRegistry.get(tc.toolName).mutates
+        } catch {
+          mutates = false
+        }
+        callbacks.onToolCallStart?.({
+          id: tc.id,
+          toolName: tc.toolName,
+          input: tc.input,
+          mutates
+        })
+      }
+
+      messages = [...messages, { role: 'assistant', content: '', toolCalls: response.toolCalls }]
+      const batchResult = await processBatch(response.toolCalls, run, messages)
+      run = batchResult.run
+      messages = batchResult.messages
+
+      // 通知工具调用结果
+      for (const tc of run.toolCalls.slice(-response.toolCalls.length)) {
+        if (tc.result) {
+          callbacks.onToolCallEnd?.(tc.id, tc.result)
+        }
+      }
+
+      if (batchResult.paused) {
+        if (batchResult.remaining.length > 0) {
+          state.pendingBatch = batchResult.remaining
+        }
+        return { run, messages, pendingBatch: state.pendingBatch, context }
+      }
+    } catch (error) {
+      const providerError = toModelProviderError(error)
+      run = failRun(run, providerError.code, providerError.message)
+      callbacks.onFailed?.({ code: providerError.code, message: providerError.message })
+      break
+    }
+  }
+
+  return { run, messages, pendingBatch: [], context }
+}
+
+/**
+ * 发起一次流式 Agent 运行
+ *
+ * 与非流式 `startRun` 结构一致，但通过 `callbacks` 实时推送增量更新到渲染进程。
+ * 渲染进程可通过 IPC 监听代理事件来实时渲染流式内容。
+ *
+ * @param runId - 运行唯一标识
+ * @param conversationId - 关联的对话 ID
+ * @param request - `agent:chat` 的请求载荷
+ * @param historyMessages - 该对话之前全部轮次的历史消息
+ * @param provider - 模型提供方实现
+ * @param config - 已加载的模型提供方配置
+ * @param callbacks - 流式更新回调（逐 token 推送文本、工具调用状态等）
+ * @returns 最终循环状态
+ */
+export async function startRunStream(
+  runId: string,
+  conversationId: string,
+  request: AgentChatRequest,
+  historyMessages: AgentMessage[],
+  provider: IModelProvider,
+  config: ModelProviderConfig,
+  callbacks: StreamCallbacks
+): Promise<LoopState> {
+  const run = createAgentRun(runId, conversationId, request.instruction, historyMessages)
+  const context: LoopContext = { provider, config, tools: buildModelTools() }
+
+  if (!isProviderConfigured(config)) {
+    const failedRun = failRun(
+      run,
+      'provider_not_configured',
+      '尚未配置 DeepSeek API 密钥，请在 .env 中填入 DEEPSEEK_API_KEY 后重启应用'
+    )
+    callbacks.onFailed?.({
+      code: 'provider_not_configured',
+      message: failedRun.error?.message ?? ''
+    })
+    return { run: failedRun, messages: [], pendingBatch: [], context }
+  }
+
+  const trimmedHistory = trimHistory(SYSTEM_PROMPT, historyMessages, request.instruction)
+  const historyChatMessages = historyToChatMessages(trimmedHistory)
+  const messages: ChatMessage[] = [
+    { role: 'system', content: SYSTEM_PROMPT },
+    ...historyChatMessages,
+    { role: 'user', content: buildContextMessage(request) }
+  ]
+
+  return runLoopStream({ run, messages, pendingBatch: [], context }, callbacks)
 }

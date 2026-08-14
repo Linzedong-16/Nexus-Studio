@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { BrowserWindow } from 'electron'
 import type {
   AgentChatRequest,
   AgentRun as RendererAgentRun,
@@ -8,7 +9,7 @@ import type {
 import type { ConversationMessage } from '../../renderer/src/types/conversation'
 import { loadModelProviderConfig } from '../ai/config'
 import { DeepSeekProvider } from '../ai/provider/DeepSeekProvider'
-import { resumeRun, startRun, type LoopState } from '../ai/loop/reactLoop'
+import { resumeRun, startRun, startRunStream, type LoopState } from '../ai/loop/reactLoop'
 import type { AgentRun as MainAgentRun, AgentMessage } from '../ai/loop/AgentRun'
 import { toolRegistry } from '../ai/tools'
 import { createIPCHandler } from './utils'
@@ -36,7 +37,12 @@ let runsMap: Map<string, LoopState> | null = null
 export function getAgentRunByConversationId(conversationId: string): RendererAgentRun | null {
   if (!runsMap) return null
   for (const state of runsMap.values()) {
-    if (state.run.conversationId === conversationId) {
+    // 仅返回真正进行中的 run；已终结的 run 会在 handler 中从 Map 移除，
+    // 这里的状态过滤是双重防护，避免历史 run 被误判为"进行中"而在渲染层与已持久化的历史消息产生重复 key
+    if (
+      state.run.conversationId === conversationId &&
+      (state.run.status === 'running' || state.run.status === 'paused_for_confirmation')
+    ) {
       return toRendererAgentRun(state.run)
     }
   }
@@ -159,7 +165,6 @@ export function registerAgentIPC(): void {
       provider,
       config
     )
-    runs.set(runId, state)
 
     // 持久化本轮的完成/暂停状态
     const isTerminal = state.run.status === 'completed' || state.run.status === 'failed'
@@ -183,10 +188,12 @@ export function registerAgentIPC(): void {
         title,
         messageCount: newCount
       })
-      // 清除进行中状态
+      // 清除进行中状态；同时从内存 Map 移除，避免历史 run 被 getAgentRunByConversationId 误判为进行中
       clearActiveRun(conversationId)
+      runs.delete(runId)
     } else {
-      // paused_for_confirmation：保存进行中状态
+      // paused_for_confirmation：保存进行中状态，保留在 Map 中供确认时恢复
+      runs.set(runId, state)
       saveActiveRun(conversationId, runId, state.run.status)
     }
 
@@ -204,7 +211,6 @@ export function registerAgentIPC(): void {
       const instruction = state.run.instruction
 
       const nextState = await resumeRun(state, approved)
-      runs.set(runId, nextState)
 
       // 持久化完成/继续暂停
       const isTerminal = nextState.run.status === 'completed' || nextState.run.status === 'failed'
@@ -223,12 +229,117 @@ export function registerAgentIPC(): void {
         await updateConversationMeta(conversationId, {
           messageCount: historyMessages.length + newMessages.length
         })
+        // 清除进行中状态；同时从内存 Map 移除，避免历史 run 被 getAgentRunByConversationId 误判为进行中
         clearActiveRun(conversationId)
+        runs.delete(runId)
       } else {
+        runs.set(runId, nextState)
         saveActiveRun(conversationId, runId, nextState.run.status)
       }
 
       return toRendererAgentRun(nextState.run)
+    }
+  )
+
+  // ─── agent:chat-stream（流式多轮对话） ───
+  createIPCHandler<[AgentChatRequest], { runId: string; conversationId: string }>(
+    'agent:chat-stream',
+    async (request) => {
+      const runId = randomUUID()
+      const mainWindow = BrowserWindow.getAllWindows()[0]
+
+      let conversationId = request.conversationId
+      if (!conversationId) {
+        const conv = await createConversation()
+        conversationId = conv.id
+      }
+
+      const { messages: historyMessages } = await readMessages(conversationId)
+
+      // 流式回调：通过 webContents.send 推送增量更新到渲染进程
+      const callbacks = {
+        onToolCallStart: (tc: {
+          id: string
+          toolName: string
+          input: unknown
+          mutates: boolean
+        }) => {
+          mainWindow?.webContents.send('agent:stream-event', {
+            runId,
+            conversationId,
+            type: 'tool-call-start',
+            toolCall: tc
+          })
+        },
+        onToolCallEnd: (toolCallId: string, result: ToolExecutionResult<unknown>) => {
+          mainWindow?.webContents.send('agent:stream-event', {
+            runId,
+            conversationId,
+            type: 'tool-call-end',
+            toolCallId,
+            result
+          })
+        },
+        onTextDelta: (delta: string) => {
+          mainWindow?.webContents.send('agent:stream-event', {
+            runId,
+            conversationId,
+            type: 'text-delta',
+            content: delta
+          })
+        },
+        onCompleted: (finalMessage: string) => {
+          mainWindow?.webContents.send('agent:stream-event', {
+            runId,
+            conversationId,
+            type: 'completed',
+            finalMessage
+          })
+        },
+        onFailed: (error: { code: string; message: string }) => {
+          mainWindow?.webContents.send('agent:stream-event', {
+            runId,
+            conversationId,
+            type: 'failed',
+            error
+          })
+        }
+      }
+
+      const state = await startRunStream(
+        runId,
+        conversationId,
+        request,
+        toAgentMessages(historyMessages),
+        provider,
+        config,
+        callbacks
+      )
+
+      // 持久化
+      const isTerminal = state.run.status === 'completed' || state.run.status === 'failed'
+      if (isTerminal) {
+        const nextSeq = historyMessages.length
+        const newMessages = buildConversationMessage(
+          conversationId,
+          state.run,
+          request.instruction,
+          nextSeq
+        )
+        for (const msg of newMessages) {
+          await appendMessage(conversationId, msg)
+        }
+        const title = historyMessages.length === 0 ? request.instruction.slice(0, 50) : undefined
+        const newCount = historyMessages.length + newMessages.length
+        await updateConversationMeta(conversationId, { title, messageCount: newCount })
+        // 清除进行中状态；同时从内存 Map 移除，避免历史 run 被 getAgentRunByConversationId 误判为进行中
+        clearActiveRun(conversationId)
+      } else {
+        runs.set(runId, state)
+        saveActiveRun(conversationId, runId, state.run.status)
+      }
+
+      return { runId, conversationId }
     }
   )
 

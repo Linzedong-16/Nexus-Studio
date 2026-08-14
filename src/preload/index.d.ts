@@ -281,6 +281,10 @@ export interface AgentApi {
   listTools(): Promise<AgentToolSummary[]>
   /** 绕过对话与确认流程，直接调用指定工具（FR-012 独立测试入口） */
   runTool(toolName: string, input: unknown): Promise<ToolExecutionResult<unknown>>
+  /** 发起流式 Agent 对话，返回 runId 和 conversationId；增量内容通过 onStreamEvent 推送 */
+  chatStream(request: AgentChatRequest): Promise<{ runId: string; conversationId: string }>
+  /** 订阅流式 Agent 事件；返回取消订阅函数 */
+  onStreamEvent(callback: (event: AgentStreamEvent) => void): () => void
 }
 
 // ─── 对话管理 API（009 号功能） ───

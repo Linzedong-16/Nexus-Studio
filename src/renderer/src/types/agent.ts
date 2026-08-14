@@ -66,7 +66,18 @@ export interface AgentRun {
   error: { code: AgentErrorCode; message: string } | null
 }
 
-// ─── IPC 请求载荷 ───
+/** 流式 Agent 事件的载荷类型 */
+export interface AgentStreamEvent {
+  runId: string
+  conversationId: string
+  type: 'tool-call-start' | 'tool-call-end' | 'text-delta' | 'completed' | 'failed'
+  toolCall?: { id: string; toolName: string; input: unknown; mutates: boolean }
+  toolCallId?: string
+  result?: ToolExecutionResult<unknown>
+  content?: string
+  finalMessage?: string
+  error?: { code: string; message: string }
+}
 
 /** 一条历史消息的上下文快照（对应 008 data-model.md §5 `AgentMessage`） */
 export interface AgentHistoryMessage {

@@ -16,6 +16,8 @@ export interface ConversationTurn {
   run: AgentRun | null
   /** IPC 调用本身抛出异常时的提示（区别于 AgentRun.error 携带的业务错误） */
   dispatchError?: string
+  /** 流式模式下正在累积的文本内容 */
+  streamingText?: string
 }
 
 interface ConversationState {
@@ -61,8 +63,47 @@ interface ConversationState {
 
   /** 发起一次多轮 Agent 对话；自动携带当前连接上下文和 conversationId */
   sendInstruction: (instruction: string) => Promise<void>
+  /** 发起一次流式 Agent 对话（逐 token 推送增量内容） */
+  sendInstructionStream: (instruction: string) => Promise<void>
   /** 确认或拒绝最新一轮中暂停等待确认的工具调用 */
   confirmPendingToolCall: (approved: boolean) => Promise<void>
+}
+
+/**
+ * 将持久化的 ConversationMessage[]（user/assistant 成对存储）还原为可展示的 ConversationTurn[]
+ *
+ * `selectConversation` 加载历史消息后必须调用此函数才能在界面上重建之前的多轮对话，
+ * 否则切换到已有历史的对话时界面会因 `turns` 为空而完全空白。
+ */
+function messagesToTurns(
+  messages: ConversationMessage[],
+  conversationId: string
+): ConversationTurn[] {
+  const turns: ConversationTurn[] = []
+  for (let i = 0; i < messages.length; i++) {
+    const userMsg = messages[i]
+    if (userMsg.role !== 'user') continue
+    const replyMsg = messages[i + 1]
+    if (!replyMsg || replyMsg.role !== 'assistant') continue
+
+    turns.push({
+      id: replyMsg.runId ?? userMsg.id,
+      instruction: userMsg.instruction,
+      pending: false,
+      run: {
+        id: replyMsg.runId ?? '',
+        status: replyMsg.runStatus ?? 'completed',
+        instruction: userMsg.instruction,
+        conversationId,
+        iterationCount: 0,
+        toolCalls: replyMsg.toolCalls,
+        pendingConfirmation: null,
+        finalMessage: replyMsg.content || null,
+        error: replyMsg.error
+      }
+    })
+  }
+  return turns
 }
 
 /**
@@ -117,6 +158,8 @@ export const useConversationStore = create<ConversationState>()((set, get) => ({
     })
     try {
       const result = await conversationService.get({ conversationId: id, offset: 0, limit: 50 })
+      // 还原历史消息为可展示的 turns（此前被忽略，导致重新打开多轮对话时界面空白）
+      const historyTurns = messagesToTurns(result.messages, id)
       // 检查是否有进行中的 AgentRun（FR-016 切换恢复）
       const activeRunResult = await conversationService.getActiveRun(id)
       // 若有进行中 run（paused_for_confirmation），将其作为 pending turn 展示
@@ -134,7 +177,7 @@ export const useConversationStore = create<ConversationState>()((set, get) => ({
         messages: result.messages,
         messagesTotal: result.total,
         messagesLoading: false,
-        turns: resumeTurns
+        turns: [...historyTurns, ...resumeTurns]
       })
     } catch {
       set({ messagesLoading: false })
@@ -244,6 +287,141 @@ export const useConversationStore = create<ConversationState>()((set, get) => ({
         pending: false,
         dispatchError: error instanceof Error ? error.message : '发送失败'
       }))
+    }
+  },
+
+  sendInstructionStream: async (instruction) => {
+    const turnId = crypto.randomUUID()
+    const { activeConversationId } = get()
+
+    let convId = activeConversationId
+    if (!convId) {
+      convId = await get().createConversation()
+    }
+
+    set((s) => ({
+      turns: [...s.turns, { id: turnId, instruction, pending: true, run: null, streamingText: '' }]
+    }))
+
+    const { activeConnectionId, connections } = useConnectionStore.getState()
+    const database = activeConnectionId
+      ? (connections[activeConnectionId]?.activeDatabase ?? null)
+      : null
+
+    const updateTurn = (updater: (turn: ConversationTurn) => ConversationTurn): void => {
+      set((s) => ({
+        turns: s.turns.map((t) => (t.id === turnId ? updater(t) : t))
+      }))
+    }
+
+    // 订阅流式事件
+    const unsubscribe = window.api.agent.onStreamEvent((event) => {
+      const currentTurns = get().turns
+      const turn = currentTurns.find((t) => t.id === turnId)
+      if (!turn || !event.conversationId) return
+
+      switch (event.type) {
+        case 'text-delta':
+          updateTurn((t) => ({
+            ...t,
+            streamingText: (t.streamingText ?? '') + (event.content ?? '')
+          }))
+          break
+        case 'tool-call-start':
+          // 流式模式下将工具调用记录追加到当前 run（tool-call-end 时按 id 匹配更新，而非新增）
+          if (event.toolCall) {
+            updateTurn((t) => {
+              const run = t.run ?? {
+                id: event.runId,
+                status: 'running',
+                instruction,
+                conversationId: convId ?? '',
+                iterationCount: 0,
+                toolCalls: [],
+                pendingConfirmation: null,
+                finalMessage: null,
+                error: null
+              }
+              return {
+                ...t,
+                run: {
+                  ...run,
+                  toolCalls: [
+                    ...run.toolCalls,
+                    {
+                      id: event.toolCall!.id,
+                      toolName: event.toolCall!.toolName,
+                      input: event.toolCall!.input,
+                      mutates: event.toolCall!.mutates,
+                      confirmation: event.toolCall!.mutates ? 'pending' : 'not_required',
+                      result: null,
+                      startedAt: Date.now(),
+                      finishedAt: null
+                    }
+                  ]
+                },
+                streamingText: undefined // 工具调用开始时暂缓存流式文本
+              }
+            })
+          }
+          break
+        case 'tool-call-end':
+          updateTurn((t) => ({
+            ...t,
+            run: t.run
+              ? {
+                  ...t.run,
+                  toolCalls: t.run.toolCalls.map((tc) =>
+                    tc.id === event.toolCallId
+                      ? { ...tc, result: event.result ?? null, finishedAt: Date.now() }
+                      : tc
+                  )
+                }
+              : t.run
+          }))
+          break
+        case 'completed':
+          updateTurn((t) => ({
+            ...t,
+            pending: false,
+            run: {
+              id: event.runId,
+              status: 'completed',
+              instruction,
+              conversationId: convId ?? '',
+              iterationCount: 0,
+              toolCalls: t.run?.toolCalls ?? [],
+              pendingConfirmation: null,
+              finalMessage: event.finalMessage ?? t.streamingText ?? '',
+              error: null
+            },
+            streamingText: undefined
+          }))
+          unsubscribe()
+          void get().loadConversationList()
+          break
+        case 'failed':
+          updateTurn((t) => ({
+            ...t,
+            pending: false,
+            dispatchError: event.error?.message ?? '请求失败',
+            streamingText: undefined
+          }))
+          unsubscribe()
+          break
+      }
+    })
+
+    try {
+      await agentService.chatStream(instruction, activeConnectionId, database, convId)
+    } catch (error) {
+      updateTurn((t) => ({
+        ...t,
+        pending: false,
+        dispatchError: error instanceof Error ? error.message : '发送失败',
+        streamingText: undefined
+      }))
+      unsubscribe()
     }
   },
 

@@ -169,7 +169,11 @@ const api: Api = {
     chat: createInvoke<[AgentChatRequest], AgentRun>('agent:chat'),
     confirmToolCall: createInvoke<[string, boolean], AgentRun>('agent:confirm-tool-call'),
     listTools: createInvoke<[], AgentToolSummary[]>('agent:list-tools'),
-    runTool: createInvoke<[string, unknown], ToolExecutionResult<unknown>>('agent:run-tool')
+    runTool: createInvoke<[string, unknown], ToolExecutionResult<unknown>>('agent:run-tool'),
+    chatStream: createInvoke<[AgentChatRequest], { runId: string; conversationId: string }>(
+      'agent:chat-stream'
+    ),
+    onStreamEvent: createListener('agent:stream-event')
   },
 
   // ─── 对话管理（009 号功能） ───
