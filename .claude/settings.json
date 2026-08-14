@@ -21,7 +21,13 @@
       "Bash(curl -s -X POST localhost:4756 -d '{\"type\":\"eval\",\"expr\":\"[...document.querySelectorAll\\(\\\\\"li,button,div,span,a\\\\\"\\)].filter\\(e=>e.textContent.includes\\(\\\\\"新建连接\\\\\"\\)\\).map\\(e=>\\({tag:e.tagName,cls:e.className,txt:JSON.stringify\\(e.textContent\\)}\\)\\)\"}')",
       "Bash(curl -s -X POST localhost:4756 -d '{\"type\":\"eval\",\"expr\":\"document.querySelector\\(\\\\\"body\\\\\"\\).innerHTML.length\"}')",
       "Bash(curl -s -X POST localhost:4756 -d '{\"type\":\"eval\",\"expr\":\"[...document.querySelectorAll\\(\\\\\"svg\\\\\"\\)].length\"}')",
-      "Bash(curl -s -X POST localhost:4756 -d '{\"type\":\"eval\",\"expr\":\"[...document.querySelectorAll\\(\\\\\"li,button,div,span,a\\\\\"\\)].filter\\(e=>e.innerText && e.innerText.trim\\(\\).length>0 && e.innerText.trim\\(\\).length<10\\).map\\(e=>e.innerText.trim\\(\\)\\).slice\\(0,30\\)\"}')"
+      "Bash(curl -s -X POST localhost:4756 -d '{\"type\":\"eval\",\"expr\":\"[...document.querySelectorAll\\(\\\\\"li,button,div,span,a\\\\\"\\)].filter\\(e=>e.innerText && e.innerText.trim\\(\\).length>0 && e.innerText.trim\\(\\).length<10\\).map\\(e=>e.innerText.trim\\(\\)\\).slice\\(0,30\\)\"}')",
+      "Bash(pwsh -NoProfile -File .specify/scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks)",
+      "Bash(powershell -NoProfile -File .specify/scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks)",
+      "Bash(pnpm install *)",
+      "Bash(dir /s /b \"d:\\\\coding\\\\project\\\\desktop\\\\DB-client\\\\node_modules\\\\mysql2\\\\*.d.ts\")",
+      "Bash(xargs grep -ln \"QueryValues\")",
+      "Bash(git checkout *)"
     ]
   }
 }

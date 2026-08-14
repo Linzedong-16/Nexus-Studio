@@ -1,4 +1,5 @@
 import { format } from 'sql-formatter'
+import type { DatabaseType } from '@/types/ipc'
 
 /** SQL 格式化结果：成功时 `text` 为格式化后的文本，失败时 `text` 为原文本并附带 `error` */
 export interface SqlFormatResult {
@@ -13,13 +14,14 @@ export interface SqlFormatResult {
  * 捕获解析异常时返回原文本与错误信息，不抛出未捕获异常。
  *
  * @param sql - 待格式化的原始 SQL 文本，可包含以分号分隔的多条语句
+ * @param dbType - 目标数据库类型，决定 sql-formatter 的解析方言
  * @returns 格式化结果；解析失败时 `text` 为原文本、`error` 为错误信息
  * @example
  * formatSql('select * from t') // => { text: 'SELECT\n  *\nFROM\n  t' }
  */
-export function formatSql(sql: string): SqlFormatResult {
+export function formatSql(sql: string, dbType: DatabaseType = 'postgresql'): SqlFormatResult {
   try {
-    return { text: format(sql, { language: 'postgresql' }) }
+    return { text: format(sql, { language: dbType }) }
   } catch (err) {
     return { text: sql, error: err instanceof Error ? err.message : '无法格式化' }
   }

@@ -38,9 +38,13 @@ export default function SqlEditor({
   language = 'pgsql'
 }: SqlEditorProps): React.JSX.Element {
   const mode = useThemeStore((s) => s.mode)
+  const dbType = useConnectionStore(
+    (s) => (connectionId ? s.connections[connectionId]?.config.type : undefined) ?? 'postgresql'
+  )
   const executeRef = useRef(onExecute)
   // 保持连接上下文的引用，供补全提供者闭包使用
   const ctxRef = useRef({ connectionId, database, schema })
+  const dbTypeRef = useRef(dbType)
   const editorRef = useRef<MonacoEditorNS.IStandaloneCodeEditor | null>(null)
   const [formatHint, setFormatHint] = useState<string | null>(null)
   const canFormat = language === 'pgsql'
@@ -51,7 +55,8 @@ export default function SqlEditor({
 
   useEffect(() => {
     ctxRef.current = { connectionId, database, schema }
-  }, [connectionId, database, schema])
+    dbTypeRef.current = dbType
+  }, [connectionId, database, schema, dbType])
 
   // 主动预加载当前数据库的 schema/表名，避免依赖用户先手动展开结构树才有表名补全
   useEffect(() => {
@@ -73,7 +78,7 @@ export default function SqlEditor({
     const editorInstance = editorRef.current
     const model = editorInstance?.getModel()
     if (!editorInstance || !model) return
-    const result = formatSql(editorInstance.getValue())
+    const result = formatSql(editorInstance.getValue(), dbTypeRef.current)
     if (result.error) {
       setFormatHint('无法格式化')
       return
@@ -108,7 +113,7 @@ export default function SqlEditor({
     if (language !== 'pgsql') return
 
     const disposeCompletion = registerCompletionProvider(monaco, {
-      dbType: 'postgresql',
+      dbType: dbTypeRef.current,
       getContext: () => ctxRef.current
     })
 

@@ -20,6 +20,7 @@ import {
 import { fsService } from '@/services/fsService'
 import { queryService } from '@/services/queryService'
 import { splitSqlStatements } from '@/lib/sqlStatements'
+import { useConnectionStore } from '@/store/connectionStore'
 import type { ColumnInfo, ImportResult, SchemaInfo, TableInfo } from '@/types/ipc'
 
 interface ImportDataDialogProps {
@@ -189,6 +190,7 @@ export default function ImportDataDialog({
   defaultTable,
   onImported
 }: ImportDataDialogProps): React.JSX.Element {
+  const dbType = useConnectionStore((s) => s.connections[connectionId]?.config.type ?? 'postgresql')
   const [prevOpen, setPrevOpen] = useState(open)
   const [step, setStep] = useState<WizardStep>('setup')
 
@@ -304,7 +306,7 @@ export default function ImportDataDialog({
     try {
       const content = await fsService.readFile(path)
       if (extension === 'sql') {
-        const statements = splitSqlStatements(content)
+        const statements = splitSqlStatements(content, dbType)
         setSqlStatements(statements)
       } else {
         const parsed = extension === 'csv' ? parseCsv(content) : parseJson(content)

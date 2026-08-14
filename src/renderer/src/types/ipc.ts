@@ -10,7 +10,7 @@ import type { RecentProjectEntry } from './fileExplorer'
 
 // ─── 数据库类型 ───
 
-export type DatabaseType = 'postgresql'
+export type DatabaseType = 'postgresql' | 'mysql'
 
 // ─── 数据库连接 ───
 
@@ -265,6 +265,8 @@ export interface BackupParams {
   exportDir: string
   /** pg_dump 可执行文件路径，为空则自动探测 PATH */
   pgDumpPath?: string
+  /** mysqldump 可执行文件路径，为空则自动探测 PATH */
+  mysqlDumpPath?: string
 }
 
 /** 备份操作结果 */

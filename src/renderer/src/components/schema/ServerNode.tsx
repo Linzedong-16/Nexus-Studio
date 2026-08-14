@@ -8,6 +8,7 @@ import { useConnectionStore } from '@/store/connectionStore'
 import { useWorkspaceStore } from '@/store/workspaceStore'
 import AddToConversationMenuItem from '@/components/code/AddToConversationMenuItem'
 import { useInCodeMode } from '@/components/code/useInCodeMode'
+import type { DatabaseType } from '@/types/ipc'
 import DatabaseNode from './DatabaseNode'
 import SecurityNode from './SecurityNode'
 
@@ -19,6 +20,17 @@ const STATUS_LABEL: Record<string, string> = {
   connecting: '连接中',
   connected: '已连接',
   error: '连接失败'
+}
+
+/** 数据库类型标签与图标配色，用于连接列表中区分类型（FR-015） */
+const DB_TYPE_LABEL: Record<DatabaseType, string> = {
+  postgresql: 'PostgreSQL',
+  mysql: 'MySQL'
+}
+
+const DB_TYPE_ICON_CLASS: Record<DatabaseType, string> = {
+  postgresql: 'text-blue-600 dark:text-blue-400',
+  mysql: 'text-orange-600 dark:text-orange-400'
 }
 
 /**
@@ -79,8 +91,11 @@ export default function ServerNode({ connectionId }: ServerNodeProps): React.JSX
             ) : (
               <ChevronRight className="size-3 shrink-0 text-muted-foreground" />
             )}
-            <Server className="size-3.5 shrink-0 text-blue-600 dark:text-blue-400" />
+            <Server className={`size-3.5 shrink-0 ${DB_TYPE_ICON_CLASS[conn.config.type]}`} />
             <span className="truncate font-medium">{conn.config.name}</span>
+            <Badge variant="outline" className="shrink-0 px-1.5 py-0 text-[10px]">
+              {DB_TYPE_LABEL[conn.config.type]}
+            </Badge>
             <Badge
               variant={conn.status === 'error' ? 'destructive' : 'secondary'}
               className="shrink-0 px-1.5 py-0 text-[10px]"

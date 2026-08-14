@@ -7,11 +7,14 @@
 import type { IDatabaseDriver } from './core/IDatabaseDriver'
 import type { DatabaseType } from './core/types'
 import { PostgreSQLDriver } from './driver/pg'
+import { MySQLDriver } from './driver/mysql'
 
 export function createDriver(type: DatabaseType, id: string): IDatabaseDriver {
   switch (type) {
     case 'postgresql':
       return new PostgreSQLDriver(id)
+    case 'mysql':
+      return new MySQLDriver(id)
     default:
       throw new Error(`不支持的数据库类型: ${type}`)
   }

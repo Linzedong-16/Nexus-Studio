@@ -23,6 +23,12 @@ interface ConnectionFormProps {
   tab: WorkspaceTab
 }
 
+/** 各数据库类型的默认端口与默认用户名，切换类型时联动填充 */
+const TYPE_DEFAULTS: Record<ConnectionConfig['type'], { port: number; username: string }> = {
+  postgresql: { port: 5432, username: 'postgres' },
+  mysql: { port: 3306, username: 'root' }
+}
+
 /**
  * 数据库连接表单
  *
@@ -59,6 +65,20 @@ export default function ConnectionForm({ tab }: ConnectionFormProps): React.JSX.
 
   const update = <K extends keyof ConnectionConfig>(key: K, value: ConnectionConfig[K]): void => {
     setConfig((prev) => ({ ...prev, [key]: value }))
+    setTestResult(null)
+  }
+
+  const handleTypeChange = (type: ConnectionConfig['type']): void => {
+    setConfig((prev) => {
+      const prevDefaults = TYPE_DEFAULTS[prev.type]
+      const nextDefaults = TYPE_DEFAULTS[type]
+      return {
+        ...prev,
+        type,
+        port: prev.port === prevDefaults.port ? nextDefaults.port : prev.port,
+        username: prev.username === prevDefaults.username ? nextDefaults.username : prev.username
+      }
+    })
     setTestResult(null)
   }
 
@@ -125,7 +145,7 @@ export default function ConnectionForm({ tab }: ConnectionFormProps): React.JSX.
         <div>
           <h3 className="font-medium">新建数据库连接</h3>
           <p className="text-sm text-muted-foreground">
-            配置 PostgreSQL 服务器级连接，连接后可浏览该账号有权限访问的全部数据库
+            配置服务器级连接，连接后可浏览该账号有权限访问的全部数据库
           </p>
         </div>
       </div>
@@ -145,13 +165,14 @@ export default function ConnectionForm({ tab }: ConnectionFormProps): React.JSX.
             <Label>数据库类型</Label>
             <Select
               value={config.type}
-              onValueChange={(v) => update('type', v as ConnectionConfig['type'])}
+              onValueChange={(v) => handleTypeChange(v as ConnectionConfig['type'])}
             >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="选择数据库类型" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="postgresql">PostgreSQL</SelectItem>
+                <SelectItem value="mysql">MySQL</SelectItem>
               </SelectContent>
             </Select>
           </div>

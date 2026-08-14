@@ -13,5 +13,10 @@ export const DATABASE_CAPABILITIES: Record<DatabaseType, DatabaseCapability> = {
     hasSecurityModule: true,
     databaseLevelModules: ['query'],
     schemaLevelModules: ['query', 'tables', 'views', 'functions', 'procedures']
+  },
+  mysql: {
+    hasSecurityModule: true,
+    databaseLevelModules: ['query'],
+    schemaLevelModules: ['query', 'tables', 'views', 'functions', 'procedures']
   }
 }

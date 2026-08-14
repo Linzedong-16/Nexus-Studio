@@ -2,12 +2,26 @@ import type { BrowserWindow } from 'electron'
 import { createIPCHandler } from './utils'
 import { driverManager } from '../db/core/DriverManager'
 import { PostgreSQLDriver } from '../db/driver/pg'
+import { MySQLDriver } from '../db/driver/mysql'
 import { configStore } from '../config/store'
 import { decryptPassword } from '../config/crypto'
-import type { StoredConnection } from '../../renderer/src/types/ipc'
+import type { DatabaseType, StoredConnection } from '../../renderer/src/types/ipc'
+import type { IDatabaseDriverStatic } from '../db/core/IDatabaseDriver'
 import { execFile } from 'child_process'
 import { existsSync, mkdirSync, readdirSync } from 'fs'
 import path from 'path'
+
+/** 按数据库类型返回对应驱动类，用于分发静态方法（如 testConnection） */
+function getDriverClass(type: DatabaseType): IDatabaseDriverStatic {
+  switch (type) {
+    case 'postgresql':
+      return PostgreSQLDriver
+    case 'mysql':
+      return MySQLDriver
+    default:
+      throw new Error(`不支持的数据库类型: ${type}`)
+  }
+}
 
 /** 自动探测 pg_dump 路径（Windows / macOS / Linux） */
 async function detectPgDump(): Promise<string | null> {
@@ -48,6 +62,46 @@ async function detectPgDump(): Promise<string | null> {
         if (existsSync(candidate)) return candidate
       }
     }
+    for (const c of candidates) {
+      if (existsSync(c)) return c
+    }
+  }
+
+  return null
+}
+
+/** 自动探测 mysqldump 路径（Windows / macOS / Linux），镜像 detectPgDump() */
+async function detectMysqldump(): Promise<string | null> {
+  // 先尝试 PATH 中的 mysqldump
+  try {
+    const bin = process.platform === 'win32' ? 'mysqldump.exe' : 'mysqldump'
+    await new Promise<void>((resolve, reject) => {
+      execFile(bin, ['--version'], (err) => (err ? reject(err) : resolve()))
+    })
+    return bin
+  } catch {
+    // 不在 PATH 中，继续探测
+  }
+
+  // 扫描常见安装路径
+  if (process.platform === 'win32') {
+    const baseDir = 'C:\\Program Files\\MySQL'
+    if (existsSync(baseDir)) {
+      const versions = readdirSync(baseDir)
+      for (const ver of versions.sort().reverse()) {
+        const candidate = path.join(baseDir, ver, 'bin', 'mysqldump.exe')
+        if (existsSync(candidate)) return candidate
+      }
+    }
+  } else if (process.platform === 'darwin') {
+    // macOS: Homebrew 安装路径
+    const candidates = ['/opt/homebrew/bin/mysqldump', '/usr/local/bin/mysqldump']
+    for (const c of candidates) {
+      if (existsSync(c)) return c
+    }
+  } else {
+    // Linux 常见路径
+    const candidates = ['/usr/bin/mysqldump']
     for (const c of candidates) {
       if (existsSync(c)) return c
     }
@@ -110,7 +164,8 @@ export function registerDbIPC(mainWindow: BrowserWindow): void {
   })
 
   createIPCHandler<[ConnectionConfig], TestResult>('db:test-connection', async (config) => {
-    return PostgreSQLDriver.testConnection(config)
+    const DriverClass = getDriverClass(config.type)
+    return DriverClass.testConnection(config)
   })
 
   createIPCHandler<[ConnectionConfig], ConnectionResult>('db:connect', async (config) => {
@@ -229,12 +284,54 @@ export function registerDbIPC(mainWindow: BrowserWindow): void {
 
   createIPCHandler<[string, string, string, string?], BackupResult>(
     'db:backup-database',
-    async (connectionId, database, exportDir, pgDumpPath) => {
+    async (connectionId, database, exportDir, dumpToolPath) => {
       const stored = configStore.get('connections') as StoredConnection[]
       const found = stored.find((c) => c.id === connectionId)
       if (!found) throw new Error(`连接配置不存在: ${connectionId}`)
 
-      const dumpBin = pgDumpPath || (await detectPgDump())
+      if (!existsSync(exportDir)) {
+        mkdirSync(exportDir, { recursive: true })
+      }
+      const now = new Date().toISOString().replace(/[:.]/g, '-')
+      const outFile = path.join(exportDir, `dump-${database}-${now}.sql`)
+
+      if (found.type === 'mysql') {
+        const dumpBin = dumpToolPath || (await detectMysqldump())
+        if (!dumpBin) {
+          return {
+            success: false,
+            filePath: '',
+            error: '未找到 mysqldump，请安装 MySQL 客户端或在对话框中手动指定 mysqldump 路径'
+          }
+        }
+        const env = { ...process.env } as Record<string, string | undefined>
+        if (found.encryptedPassword) {
+          env.MYSQL_PWD = decryptPassword(found.encryptedPassword)
+        }
+
+        const args = [
+          '-h',
+          found.host,
+          '-P',
+          String(found.port),
+          '-u',
+          found.username,
+          database,
+          `--result-file=${outFile}`
+        ]
+
+        return new Promise<BackupResult>((resolve) => {
+          execFile(dumpBin, args, { env }, (err) => {
+            if (err) {
+              resolve({ success: false, filePath: outFile, error: err.message })
+            } else {
+              resolve({ success: true, filePath: outFile })
+            }
+          })
+        })
+      }
+
+      const dumpBin = dumpToolPath || (await detectPgDump())
       if (!dumpBin) {
         return {
           success: false,
@@ -246,12 +343,6 @@ export function registerDbIPC(mainWindow: BrowserWindow): void {
       if (found.encryptedPassword) {
         env.PGPASSWORD = decryptPassword(found.encryptedPassword)
       }
-
-      if (!existsSync(exportDir)) {
-        mkdirSync(exportDir, { recursive: true })
-      }
-      const now = new Date().toISOString().replace(/[:.]/g, '-')
-      const outFile = path.join(exportDir, `dump-${database}-${now}.sql`)
 
       const args = [
         '-h',

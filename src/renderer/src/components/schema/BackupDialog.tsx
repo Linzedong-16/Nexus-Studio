@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { queryService } from '@/services/queryService'
 import { fsService } from '@/services/fsService'
+import { useConnectionStore } from '@/store/connectionStore'
 
 interface BackupDialogProps {
   open: boolean
@@ -28,12 +29,16 @@ export default function BackupDialog({
   connectionName,
   database
 }: BackupDialogProps): React.JSX.Element {
+  const dbType = useConnectionStore((s) => s.connections[connectionId]?.config.type)
+  const isMysql = dbType === 'mysql'
   const [exportDir, setExportDir] = useState('')
-  const [pgDumpPath, setPgDumpPath] = useState('')
+  const [dumpToolPath, setDumpToolPath] = useState('')
   const [running, setRunning] = useState(false)
-  const [result, setResult] = useState<{ success: boolean; filePath: string; error?: string } | null>(
-    null
-  )
+  const [result, setResult] = useState<{
+    success: boolean
+    filePath: string
+    error?: string
+  } | null>(null)
 
   const handlePickDir = async (): Promise<void> => {
     const dir = await fsService.pickFolder()
@@ -49,7 +54,7 @@ export default function BackupDialog({
         connectionId,
         database,
         exportDir,
-        pgDumpPath || undefined
+        dumpToolPath || undefined
       )
       setResult(res)
     } catch (err) {
@@ -66,7 +71,7 @@ export default function BackupDialog({
   const handleClose = (): void => {
     if (!running) {
       setExportDir('')
-      setPgDumpPath('')
+      setDumpToolPath('')
       setResult(null)
       onOpenChange(false)
     }
@@ -107,13 +112,19 @@ export default function BackupDialog({
 
           <div className="space-y-1.5">
             <Label>
-              pg_dump 路径
-              <span className="ml-1 text-xs text-muted-foreground">（可选，留空自动探测 PATH）</span>
+              {isMysql ? 'mysqldump 路径' : 'pg_dump 路径'}
+              <span className="ml-1 text-xs text-muted-foreground">
+                （可选，留空自动探测 PATH）
+              </span>
             </Label>
             <Input
-              value={pgDumpPath}
-              onChange={(e) => setPgDumpPath(e.target.value)}
-              placeholder="例：C:\Program Files\PostgreSQL\16\bin\pg_dump.exe"
+              value={dumpToolPath}
+              onChange={(e) => setDumpToolPath(e.target.value)}
+              placeholder={
+                isMysql
+                  ? '例：C:\\Program Files\\MySQL\\MySQL Server 8.0\\bin\\mysqldump.exe'
+                  : '例：C:\\Program Files\\PostgreSQL\\16\\bin\\pg_dump.exe'
+              }
               disabled={running}
             />
           </div>
