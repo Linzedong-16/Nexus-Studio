@@ -4,9 +4,15 @@ import type {
   AgentToolCallRecord
 } from '../../../renderer/src/types/agent'
 
-/** 消息，多轮对话预留结构（data-model.md §5）；本阶段 `AgentRun.history` 始终为空数组 */
+/**
+ * 消息，多轮对话上下文载体（data-model.md §5 → 009 升级为实际使用）
+ *
+ * 从 ConversationMessage（持久化格式）派生，仅保留 LLM 推理所需的字段。
+ * `instruction` 在 role === 'user' 时承载用户原始指令文本。
+ */
 export interface AgentMessage {
   role: 'user' | 'assistant'
+  instruction: string
   content: string
   toolCalls: AgentToolCallRecord[]
   createdAt: number
@@ -21,6 +27,7 @@ export interface AgentMessage {
 export interface AgentRun {
   id: string
   status: AgentRunStatus
+  conversationId: string
   instruction: string
   history: AgentMessage[]
   iterationCount: number
@@ -33,18 +40,23 @@ export interface AgentRun {
 /**
  * 创建一个新的 `AgentRun`，初始状态为 `running`（data-model.md §4 状态机起点）
  *
+ * 009 升级：history 从预留占位升级为实际使用。
+ *
  * @param id - 运行唯一标识（`runId`）
+ * @param conversationId - 关联的对话 ID
  * @param instruction - 用户提交的原始自然语言指令
- * @param history - 历史消息，多轮对话预留参数，本阶段调用方始终传入 `[]`
+ * @param history - 对话历史消息（多轮上下文），当前 run 之前的所有轮次
  */
 export function createAgentRun(
   id: string,
+  conversationId: string,
   instruction: string,
   history: AgentMessage[] = []
 ): AgentRun {
   return {
     id,
     status: 'running',
+    conversationId,
     instruction,
     history,
     iterationCount: 0,

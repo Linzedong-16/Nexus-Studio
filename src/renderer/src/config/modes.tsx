@@ -1,14 +1,4 @@
-import {
-  Blocks,
-  BookOpen,
-  CirclePlus,
-  CodeXml,
-  Folder,
-  LayoutTemplate,
-  ListCollapse,
-  ListFilter,
-  Timer
-} from 'lucide-react'
+import { Blocks, BookOpen, CirclePlus, CodeXml, LayoutTemplate, Timer } from 'lucide-react'
 import type { MenuGroup, ModeConfig } from '@/types/shell'
 import { useWorkspaceStore } from '@/store/workspaceStore'
 import { useErStore } from '@/store/erStore'
@@ -59,28 +49,19 @@ function buildWorkMenuGroups(): MenuGroup[] {
   ]
 }
 
-/** 本期 Code/Design 模式共用的占位菜单组 */
-function buildPlaceholderMenuGroups(): MenuGroup[] {
+/** Code 模式专用菜单组（009：对话历史由 ConversationPanel 独立渲染，菜单仅保留操作项） */
+function buildCodeMenuGroups(): MenuGroup[] {
   return [
     {
       id: 'actions',
       title: null,
       headerActions: [],
       items: [
-        { id: 'new-task', label: '新建连接', icon: CirclePlus, path: null },
+        { id: 'new-connection', label: '新建连接', icon: CirclePlus, path: null },
         { id: 'plugins', label: '插件市场', icon: Blocks, path: null },
         { id: 'automation', label: '自动化', icon: Timer, path: null },
         { id: 'templates', label: '模板库', icon: LayoutTemplate, path: null }
       ]
-    },
-    {
-      id: 'task-list',
-      title: '任务列表',
-      headerActions: [
-        { icon: ListCollapse, label: '收起全部' },
-        { icon: ListFilter, label: '筛选' }
-      ],
-      items: [{ id: 'sample-project', label: '示例项目', icon: Folder, path: null }]
     }
   ]
 }
@@ -100,7 +81,7 @@ export const MODES: readonly ModeConfig[] = [
     icon: CodeXml,
     basePath: '/code',
     routes: [{ path: '', title: 'Code', Component: CodeHomePage }],
-    menuGroups: buildPlaceholderMenuGroups()
+    menuGroups: buildCodeMenuGroups()
   }
 ]
 

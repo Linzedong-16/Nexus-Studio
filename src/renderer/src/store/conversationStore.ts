@@ -1,7 +1,9 @@
 import { create } from 'zustand'
 import type { ConversationReference } from '@/types/conversation'
+import type { Conversation, ConversationMessage } from '@/types/conversation'
 import type { AgentRun } from '@/types/agent'
 import { agentService } from '@/services/agentService'
+import { conversationService } from '@/services/conversationService'
 import { useConnectionStore } from '@/store/connectionStore'
 
 /** 一轮"指令 → Agent 运行结果"，单轮对话模式下一次发送对应一个 turn */
@@ -17,14 +19,47 @@ export interface ConversationTurn {
 }
 
 interface ConversationState {
+  /* ─── 引用管理（既有功能，保留） ─── */
   references: ConversationReference[]
-  turns: ConversationTurn[]
 
   addReference: (ref: ConversationReference) => void
   removeReference: (id: string) => void
   clearReferences: () => void
 
-  /** 发起一次单轮 Agent 对话；自动携带当前激活连接与数据库作为上下文 */
+  /* ─── 对话列表管理（009 新增） ─── */
+  /** 对话索引列表（仅元数据） */
+  conversations: Conversation[]
+  /** 当前选中的对话 ID */
+  activeConversationId: string | null
+  /** 当前对话的消息列表 */
+  messages: ConversationMessage[]
+  /** 消息总数（用于分页） */
+  messagesTotal: number
+  /** 消息加载中 */
+  messagesLoading: boolean
+  /** 对话列表加载中 */
+  listLoading: boolean
+
+  /** 从主进程加载对话索引列表 */
+  loadConversationList: () => Promise<void>
+  /** 选中一条对话并加载消息历史 */
+  selectConversation: (id: string) => Promise<void>
+  /** 创建新对话 */
+  createConversation: () => Promise<string>
+  /** 删除对话 */
+  deleteConversation: (id: string) => Promise<void>
+  /** 归档/取消归档 */
+  archiveConversation: (id: string) => Promise<void>
+  /** 加载消息历史（分页） */
+  loadMessages: (offset?: number, limit?: number) => Promise<void>
+  /** 检查对话是否有进行中的 AgentRun */
+  checkActiveRun: () => Promise<AgentRun | null>
+
+  /* ─── Agent 交互（既有功能，009 升级） ─── */
+  /** 当前对话的消息回合 */
+  turns: ConversationTurn[]
+
+  /** 发起一次多轮 Agent 对话；自动携带当前连接上下文和 conversationId */
   sendInstruction: (instruction: string) => Promise<void>
   /** 确认或拒绝最新一轮中暂停等待确认的工具调用 */
   confirmPendingToolCall: (approved: boolean) => Promise<void>
@@ -33,16 +68,15 @@ interface ConversationState {
 /**
  * 对话状态管理（Code 模式）
  *
- * 管理用户右键添加到对话的引用（文件/数据库对象），以及单轮 Agent 对话的
- * 指令-结果轨迹。多轮上下文管理（跨 turn 共享历史）将在后续迭代进行。
+ * 009 升级：从单轮 turns 管理扩展为完整的多对话生命周期管理。
+ * 支持对话的创建、选择、消息加载、归档/删除以及多轮上下文传递。
  */
 export const useConversationStore = create<ConversationState>()((set, get) => ({
+  /* ─── 引用管理（既有功能） ─── */
   references: [],
-  turns: [],
 
   addReference: (ref) =>
     set((s) => {
-      // 同 id 引用去重：先移除旧引用，再追加到末尾
       const filtered = s.references.filter((r) => r.id !== ref.id)
       return { references: [...filtered, ref] }
     }),
@@ -54,8 +88,136 @@ export const useConversationStore = create<ConversationState>()((set, get) => ({
 
   clearReferences: () => set({ references: [] }),
 
+  /* ─── 对话列表管理（009 新增） ─── */
+  conversations: [],
+  activeConversationId: null,
+  messages: [],
+  messagesTotal: 0,
+  messagesLoading: false,
+  listLoading: false,
+
+  loadConversationList: async () => {
+    set({ listLoading: true })
+    try {
+      const conversations = await conversationService.list()
+      set({ conversations, listLoading: false })
+    } catch {
+      set({ listLoading: false })
+    }
+  },
+
+  selectConversation: async (id) => {
+    // 切换前：若当前对话有进行中任务，保持其状态（renderer 侧不主动中断，主进程 runs Map 保留）
+    set({
+      activeConversationId: id,
+      messages: [],
+      messagesTotal: 0,
+      messagesLoading: true,
+      turns: []
+    })
+    try {
+      const result = await conversationService.get({ conversationId: id, offset: 0, limit: 50 })
+      // 检查是否有进行中的 AgentRun（FR-016 切换恢复）
+      const activeRunResult = await conversationService.getActiveRun(id)
+      // 若有进行中 run（paused_for_confirmation），将其作为 pending turn 展示
+      const resumeTurns: ConversationTurn[] = []
+      if (activeRunResult?.run) {
+        const run = activeRunResult.run
+        resumeTurns.push({
+          id: run.id,
+          instruction: run.instruction,
+          pending: run.status === 'running',
+          run
+        })
+      }
+      set({
+        messages: result.messages,
+        messagesTotal: result.total,
+        messagesLoading: false,
+        turns: resumeTurns
+      })
+    } catch {
+      set({ messagesLoading: false })
+    }
+  },
+
+  createConversation: async () => {
+    const conversation = await conversationService.create()
+    set((s) => ({
+      conversations: [conversation, ...s.conversations],
+      activeConversationId: conversation.id,
+      messages: [],
+      messagesTotal: 0,
+      turns: []
+    }))
+    return conversation.id
+  },
+
+  deleteConversation: async (id) => {
+    await conversationService.delete(id)
+    set((s) => {
+      const nextConversations = s.conversations.filter((c) => c.id !== id)
+      const nextActiveId =
+        s.activeConversationId === id ? (nextConversations[0]?.id ?? null) : s.activeConversationId
+      const nextTurns = s.activeConversationId === id ? [] : s.turns
+      const nextMessages = s.activeConversationId === id ? [] : s.messages
+      return {
+        conversations: nextConversations,
+        activeConversationId: nextActiveId,
+        turns: nextTurns,
+        messages: nextMessages,
+        messagesTotal: s.activeConversationId === id ? 0 : s.messagesTotal
+      }
+    })
+  },
+
+  archiveConversation: async (id) => {
+    const updated = await conversationService.archive(id)
+    set((s) => ({
+      conversations: s.conversations.map((c) => (c.id === id ? updated : c))
+    }))
+  },
+
+  loadMessages: async (offset = 0, limit = 50) => {
+    const { activeConversationId } = get()
+    if (!activeConversationId) return
+    set({ messagesLoading: true })
+    try {
+      const result = await conversationService.get({
+        conversationId: activeConversationId,
+        offset,
+        limit
+      })
+      set({
+        messages: result.messages,
+        messagesTotal: result.total,
+        messagesLoading: false
+      })
+    } catch {
+      set({ messagesLoading: false })
+    }
+  },
+
+  checkActiveRun: async () => {
+    const { activeConversationId } = get()
+    if (!activeConversationId) return null
+    const result = await conversationService.getActiveRun(activeConversationId)
+    return result?.run ?? null
+  },
+
+  /* ─── Agent 交互（009 升级） ─── */
+  turns: [],
+
   sendInstruction: async (instruction) => {
     const turnId = crypto.randomUUID()
+    const { activeConversationId } = get()
+
+    // 自动创建对话（如果没有活跃对话）
+    let convId = activeConversationId
+    if (!convId) {
+      convId = await get().createConversation()
+    }
+
     set((s) => ({
       turns: [...s.turns, { id: turnId, instruction, pending: true, run: null }]
     }))
@@ -72,8 +234,10 @@ export const useConversationStore = create<ConversationState>()((set, get) => ({
     }
 
     try {
-      const run = await agentService.chat(instruction, activeConnectionId, database)
+      const run = await agentService.chat(instruction, activeConnectionId, database, convId)
       updateTurn((t) => ({ ...t, pending: false, run }))
+      // 刷新对话列表以更新元数据（标题、时间、消息计数）
+      await get().loadConversationList()
     } catch (error) {
       updateTurn((t) => ({
         ...t,
@@ -98,6 +262,8 @@ export const useConversationStore = create<ConversationState>()((set, get) => ({
       set((s) => ({
         turns: s.turns.map((t) => (t.id === lastTurn.id ? { ...t, pending: false, run } : t))
       }))
+      // 刷新对话列表
+      await get().loadConversationList()
     } catch (error) {
       set((s) => ({
         turns: s.turns.map((t) =>

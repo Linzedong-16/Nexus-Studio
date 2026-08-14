@@ -5,23 +5,55 @@ import type {
   AgentToolSummary,
   ToolExecutionResult
 } from '../../renderer/src/types/agent'
+import type { ConversationMessage } from '../../renderer/src/types/conversation'
 import { loadModelProviderConfig } from '../ai/config'
 import { DeepSeekProvider } from '../ai/provider/DeepSeekProvider'
 import { resumeRun, startRun, type LoopState } from '../ai/loop/reactLoop'
-import type { AgentRun as MainAgentRun } from '../ai/loop/AgentRun'
+import type { AgentRun as MainAgentRun, AgentMessage } from '../ai/loop/AgentRun'
 import { toolRegistry } from '../ai/tools'
 import { createIPCHandler } from './utils'
+import {
+  appendMessage,
+  createConversation,
+  drainActiveRuns,
+  readMessages,
+  saveActiveRun,
+  clearActiveRun,
+  updateConversationMeta
+} from '../services/conversationService'
+
+/** 全局 runs Map 的引用，供 conversation:get-active-run 查询 */
+let runsMap: Map<string, LoopState> | null = null
+
+/**
+ * 根据 conversationId 查找当前进行中的 AgentRun
+ *
+ * 供 `conversation:get-active-run` handler 调用。
+ *
+ * @param conversationId - 对话 ID
+ * @returns 渲染进程 AgentRun 快照，若无进行中 run 则返回 null
+ */
+export function getAgentRunByConversationId(conversationId: string): RendererAgentRun | null {
+  if (!runsMap) return null
+  for (const state of runsMap.values()) {
+    if (state.run.conversationId === conversationId) {
+      return toRendererAgentRun(state.run)
+    }
+  }
+  return null
+}
 
 /**
  * 主进程内部 `AgentRun`（`src/main/ai/loop/AgentRun.ts`）→ 渲染进程展示所需的精简版
  *
- * 省略 `history`：多轮对话预留字段，本阶段始终为空数组，对渲染进程无展示价值（data-model.md §4）。
+ * 009 升级：新增 `conversationId` 字段透传至渲染进程。
  */
 function toRendererAgentRun(run: MainAgentRun): RendererAgentRun {
   return {
     id: run.id,
     status: run.status,
     instruction: run.instruction,
+    conversationId: run.conversationId,
     iterationCount: run.iterationCount,
     toolCalls: run.toolCalls,
     pendingConfirmation: run.pendingConfirmation,
@@ -31,8 +63,66 @@ function toRendererAgentRun(run: MainAgentRun): RendererAgentRun {
 }
 
 /**
+ * 将持久化的 ConversationMessage[] 转换为 AgentMessage[]（LLM 上下文格式）
+ */
+function toAgentMessages(messages: ConversationMessage[]): AgentMessage[] {
+  return messages.map((m) => ({
+    role: m.role,
+    instruction: m.instruction,
+    content: m.content,
+    toolCalls: m.toolCalls,
+    createdAt: m.createdAt
+  }))
+}
+
+/**
+ * 将 AgentRun 的最终结果转换为 ConversationMessage
+ */
+function buildConversationMessage(
+  conversationId: string,
+  run: MainAgentRun,
+  instruction: string,
+  sequence: number
+): ConversationMessage[] {
+  const now = Date.now()
+  const messages: ConversationMessage[] = [
+    // 用户消息
+    {
+      id: randomUUID(),
+      conversationId,
+      role: 'user',
+      instruction,
+      content: '',
+      toolCalls: [],
+      runId: run.id,
+      runStatus: run.status,
+      error: null,
+      sequence,
+      createdAt: now
+    },
+    // Agent 回复消息
+    {
+      id: randomUUID(),
+      conversationId,
+      role: 'assistant',
+      instruction: '',
+      content: run.finalMessage ?? '',
+      toolCalls: run.toolCalls,
+      runId: run.id,
+      runStatus: run.status,
+      error: run.error,
+      sequence: sequence + 1,
+      createdAt: now + 1
+    }
+  ]
+  return messages
+}
+
+/**
  * 注册 Agent 对话相关 IPC 通道：`agent:chat`、`agent:confirm-tool-call`、
  * `agent:list-tools`、`agent:run-tool`
+ *
+ * 009 升级：agent:chat 支持多轮——加载历史上下文、自动创建对话、持久化消息。
  *
  * `config`/`provider` 在注册时（`app.whenReady()` 之后）读取一次并复用，确保 `.env` 已被
  * `src/main/index.ts` 加载到 `process.env`；`runs` 以内存 Map 保存每个运行的完整循环状态
@@ -42,11 +132,64 @@ export function registerAgentIPC(): void {
   const config = loadModelProviderConfig()
   const provider = new DeepSeekProvider(config)
   const runs = new Map<string, LoopState>()
+  runsMap = runs
+
+  // 启动时清除上次会话残留的进行中状态（FR-015 崩溃恢复）
+  drainActiveRuns()
 
   createIPCHandler<[AgentChatRequest], RendererAgentRun>('agent:chat', async (request) => {
     const runId = randomUUID()
-    const state = await startRun(runId, request, provider, config)
+
+    // 确定对话 ID：使用传入的或自动创建
+    let conversationId = request.conversationId
+    if (!conversationId) {
+      const conv = await createConversation()
+      conversationId = conv.id
+    }
+
+    // 加载历史消息
+    const { messages: historyMessages } = await readMessages(conversationId)
+
+    // 启动 ReAct 循环（带历史上下文）
+    const state = await startRun(
+      runId,
+      conversationId,
+      request,
+      toAgentMessages(historyMessages),
+      provider,
+      config
+    )
     runs.set(runId, state)
+
+    // 持久化本轮的完成/暂停状态
+    const isTerminal = state.run.status === 'completed' || state.run.status === 'failed'
+    if (isTerminal) {
+      // 计算新消息的序号
+      const nextSeq = historyMessages.length
+      const newMessages = buildConversationMessage(
+        conversationId,
+        state.run,
+        request.instruction,
+        nextSeq
+      )
+      // 持久化消息
+      for (const msg of newMessages) {
+        await appendMessage(conversationId, msg)
+      }
+      // 更新对话元数据
+      const title = historyMessages.length === 0 ? request.instruction.slice(0, 50) : undefined
+      const newCount = historyMessages.length + newMessages.length
+      await updateConversationMeta(conversationId, {
+        title,
+        messageCount: newCount
+      })
+      // 清除进行中状态
+      clearActiveRun(conversationId)
+    } else {
+      // paused_for_confirmation：保存进行中状态
+      saveActiveRun(conversationId, runId, state.run.status)
+    }
+
     return toRendererAgentRun(state.run)
   })
 
@@ -57,8 +200,34 @@ export function registerAgentIPC(): void {
       if (!state) {
         throw new Error(`未找到进行中的运行: ${runId}`)
       }
+      const conversationId = state.run.conversationId
+      const instruction = state.run.instruction
+
       const nextState = await resumeRun(state, approved)
       runs.set(runId, nextState)
+
+      // 持久化完成/继续暂停
+      const isTerminal = nextState.run.status === 'completed' || nextState.run.status === 'failed'
+      if (isTerminal) {
+        const { messages: historyMessages } = await readMessages(conversationId)
+        const nextSeq = historyMessages.length
+        const newMessages = buildConversationMessage(
+          conversationId,
+          nextState.run,
+          instruction,
+          nextSeq
+        )
+        for (const msg of newMessages) {
+          await appendMessage(conversationId, msg)
+        }
+        await updateConversationMeta(conversationId, {
+          messageCount: historyMessages.length + newMessages.length
+        })
+        clearActiveRun(conversationId)
+      } else {
+        saveActiveRun(conversationId, runId, nextState.run.status)
+      }
+
       return toRendererAgentRun(nextState.run)
     }
   )

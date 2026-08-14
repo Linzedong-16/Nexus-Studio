@@ -1,6 +1,7 @@
 import ModeSwitcher from './ModeSwitcher'
 import SidebarNav from './SidebarNav'
 import UserPanel from './UserPanel'
+import ConversationPanel from '@/components/ai/ConversationPanel'
 import { useShellStore } from '@/store/shellStore'
 import { cn } from '@/lib/utils'
 
@@ -25,6 +26,7 @@ export default function Sidebar(): React.JSX.Element {
       </div>
       <div className="min-h-0 flex-1 flex flex-col">
         <SidebarNav collapsed={collapsed} />
+        <ConversationPanel />
       </div>
       <UserPanel collapsed={collapsed} />
     </aside>

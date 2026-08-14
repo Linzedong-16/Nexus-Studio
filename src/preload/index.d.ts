@@ -37,6 +37,12 @@ import type {
   AgentToolSummary,
   ToolExecutionResult
 } from '../renderer/src/types/agent'
+import type {
+  Conversation,
+  ConversationGetRequest,
+  ConversationGetResponse,
+  ConversationActionRequest
+} from '../renderer/src/types/conversation'
 
 // ─── 窗口控制 API ───
 
@@ -277,6 +283,23 @@ export interface AgentApi {
   runTool(toolName: string, input: unknown): Promise<ToolExecutionResult<unknown>>
 }
 
+// ─── 对话管理 API（009 号功能） ───
+
+export interface ConversationApi {
+  /** 获取所有对话的元数据列表（不含消息正文），按更新时间倒序 */
+  list(): Promise<Conversation[]>
+  /** 获取单条对话的完整消息历史（支持分页） */
+  get(request: ConversationGetRequest): Promise<ConversationGetResponse>
+  /** 创建新的空对话 */
+  create(): Promise<Conversation>
+  /** 永久删除对话及其关联消息文件 */
+  delete(request: ConversationActionRequest): Promise<void>
+  /** 切换对话归档状态（active ↔ archived） */
+  archive(request: ConversationActionRequest): Promise<Conversation>
+  /** 获取对话当前是否有进行中的 AgentRun */
+  getActiveRun(request: ConversationActionRequest): Promise<{ run: AgentRun } | null>
+}
+
 // ─── 全局 API ───
 
 export interface Api {
@@ -291,6 +314,7 @@ export interface Api {
   fs: FileSystemApi
   task: TaskApi
   agent: AgentApi
+  conversation: ConversationApi
 }
 
 declare global {

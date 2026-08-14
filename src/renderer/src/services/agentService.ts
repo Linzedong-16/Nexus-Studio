@@ -14,14 +14,17 @@ import type {
 
 export const agentService = {
   /**
-   * 发起一次单轮 Agent 对话，返回本轮运行的最终快照（含工具调用轨迹）
+   * 发起一次多轮 Agent 对话，返回本轮运行的最终快照（含工具调用轨迹）
+   *
+   * 009 升级：新增 conversationId 参数，不传则自动创建新对话
    */
   async chat(
     instruction: string,
     connectionId: string | null,
-    database: string | null
+    database: string | null,
+    conversationId?: string
   ): Promise<AgentRun> {
-    const request: AgentChatRequest = { instruction, connectionId, database }
+    const request: AgentChatRequest = { instruction, connectionId, database, conversationId }
     return window.api.agent.chat(request)
   },
 

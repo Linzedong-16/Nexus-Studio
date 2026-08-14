@@ -32,7 +32,9 @@
       "Bash(powershell -NoProfile -ExecutionPolicy Bypass -File .specify/scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks)",
       "Bash(node -e ' *)",
       "Bash(xargs -I{} dirname {})",
-      "Bash(xargs -I{} basename {})"
+      "Bash(xargs -I{} basename {})",
+      "Bash(powershell -NoProfile -ExecutionPolicy Bypass -File \".specify/scripts/powershell/check-prerequisites.ps1\" -Json -PathsOnly)",
+      "Bash(powershell -NoProfile -ExecutionPolicy Bypass -File \".specify/scripts/powershell/setup-plan.ps1\" -Json)"
     ]
   }
 }

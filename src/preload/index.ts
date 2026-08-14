@@ -26,6 +26,12 @@ import type {
   AgentToolSummary,
   ToolExecutionResult
 } from '../renderer/src/types/agent'
+import type {
+  Conversation,
+  ConversationGetRequest,
+  ConversationGetResponse,
+  ConversationActionRequest
+} from '../renderer/src/types/conversation'
 
 /**
  * 渲染进程可用 API —— 使用工厂函数创建，声明式定义
@@ -164,6 +170,18 @@ const api: Api = {
     confirmToolCall: createInvoke<[string, boolean], AgentRun>('agent:confirm-tool-call'),
     listTools: createInvoke<[], AgentToolSummary[]>('agent:list-tools'),
     runTool: createInvoke<[string, unknown], ToolExecutionResult<unknown>>('agent:run-tool')
+  },
+
+  // ─── 对话管理（009 号功能） ───
+  conversation: {
+    list: createInvoke<[], Conversation[]>('conversation:list'),
+    get: createInvoke<[ConversationGetRequest], ConversationGetResponse>('conversation:get'),
+    create: createInvoke<[], Conversation>('conversation:create'),
+    delete: createInvoke<[ConversationActionRequest], void>('conversation:delete'),
+    archive: createInvoke<[ConversationActionRequest], Conversation>('conversation:archive'),
+    getActiveRun: createInvoke<[ConversationActionRequest], { run: AgentRun } | null>(
+      'conversation:get-active-run'
+    )
   }
 }
 

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   X,
   MessageSquare,
@@ -183,9 +183,25 @@ export default function ConversationView(): React.JSX.Element {
   const removeReference = useConversationStore((s) => s.removeReference)
   const turns = useConversationStore((s) => s.turns)
   const sendInstruction = useConversationStore((s) => s.sendInstruction)
+  const loadConversationList = useConversationStore((s) => s.loadConversationList)
+  const selectConversation = useConversationStore((s) => s.selectConversation)
+  const createConversation = useConversationStore((s) => s.createConversation)
 
   const [input, setInput] = useState('')
   const isBusy = turns.length > 0 && turns[turns.length - 1].pending
+
+  // 挂载时加载对话列表，并自动选中最近对话或创建新对话（009 US1 多轮入口）
+  useEffect(() => {
+    void (async () => {
+      await loadConversationList()
+      const state = useConversationStore.getState()
+      if (state.conversations.length > 0) {
+        await selectConversation(state.conversations[0].id)
+      } else {
+        await createConversation()
+      }
+    })()
+  }, [loadConversationList, selectConversation, createConversation])
 
   const handleSend = (): void => {
     const instruction = input.trim()

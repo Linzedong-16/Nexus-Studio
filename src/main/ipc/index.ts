@@ -9,6 +9,7 @@ import { registerAppIPC } from './app'
 import { registerFsIPC } from './fs'
 import { registerTaskIPC } from './task'
 import { registerAgentIPC } from './agent'
+import { registerConversationIPC } from './conversation'
 
 /**
  * IPC 统一注册入口
@@ -27,4 +28,5 @@ export function registerAllIPC(mainWindow: BrowserWindow): void {
   registerFsIPC()
   registerTaskIPC(mainWindow)
   registerAgentIPC()
+  registerConversationIPC()
 }

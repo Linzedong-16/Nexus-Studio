@@ -16,6 +16,7 @@ import { ModelProviderError } from '../provider/IModelProvider'
 import { toolRegistry } from '../tools'
 import {
   type AgentRun,
+  type AgentMessage,
   appendToolCall,
   completeRun,
   createAgentRun,
@@ -30,7 +31,95 @@ const SYSTEM_PROMPT =
   '你是 Nexus Studio 数据库客户端 Code 模式下的助手，通过调用工具查询数据库结构、执行 SQL、' +
   '校验/格式化 SQL 语句来完成用户提出的数据库相关任务。每次工具调用后你会收到执行结果（成功数据或失败原因），' +
   '请据此继续推理直到能给出最终结论；若结论已明确请直接输出自然语言最终答案，不要再发起新的工具调用。' +
-  '若指令需要数据库连接与数据库上下文，但下方“当前上下文”未提供，请不要猜测，直接在最终答案中说明需要先选择一个数据库连接。'
+  '若指令需要数据库连接与数据库上下文，但下方”当前上下文”未提供，请不要猜测，直接在最终答案中说明需要先选择一个数据库连接。'
+
+/** 上下文窗口上限 token 数（DeepSeek Chat 128K × 80% 保守值） */
+const MAX_CONTEXT_TOKENS = 100_000
+
+/**
+ * 估算文本的 token 数量
+ *
+ * 无 tokenizer 时的近似计算：英文 ~3 字符/token，中文 ~1.5 字符/token，
+ * 工具调用 JSON ~2 字符/token。综合采用 字符数 / 2 的保守估算（research.md §3）。
+ *
+ * @param text - 待估算的文本
+ * @returns 估算的 token 数
+ */
+function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 2)
+}
+
+/**
+ * 裁剪历史消息以适应上下文窗口
+ *
+ * 从最早的消息开始丢弃，保留 system prompt + 最近的消息，
+ * 直到总估算 token 数 < MAX_CONTEXT_TOKENS。
+ * 完整消息历史在本地存储中不受影响（FR-011）。
+ *
+ * @param systemPrompt - 系统提示词
+ * @param historyMessages - 历史消息（可能很长）
+ * @param currentInstruction - 当前用户指令（必须保留）
+ * @returns 裁剪后的历史消息列表
+ */
+function trimHistory(
+  systemPrompt: string,
+  historyMessages: AgentMessage[],
+  currentInstruction: string
+): AgentMessage[] {
+  const systemTokens = estimateTokens(systemPrompt)
+  const instructionTokens = estimateTokens(currentInstruction)
+  const reservedTokens = systemTokens + instructionTokens + 500 // 500 token 缓冲
+  const availableTokens = MAX_CONTEXT_TOKENS - reservedTokens
+
+  if (availableTokens <= 0) {
+    // 极端情况：system prompt + 当前指令已接近窗口上限，不保留历史
+    return []
+  }
+
+  // 估算每条历史消息的 token 数
+  const tokenCounts = historyMessages.map(
+    (m) => estimateTokens(m.instruction) + estimateTokens(m.content)
+  )
+
+  // 从最早的消息开始丢弃
+  let totalTokens = tokenCounts.reduce((sum, t) => sum + t, 0)
+  let startIndex = 0
+  while (startIndex < historyMessages.length && totalTokens > availableTokens) {
+    totalTokens -= tokenCounts[startIndex]
+    startIndex++
+  }
+
+  return historyMessages.slice(startIndex)
+}
+
+/**
+ * 将 AgentMessage 转换为 LLM 所需的 ChatMessage 格式
+ *
+ * @param historyMessages - 对话历史消息
+ * @returns ChatMessage 数组（不含 system prompt 和当前用户指令）
+ */
+function historyToChatMessages(historyMessages: AgentMessage[]): ChatMessage[] {
+  const result: ChatMessage[] = []
+  for (const msg of historyMessages) {
+    if (msg.role === 'user') {
+      result.push({ role: 'user', content: msg.instruction })
+    } else {
+      result.push({
+        role: 'assistant',
+        content: msg.content,
+        toolCalls:
+          msg.toolCalls.length > 0
+            ? msg.toolCalls.map((tc) => ({
+                id: tc.id,
+                toolName: tc.toolName,
+                input: tc.input
+              }))
+            : undefined
+      })
+    }
+  }
+  return result
+}
 
 /** 承载一次模型调用的 provider/config/工具说明，贯穿整个循环生命周期，确认恢复时无需重新构造 */
 interface LoopContext {
@@ -185,21 +274,26 @@ async function runLoop(state: LoopState): Promise<LoopState> {
 /**
  * 发起一次新的 Agent 运行
  *
+ * 009 升级：接受 historyMessages 和 conversationId，支持多轮上下文。
  * 未配置密钥时在第一次思考前直接返回 `failed`（`provider_not_configured`），不发起任何网络调用（FR-008）。
  *
  * @param runId - 运行唯一标识
+ * @param conversationId - 关联的对话 ID
  * @param request - `agent:chat` 的请求载荷（指令 + 连接/数据库上下文）
+ * @param historyMessages - 该对话之前全部轮次的历史消息（空数组表示新对话）
  * @param provider - 模型提供方实现（当前始终是 `DeepSeekProvider`）
  * @param config - 已加载的模型提供方配置
  * @returns 循环执行到下一个暂停点（完成/失败/等待确认）时的完整内部状态
  */
 export async function startRun(
   runId: string,
+  conversationId: string,
   request: AgentChatRequest,
+  historyMessages: AgentMessage[],
   provider: IModelProvider,
   config: ModelProviderConfig
 ): Promise<LoopState> {
-  const run = createAgentRun(runId, request.instruction)
+  const run = createAgentRun(runId, conversationId, request.instruction, historyMessages)
   const context: LoopContext = { provider, config, tools: buildModelTools() }
 
   if (!isProviderConfigured(config)) {
@@ -215,8 +309,12 @@ export async function startRun(
     }
   }
 
+  // 构建完整消息上下文：system prompt → 裁剪后的历史 → 当前上下文+指令
+  const trimmedHistory = trimHistory(SYSTEM_PROMPT, historyMessages, request.instruction)
+  const historyChatMessages = historyToChatMessages(trimmedHistory)
   const messages: ChatMessage[] = [
     { role: 'system', content: SYSTEM_PROMPT },
+    ...historyChatMessages,
     { role: 'user', content: buildContextMessage(request) }
   ]
 

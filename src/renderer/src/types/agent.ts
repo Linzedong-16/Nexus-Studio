@@ -51,11 +51,14 @@ export type AgentErrorCode =
   | 'provider_unavailable'
   | 'max_iterations_exceeded'
 
-/** `AgentRun` 的渲染进程精简版：省略 `history`（多轮对话预留字段，本阶段无展示价值） */
+/** `AgentRun` 的渲染进程精简版：省略 `history`（多轮对话历史，渲染进程无需展示全量）；
+ * 009 新增 `conversationId` 关联所属对话 */
 export interface AgentRun {
   id: string
   status: AgentRunStatus
   instruction: string
+  /** 关联的对话 ID（009 新增） */
+  conversationId: string
   iterationCount: number
   toolCalls: AgentToolCallRecord[]
   pendingConfirmation: { toolCallId: string; summary: string } | null
@@ -65,9 +68,19 @@ export interface AgentRun {
 
 // ─── IPC 请求载荷 ───
 
-/** `agent:chat` 的请求参数 */
+/** 一条历史消息的上下文快照（对应 008 data-model.md §5 `AgentMessage`） */
+export interface AgentHistoryMessage {
+  role: 'user' | 'assistant'
+  content: string
+  toolCalls: AgentToolCallRecord[]
+  createdAt: number
+}
+
+/** `agent:chat` 的请求参数（009 扩展：新增 conversationId） */
 export interface AgentChatRequest {
   instruction: string
   connectionId: string | null
   database: string | null
+  /** 可选：指定对话 ID，不传则自动创建新对话 */
+  conversationId?: string
 }
