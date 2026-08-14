@@ -16,7 +16,8 @@ import type {
   DbLogEntry,
   ImportRowsRequest,
   ImportSqlRequest,
-  ImportResult
+  ImportResult,
+  BackupResult
 } from '../types/ipc'
 
 /**
@@ -223,6 +224,18 @@ export const queryService = {
     request: ImportSqlRequest
   ): Promise<ImportResult> {
     return window.api.db.importSql(connectionId, database, request)
+  },
+
+  /**
+   * 备份数据库，通过 pg_dump 导出到指定目录
+   */
+  async backupDatabase(
+    connectionId: string,
+    database: string,
+    exportDir: string,
+    pgDumpPath?: string
+  ): Promise<BackupResult> {
+    return window.api.db.backupDatabase(connectionId, database, exportDir, pgDumpPath)
   },
 
   /**

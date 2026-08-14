@@ -256,6 +256,24 @@ export interface ImportResult {
   rolledBack: boolean
 }
 
+// ─── 数据库备份 ───
+
+/** 备份参数 */
+export interface BackupParams {
+  connectionId: string
+  database: string
+  exportDir: string
+  /** pg_dump 可执行文件路径，为空则自动探测 PATH */
+  pgDumpPath?: string
+}
+
+/** 备份操作结果 */
+export interface BackupResult {
+  success: boolean
+  filePath: string
+  error?: string
+}
+
 // ─── ER 图分析 ───
 
 /** ER 图中的一张表（含全部列） */

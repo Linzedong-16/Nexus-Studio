@@ -5,6 +5,56 @@ import { PostgreSQLDriver } from '../db/driver/pg'
 import { configStore } from '../config/store'
 import { decryptPassword } from '../config/crypto'
 import type { StoredConnection } from '../../renderer/src/types/ipc'
+import { execFile } from 'child_process'
+import { existsSync, mkdirSync, readdirSync } from 'fs'
+import path from 'path'
+
+/** 自动探测 pg_dump 路径（Windows / macOS / Linux） */
+async function detectPgDump(): Promise<string | null> {
+  // 先尝试 PATH 中的 pg_dump
+  try {
+    const bin = process.platform === 'win32' ? 'pg_dump.exe' : 'pg_dump'
+    await new Promise<void>((resolve, reject) => {
+      execFile(bin, ['--version'], (err) => (err ? reject(err) : resolve()))
+    })
+    return bin
+  } catch {
+    // 不在 PATH 中，继续探测
+  }
+
+  // 扫描常见安装路径
+  if (process.platform === 'win32') {
+    const baseDir = 'C:\\Program Files\\PostgreSQL'
+    if (existsSync(baseDir)) {
+      const versions = readdirSync(baseDir)
+      for (const ver of versions.sort().reverse()) {
+        const candidate = path.join(baseDir, ver, 'bin', 'pg_dump.exe')
+        if (existsSync(candidate)) return candidate
+      }
+    }
+  } else if (process.platform === 'darwin') {
+    // macOS: Homebrew 安装路径
+    const candidates = ['/opt/homebrew/bin/pg_dump', '/usr/local/bin/pg_dump']
+    for (const c of candidates) {
+      if (existsSync(c)) return c
+    }
+  } else {
+    // Linux 常见路径
+    const candidates = ['/usr/bin/pg_dump', '/usr/lib/postgresql']
+    if (existsSync('/usr/lib/postgresql')) {
+      const versions = readdirSync('/usr/lib/postgresql')
+      for (const ver of versions.sort().reverse()) {
+        const candidate = path.join('/usr/lib/postgresql', ver, 'bin', 'pg_dump')
+        if (existsSync(candidate)) return candidate
+      }
+    }
+    for (const c of candidates) {
+      if (existsSync(c)) return c
+    }
+  }
+
+  return null
+}
 import type {
   ConnectionConfig,
   ConnectionResult,
@@ -22,7 +72,8 @@ import type {
   DdlResult,
   ImportRowsRequest,
   ImportSqlRequest,
-  ImportResult
+  ImportResult,
+  BackupResult
 } from '../../renderer/src/types/ipc'
 
 /**
@@ -173,6 +224,58 @@ export function registerDbIPC(mainWindow: BrowserWindow): void {
     'db:import-sql',
     async (connectionId, database, request) => {
       return driverManager.importSql(connectionId, database, request.statements)
+    }
+  )
+
+  createIPCHandler<[string, string, string, string?], BackupResult>(
+    'db:backup-database',
+    async (connectionId, database, exportDir, pgDumpPath) => {
+      const stored = configStore.get('connections') as StoredConnection[]
+      const found = stored.find((c) => c.id === connectionId)
+      if (!found) throw new Error(`连接配置不存在: ${connectionId}`)
+
+      const dumpBin = pgDumpPath || (await detectPgDump())
+      if (!dumpBin) {
+        return {
+          success: false,
+          filePath: '',
+          error: '未找到 pg_dump，请安装 PostgreSQL 客户端或在对话框中手动指定 pg_dump 路径'
+        }
+      }
+      const env = { ...process.env } as Record<string, string | undefined>
+      if (found.encryptedPassword) {
+        env.PGPASSWORD = decryptPassword(found.encryptedPassword)
+      }
+
+      if (!existsSync(exportDir)) {
+        mkdirSync(exportDir, { recursive: true })
+      }
+      const now = new Date().toISOString().replace(/[:.]/g, '-')
+      const outFile = path.join(exportDir, `dump-${database}-${now}.sql`)
+
+      const args = [
+        '-h',
+        found.host,
+        '-p',
+        String(found.port),
+        '-U',
+        found.username,
+        '-d',
+        database,
+        '-f',
+        outFile,
+        '--no-owner'
+      ]
+
+      return new Promise<BackupResult>((resolve) => {
+        execFile(dumpBin, args, { env }, (err) => {
+          if (err) {
+            resolve({ success: false, filePath: outFile, error: err.message })
+          } else {
+            resolve({ success: true, filePath: outFile })
+          }
+        })
+      })
     }
   )
 }

@@ -3,6 +3,7 @@ import {
   ChevronRight,
   Database,
   GitFork,
+  HardDrive,
   Loader2,
   MoreHorizontal,
   Plus,
@@ -17,6 +18,7 @@ import {
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
+import { useState } from 'react'
 import { DATABASE_CAPABILITIES } from '@/config/databaseCapabilities'
 import { getSqlTemplate } from '@/lib/sqlTemplates'
 import type { DatabaseInfo, DatabaseType } from '@/types/ipc'
@@ -26,6 +28,7 @@ import AddToConversationMenuItem from '@/components/code/AddToConversationMenuIt
 import { useInCodeMode } from '@/components/code/useInCodeMode'
 import ModuleGroup from './ModuleGroup'
 import SchemaNode from './SchemaNode'
+import BackupDialog from './BackupDialog'
 
 interface DatabaseNodeProps {
   connectionId: string
@@ -46,6 +49,7 @@ export default function DatabaseNode({
   connectionType,
   database
 }: DatabaseNodeProps): React.JSX.Element {
+  const [backupOpen, setBackupOpen] = useState(false)
   const node = useConnectionStore(
     (s) => s.connections[connectionId]?.databaseNodes?.[database.name]
   )
@@ -92,8 +96,9 @@ export default function DatabaseNode({
   }
 
   return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>
+    <>
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
         <div>
           <div
             className={cn(
@@ -145,6 +150,15 @@ export default function DatabaseNode({
                   <GitFork className="size-3.5" />
                   ER 分析
                 </DropdownMenuItem>
+                {!inCodeMode && (
+                  <DropdownMenuItem
+                    onSelect={() => setBackupOpen(true)}
+                    className="gap-2"
+                  >
+                    <HardDrive className="size-3.5" />
+                    数据库备份
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -211,5 +225,13 @@ export default function DatabaseNode({
         </ContextMenuContent>
       )}
     </ContextMenu>
+    <BackupDialog
+      open={backupOpen}
+      onOpenChange={setBackupOpen}
+      connectionId={connectionId}
+      connectionName={connectionName}
+      database={database.name}
+    />
+    </>
   )
 }

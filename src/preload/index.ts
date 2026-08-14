@@ -14,7 +14,8 @@ import type {
   DbLogEntry,
   ImportRowsRequest,
   ImportSqlRequest,
-  ImportResult
+  ImportResult,
+  BackupResult
 } from '../renderer/src/types/ipc'
 import type { KeybindingEntry } from '../renderer/src/types/keybinding'
 import type { FileNode } from '../renderer/src/types/fileExplorer'
@@ -62,6 +63,9 @@ const api: Api = {
     getViewDdl: createInvoke<[string, string, string, string], DdlResult>('db:get-view-ddl'),
     importRows: createInvoke<[string, string, ImportRowsRequest], ImportResult>('db:import-rows'),
     importSql: createInvoke<[string, string, ImportSqlRequest], ImportResult>('db:import-sql'),
+    backupDatabase: createInvoke<[string, string, string, string?], BackupResult>(
+      'db:backup-database'
+    ),
     onStatusChange: createListener('db:status-changed')
   },
 

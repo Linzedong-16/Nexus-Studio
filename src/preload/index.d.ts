@@ -19,7 +19,8 @@ import type {
   DbLogEntry,
   ImportRowsRequest,
   ImportSqlRequest,
-  ImportResult
+  ImportResult,
+  BackupResult
 } from '../renderer/src/types/ipc'
 import type { KeybindingEntry } from '../renderer/src/types/keybinding'
 import type { FileNode } from '../renderer/src/types/fileExplorer'
@@ -113,6 +114,13 @@ export interface DatabaseApi {
     database: string,
     request: ImportSqlRequest
   ): Promise<ImportResult>
+  /** 备份数据库，通过 pg_dump 导出到指定目录 */
+  backupDatabase(
+    connectionId: string,
+    database: string,
+    exportDir: string,
+    pgDumpPath?: string
+  ): Promise<BackupResult>
   /** 订阅连接状态变化；返回取消订阅函数 */
   onStatusChange(callback: (status: ConnectionStatus) => void): () => void
 }
