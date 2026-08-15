@@ -99,4 +99,6 @@ export interface AgentChatRequest {
   conversationId?: string
   /** 可选：本轮发送时携带的引用快照（数据库连接/文件等），用于让模型感知用户关注的上下文对象 */
   references?: ConversationReference[]
+  /** 可选：当前打开的项目根目录，用于限定 file.readFile 工具的读取范围 */
+  activeProjectPath?: string | null
 }

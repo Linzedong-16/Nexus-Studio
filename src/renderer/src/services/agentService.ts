@@ -24,14 +24,16 @@ export const agentService = {
     connectionId: string | null,
     database: string | null,
     conversationId?: string,
-    references?: ConversationReference[]
+    references?: ConversationReference[],
+    activeProjectPath?: string | null
   ): Promise<AgentRun> {
     const request: AgentChatRequest = {
       instruction,
       connectionId,
       database,
       conversationId,
-      references
+      references,
+      activeProjectPath
     }
     return window.api.agent.chat(request)
   },
@@ -47,14 +49,16 @@ export const agentService = {
     connectionId: string | null,
     database: string | null,
     conversationId?: string,
-    references?: ConversationReference[]
+    references?: ConversationReference[],
+    activeProjectPath?: string | null
   ): Promise<{ runId: string; conversationId: string }> {
     const request: AgentChatRequest = {
       instruction,
       connectionId,
       database,
       conversationId,
-      references
+      references,
+      activeProjectPath
     }
     return window.api.agent.chatStream(request)
   },

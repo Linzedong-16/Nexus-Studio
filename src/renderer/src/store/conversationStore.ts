@@ -5,6 +5,7 @@ import type { AgentRun } from '@/types/agent'
 import { agentService } from '@/services/agentService'
 import { conversationService } from '@/services/conversationService'
 import { useConnectionStore } from '@/store/connectionStore'
+import { useFileExplorerStore } from '@/store/fileExplorerStore'
 import { createRafBatcher } from '@/lib/markdownUtils'
 
 /** 一轮"指令 → Agent 运行结果"，单轮对话模式下一次发送对应一个 turn */
@@ -291,7 +292,8 @@ export const useConversationStore = create<ConversationState>()((set, get) => ({
         activeConnectionId,
         database,
         convId,
-        references
+        references,
+        useFileExplorerStore.getState().activeProjectPath
       )
       updateTurn((t) => ({ ...t, pending: false, run }))
       // 刷新对话列表以更新元数据（标题、时间、消息计数）
@@ -442,7 +444,14 @@ export const useConversationStore = create<ConversationState>()((set, get) => ({
     })
 
     try {
-      await agentService.chatStream(instruction, activeConnectionId, database, convId, references)
+      await agentService.chatStream(
+        instruction,
+        activeConnectionId,
+        database,
+        convId,
+        references,
+        useFileExplorerStore.getState().activeProjectPath
+      )
     } catch (error) {
       updateTurn((t) => ({
         ...t,

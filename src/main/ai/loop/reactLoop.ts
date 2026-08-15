@@ -32,7 +32,9 @@ const SYSTEM_PROMPT =
   '你是 Nexus Studio 数据库客户端 Code 模式下的助手，通过调用工具查询数据库结构、执行 SQL、' +
   '校验/格式化 SQL 语句来完成用户提出的数据库相关任务。每次工具调用后你会收到执行结果（成功数据或失败原因），' +
   '请据此继续推理直到能给出最终结论；若结论已明确请直接输出自然语言最终答案，不要再发起新的工具调用。' +
-  '若指令需要数据库连接与数据库上下文，但下方”当前上下文”未提供，请不要猜测，直接在最终答案中说明需要先选择一个数据库连接。'
+  '若指令需要数据库连接与数据库上下文，但下方”当前上下文”未提供，请不要猜测，直接在最终答案中说明需要先选择一个数据库连接。' +
+  '你还可以调用 file.readFile 工具读取用户引用或提及的本地文本文件内容' +
+  '（仅支持项目目录内的文本文件，不支持二进制文件）。'
 
 /** 上下文窗口上限 token 数（DeepSeek Chat 128K × 80% 保守值） */
 const MAX_CONTEXT_TOKENS = 100_000
@@ -221,6 +223,21 @@ function toModelProviderError(error: unknown): ModelProviderError {
   )
 }
 
+/**
+ * `file.readFile` 工具在真正调用前，自动把当前运行的 `activeProjectPath` 合并进模型传入的参数；
+ * 模型不需要知道也不需要填写这个字段，即使模型误填也以此处注入值为准。其他工具原样传递，
+ * 不受影响。`AgentToolCallRecord.input`（调用轨迹展示）仍记录模型原始传入的参数，不含此处注入值。
+ */
+function buildInvokeInput(
+  toolName: string,
+  input: unknown,
+  activeProjectPath: string | null
+): unknown {
+  if (toolName !== 'file.readFile') return input
+  const base = typeof input === 'object' && input !== null ? (input as Record<string, unknown>) : {}
+  return { ...base, projectRoot: activeProjectPath }
+}
+
 /** 依次处理一批工具调用；命中 `mutates=true` 的工具时立即暂停，返回尚未处理的剩余调用（FR-011、data-model.md §4） */
 async function processBatch(
   toolCalls: ChatToolCall[],
@@ -266,7 +283,12 @@ async function processBatch(
       }
     }
 
-    const result = await toolRegistry.invoke(toolCall.toolName, toolCall.input)
+    const invokeInput = buildInvokeInput(
+      toolCall.toolName,
+      toolCall.input,
+      currentRun.activeProjectPath
+    )
+    const result = await toolRegistry.invoke(toolCall.toolName, invokeInput)
     currentRun = updateToolCall(currentRun, toolCall.id, (record) => ({
       ...record,
       result,
@@ -351,7 +373,8 @@ export async function startRun(
     conversationId,
     request.instruction,
     historyMessages,
-    request.references ?? []
+    request.references ?? [],
+    request.activeProjectPath ?? null
   )
   const context: LoopContext = { provider, config, tools: buildModelTools() }
 
@@ -601,7 +624,8 @@ export async function startRunStream(
     conversationId,
     request.instruction,
     historyMessages,
-    request.references ?? []
+    request.references ?? [],
+    request.activeProjectPath ?? null
   )
   const context: LoopContext = { provider, config, tools: buildModelTools() }
 

@@ -32,6 +32,8 @@ export interface AgentRun {
   instruction: string
   /** 本轮发送时携带的引用快照，用于确认/恢复流程结束后持久化时仍能带上这轮最初的引用 */
   references: ConversationReference[]
+  /** 当前打开的项目根目录；null 表示未打开项目，用于限定 file.readFile 工具的读取范围 */
+  activeProjectPath: string | null
   history: AgentMessage[]
   iterationCount: number
   toolCalls: AgentToolCallRecord[]
@@ -50,13 +52,15 @@ export interface AgentRun {
  * @param instruction - 用户提交的原始自然语言指令
  * @param history - 对话历史消息（多轮上下文），当前 run 之前的所有轮次
  * @param references - 本轮发送时携带的引用快照（数据库连接/文件等），默认为空
+ * @param activeProjectPath - 当前打开的项目根目录，默认为 null（未打开项目）
  */
 export function createAgentRun(
   id: string,
   conversationId: string,
   instruction: string,
   history: AgentMessage[] = [],
-  references: ConversationReference[] = []
+  references: ConversationReference[] = [],
+  activeProjectPath: string | null = null
 ): AgentRun {
   return {
     id,
@@ -64,6 +68,7 @@ export function createAgentRun(
     conversationId,
     instruction,
     references,
+    activeProjectPath,
     history,
     iterationCount: 0,
     toolCalls: [],
