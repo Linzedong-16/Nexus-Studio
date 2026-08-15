@@ -3,7 +3,7 @@
  *
  * 展示所有任务，支持选中、运行状态指示。
  */
-import { Play, Trash2, Clock } from 'lucide-react'
+import { Play, Pencil, PauseCircle, PlayCircle, Trash2, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useTaskStore } from '@/store/taskStore'
@@ -18,6 +18,7 @@ export function TaskList(): React.JSX.Element {
   const startEditing = useTaskStore((s) => s.startEditing)
   const deleteTask = useTaskStore((s) => s.deleteTask)
   const runNow = useTaskStore((s) => s.runNow)
+  const updateTask = useTaskStore((s) => s.updateTask)
 
   if (loading) {
     return (
@@ -47,6 +48,7 @@ export function TaskList(): React.JSX.Element {
           onEdit={() => startEditing(task.id)}
           onDelete={() => deleteTask(task.id)}
           onRunNow={() => runNow(task.id)}
+          onTogglePause={() => updateTask({ id: task.id, enabled: !task.enabled })}
         />
       ))}
     </div>
@@ -60,6 +62,7 @@ interface TaskListItemProps {
   onEdit: () => void
   onDelete: () => void
   onRunNow: () => void
+  onTogglePause: () => void
 }
 
 function TaskListItem({
@@ -68,7 +71,8 @@ function TaskListItem({
   onSelect,
   onEdit,
   onDelete,
-  onRunNow
+  onRunNow,
+  onTogglePause
 }: TaskListItemProps): React.JSX.Element {
   return (
     <div
@@ -107,6 +111,30 @@ function TaskListItem({
           }}
         >
           <Play className="size-3" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-5"
+          title={task.enabled ? '暂停任务' : '启用任务'}
+          onClick={(e) => {
+            e.stopPropagation()
+            onTogglePause()
+          }}
+        >
+          {task.enabled ? <PauseCircle className="size-3" /> : <PlayCircle className="size-3" />}
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-5"
+          title="编辑"
+          onClick={(e) => {
+            e.stopPropagation()
+            onEdit()
+          }}
+        >
+          <Pencil className="size-3" />
         </Button>
         <Button
           variant="ghost"

@@ -90,6 +90,42 @@ export function TaskRunHistory({ taskId }: TaskRunHistoryProps): React.JSX.Eleme
                     {log.error}
                   </div>
                 )}
+                {log.outputFile && (
+                  <div className="mt-1 truncate text-[10px] text-muted-foreground">
+                    输出文件：<span className="font-mono">{log.outputFile}</span>
+                  </div>
+                )}
+                {log.preview && log.preview.columns.length > 0 && (
+                  <div className="mt-1.5 overflow-x-auto rounded border border-border">
+                    <table className="w-full text-[10px]">
+                      <thead>
+                        <tr className="border-b border-border bg-muted/50">
+                          {log.preview.columns.map((col, i) => (
+                            <th key={i} className="px-1.5 py-1 text-left font-medium">
+                              {col}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {log.preview.rows.map((row, i) => (
+                          <tr key={i} className="border-b border-border last:border-0">
+                            {row.map((cell, j) => (
+                              <td key={j} className="max-w-40 truncate px-1.5 py-1 font-mono">
+                                {cell === null || cell === undefined ? 'NULL' : String(cell)}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    {log.preview.truncated && (
+                      <div className="px-1.5 py-1 text-[9px] text-muted-foreground">
+                        仅显示前 {log.preview.rows.length} 行
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>

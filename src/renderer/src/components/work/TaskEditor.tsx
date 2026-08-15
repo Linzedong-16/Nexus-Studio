@@ -3,8 +3,8 @@
  *
  * 支持新建和编辑两种模式，根据模板类型动态展示不同参数字段。
  */
-import { useState } from 'react'
-import { Save, X } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { Save, X, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -18,6 +18,9 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { useTaskStore } from '@/store/taskStore'
+import { configService } from '@/services/configService'
+import { queryService } from '@/services/queryService'
+import type { ConnectionConfig, DatabaseInfo } from '@/types/ipc'
 import type {
   ScriptTemplateId,
   CreateTaskPayload,
@@ -27,6 +30,11 @@ import type {
   DataExportJsonParams,
   PgDumpParams
 } from '@/types/task'
+
+const DB_TYPE_LABEL: Record<ConnectionConfig['type'], string> = {
+  postgresql: 'PostgreSQL',
+  mysql: 'MySQL'
+}
 
 const TEMPLATES: { id: ScriptTemplateId; label: string }[] = [
   { id: 'sql-execute', label: 'SQL 执行' },
@@ -71,6 +79,52 @@ export function TaskEditor(): React.JSX.Element {
   const [execRole, setExecRole] = useState((initParams?.execRole as string) ?? '')
   const [exportDir, setExportDir] = useState((initParams?.exportDir as string) ?? '')
   const [pgDumpPath, setPgDumpPath] = useState((initParams?.pgDumpPath as string) ?? '')
+
+  // 已保存的连接列表（级联下拉第一级）
+  const [connections, setConnections] = useState<ConnectionConfig[]>([])
+  const [connectionsLoading, setConnectionsLoading] = useState(true)
+  // 选中连接下可访问的数据库列表（级联下拉第二级，随 connectionId 变化重新加载）
+  const [databases, setDatabases] = useState<DatabaseInfo[]>([])
+  const [databasesLoading, setDatabasesLoading] = useState(false)
+  const [databasesError, setDatabasesError] = useState<string | null>(null)
+
+  useEffect(() => {
+    configService
+      .getConnections()
+      .then(setConnections)
+      .finally(() => setConnectionsLoading(false))
+  }, [])
+
+  useEffect(() => {
+    if (!connectionId) return
+    let cancelled = false
+    // 切换连接时需立即置为加载中，避免短暂展示上一个连接的数据库列表；标准数据获取场景
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDatabasesLoading(true)
+    setDatabasesError(null)
+    queryService
+      .getDatabases(connectionId)
+      .then((list) => {
+        if (!cancelled) setDatabases(list)
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setDatabasesError(error instanceof Error ? error.message : '加载数据库列表失败')
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setDatabasesLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [connectionId])
+
+  // 切换连接时数据库选择随之清空，避免残留上一个连接下的库名
+  const handleConnectionChange = (id: string): void => {
+    setConnectionId(id)
+    setDatabase('')
+  }
 
   const buildParams = (): CreateTaskPayload['params'] => {
     switch (template) {
@@ -182,25 +236,54 @@ export function TaskEditor(): React.JSX.Element {
           </p>
         </div>
 
-        {/* 连接 ID + 数据库 */}
+        {/* 连接 + 数据库（级联选择：数据来自已保存的连接，无需手动填写连接 ID） */}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label className="text-xs">连接 ID</Label>
-            <Input
-              className="h-8 text-sm"
-              value={connectionId}
-              onChange={(e) => setConnectionId(e.target.value)}
-              placeholder="粘贴连接 ID"
-            />
+            <Label className="text-xs">连接</Label>
+            <Select value={connectionId} onValueChange={handleConnectionChange}>
+              <SelectTrigger className="h-8 text-sm">
+                <SelectValue placeholder={connectionsLoading ? '加载中…' : '选择已保存的连接'} />
+              </SelectTrigger>
+              <SelectContent>
+                {connections.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}（{DB_TYPE_LABEL[c.type]}）
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {!connectionsLoading && connections.length === 0 && (
+              <p className="text-[10px] text-muted-foreground">
+                暂无已保存的连接，请先在左侧新建并保存一个连接
+              </p>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">数据库</Label>
-            <Input
-              className="h-8 text-sm"
+            <Select
               value={database}
-              onChange={(e) => setDatabase(e.target.value)}
-              placeholder="例如 postgres"
-            />
+              onValueChange={setDatabase}
+              disabled={!connectionId || databasesLoading || databases.length === 0}
+            >
+              <SelectTrigger className="h-8 text-sm">
+                {databasesLoading ? (
+                  <span className="flex items-center gap-1.5 text-muted-foreground">
+                    <Loader2 className="size-3 animate-spin" />
+                    加载中…
+                  </span>
+                ) : (
+                  <SelectValue placeholder={connectionId ? '选择数据库' : '先选择连接'} />
+                )}
+              </SelectTrigger>
+              <SelectContent>
+                {databases.map((d) => (
+                  <SelectItem key={d.name} value={d.name}>
+                    {d.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {databasesError && <p className="text-[10px] text-destructive">{databasesError}</p>}
           </div>
         </div>
 

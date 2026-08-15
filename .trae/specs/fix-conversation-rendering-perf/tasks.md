@@ -29,6 +29,7 @@
   - **验证**: 零报错
 
 # Task Dependencies
+
 - Task 2 依赖 Task 1（Batcher 生效后 useDeferredValue 的双重渲染问题才真正暴露）
 - Task 4 独立，不依赖其他任务
 - Task 5 独立，不依赖其他任务

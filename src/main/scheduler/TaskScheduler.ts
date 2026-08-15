@@ -18,12 +18,13 @@ import type {
   ScheduledTask,
   TaskRunLog,
   TaskRunStatus,
+  TaskRunPreview,
   SqlExecuteParams,
   DataExportCsvParams,
   DataExportJsonParams,
   PgDumpParams
 } from '../../renderer/src/types/task'
-import type { StoredConnection } from '../../renderer/src/types/ipc'
+import type { StoredConnection, QueryResult } from '../../renderer/src/types/ipc'
 import * as fs from 'fs'
 import * as path from 'path'
 import { execFile } from 'child_process'
@@ -35,7 +36,17 @@ type StatusCallback = (
   error?: string
 ) => void
 
+/** 脚本模板执行结果：行数统计 + 可选的结果预览/输出文件路径 */
+type TemplateExecResult = {
+  rowsAffected?: number
+  preview?: TaskRunPreview
+  outputFile?: string
+}
+
 export class TaskScheduler {
+  /** 执行结果预览保留的最大行数，避免任务日志无限增长 */
+  private static readonly PREVIEW_ROW_LIMIT = 20
+
   /** active cron jobs: taskId → ScheduledTask (cron task reference) */
   private jobs = new Map<string, cron.ScheduledTask>()
   /** currently running task IDs */
@@ -207,7 +218,9 @@ export class TaskScheduler {
         finishedAt,
         status: 'success',
         durationMs,
-        rowsAffected: result.rowsAffected
+        rowsAffected: result.rowsAffected,
+        preview: result.preview,
+        outputFile: result.outputFile
       }
 
       taskStore.appendRunLog(task.id, log)
@@ -258,7 +271,7 @@ export class TaskScheduler {
   }
 
   /** 根据模板类型执行脚本 */
-  private async runTemplate(task: ScheduledTask): Promise<{ rowsAffected?: number }> {
+  private async runTemplate(task: ScheduledTask): Promise<TemplateExecResult> {
     switch (task.template) {
       case 'sql-execute':
         return this.executeSql(task.params as SqlExecuteParams)
@@ -288,18 +301,18 @@ export class TaskScheduler {
   }
 
   /** 执行 SQL */
-  private async executeSql(params: SqlExecuteParams): Promise<{ rowsAffected?: number }> {
+  private async executeSql(params: SqlExecuteParams): Promise<TemplateExecResult> {
     await this.ensureConnection(params.connectionId)
     let sql = params.sql
     if (params.execRole) {
       sql = `SET ROLE ${this.escapeIdent(params.execRole)};\n${sql}`
     }
     const result = await driverManager.query(params.connectionId, params.database, sql)
-    return { rowsAffected: result.rowCount }
+    return { rowsAffected: result.rowCount, preview: this.buildPreview(result) }
   }
 
   /** 导出 CSV */
-  private async exportCsv(params: DataExportCsvParams): Promise<{ rowsAffected?: number }> {
+  private async exportCsv(params: DataExportCsvParams): Promise<TemplateExecResult> {
     await this.ensureConnection(params.connectionId)
     let sql = params.sql
     if (params.execRole) {
@@ -316,11 +329,15 @@ export class TaskScheduler {
       result.rows
     )
     fs.writeFileSync(filePath, csv, 'utf-8')
-    return { rowsAffected: result.rowCount }
+    return {
+      rowsAffected: result.rowCount,
+      preview: this.buildPreview(result),
+      outputFile: filePath
+    }
   }
 
   /** 导出 JSON */
-  private async exportJson(params: DataExportJsonParams): Promise<{ rowsAffected?: number }> {
+  private async exportJson(params: DataExportJsonParams): Promise<TemplateExecResult> {
     await this.ensureConnection(params.connectionId)
     let sql = params.sql
     if (params.execRole) {
@@ -333,11 +350,15 @@ export class TaskScheduler {
     const now = new Date().toISOString().replace(/[:.]/g, '-')
     const filePath = path.join(params.exportDir, `export-${now}.json`)
     fs.writeFileSync(filePath, JSON.stringify(result.rows, null, 2), 'utf-8')
-    return { rowsAffected: result.rowCount }
+    return {
+      rowsAffected: result.rowCount,
+      preview: this.buildPreview(result),
+      outputFile: filePath
+    }
   }
 
   /** pg_dump */
-  private async pgDump(params: PgDumpParams): Promise<{ rowsAffected?: number }> {
+  private async pgDump(params: PgDumpParams): Promise<TemplateExecResult> {
     const stored = configStore.get('connections') as StoredConnection[]
     const found = stored.find((c) => c.id === params.connectionId)
     if (!found) throw new Error(`连接配置不存在: ${params.connectionId}`)
@@ -371,7 +392,7 @@ export class TaskScheduler {
     return new Promise((resolve, reject) => {
       execFile(pgDumpPath, args, { env }, (err) => {
         if (err) reject(err)
-        else resolve({})
+        else resolve({ outputFile: outFile })
       })
     })
   }
@@ -380,6 +401,17 @@ export class TaskScheduler {
 
   private escapeIdent(ident: string): string {
     return `"${ident.replace(/"/g, '""')}"`
+  }
+
+  /** 从查询结果构建预览：按上限截断行数，避免任务日志无限增长 */
+  private buildPreview(result: QueryResult): TaskRunPreview {
+    const limit = TaskScheduler.PREVIEW_ROW_LIMIT
+    const columns = result.fields.map((f) => f.name)
+    return {
+      columns,
+      rows: result.rows.slice(0, limit).map((row) => columns.map((c) => row[c])),
+      truncated: result.rows.length > limit
+    }
   }
 
   private toCsv(headers: string[], rows: Record<string, unknown>[]): string {

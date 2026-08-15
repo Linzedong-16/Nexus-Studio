@@ -22,6 +22,14 @@ export interface ScriptTemplate {
   hasParams: boolean
 }
 
+/** 执行结果预览（截断后的列名与行数据，行内按列顺序排列） */
+export interface TaskRunPreview {
+  columns: string[]
+  rows: unknown[][]
+  /** 实际结果集是否超出预览行数上限而被截断 */
+  truncated: boolean
+}
+
 /** 任务执行记录 */
 export interface TaskRunLog {
   id: string
@@ -32,6 +40,10 @@ export interface TaskRunLog {
   durationMs?: number
   rowsAffected?: number
   error?: string
+  /** 有结果集的模板（SQL 执行/CSV/JSON 导出）成功时写入的结果预览 */
+  preview?: TaskRunPreview
+  /** 导出类模板（CSV/JSON/pg_dump）成功时生成的文件绝对路径 */
+  outputFile?: string
 }
 
 /** 连续失败告警升级配置 */
