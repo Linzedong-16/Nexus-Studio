@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, memo } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, memo } from 'react'
 import {
   X,
   MessageSquare,
@@ -7,6 +7,7 @@ import {
   Paperclip,
   Wand2,
   ArrowUp,
+  ArrowDown,
   ChevronDown,
   Monitor,
   Folder,
@@ -108,6 +109,104 @@ const ToolCallTraceItem = memo(function ToolCallTraceItem({
   )
 }, areToolCallPropsEqual)
 
+/** 通用可折叠灰色面板：用于容纳过程性/轨迹类内容（目前是工具调用轨迹，
+ * 未来若接入模型思考过程等同类内容，可复用同一套折叠展示）。
+ *
+ * 展开状态：未手动交互前跟随 defaultOpen（通常与"是否仍在执行"绑定，执行中
+ * 自动展开、结束后自动收起）；用户手动点击过一次后，该轮内固定使用手动状态，
+ * 不再被 defaultOpen 覆盖。
+ */
+function CollapsibleTracePanel({
+  defaultOpen,
+  summary,
+  children
+}: {
+  defaultOpen: boolean
+  summary: React.ReactNode
+  children: React.ReactNode
+}): React.JSX.Element {
+  const [manualOpen, setManualOpen] = useState<boolean | null>(null)
+  const isOpen = manualOpen ?? defaultOpen
+
+  return (
+    <div className="rounded-md border bg-muted/40 text-xs">
+      <button
+        type="button"
+        onClick={() => setManualOpen(!isOpen)}
+        aria-expanded={isOpen}
+        className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ChevronDown
+          className={`size-3.5 shrink-0 transition-transform ${isOpen ? '' : '-rotate-90'}`}
+        />
+        <div className="flex-1">{summary}</div>
+      </button>
+      {isOpen && <div className="animate-in space-y-1.5 border-t p-2 fade-in-0">{children}</div>}
+    </div>
+  )
+}
+
+interface ToolCallsSummary {
+  /** 是否仍有工具调用在执行中（未产生结果且未被拒绝） */
+  isRunning: boolean
+  node: React.ReactElement
+}
+
+/** 汇总工具调用列表的状态，用于折叠面板收起时的一行摘要展示 */
+function summarizeToolCalls(toolCalls: AgentToolCallRecord[]): ToolCallsSummary {
+  const total = toolCalls.length
+  const runningCount = toolCalls.filter((tc) => !tc.result && tc.confirmation !== 'rejected').length
+  const hasError = toolCalls.some(
+    (tc) => tc.confirmation === 'rejected' || tc.result?.status === 'error'
+  )
+
+  if (runningCount > 0) {
+    return {
+      isRunning: true,
+      node: (
+        <span className="flex items-center gap-1.5">
+          <Loader2 className="size-3.5 shrink-0 animate-spin" />
+          正在执行工具调用…（{total - runningCount}/{total}）
+        </span>
+      )
+    }
+  }
+
+  if (hasError) {
+    return {
+      isRunning: false,
+      node: (
+        <span className="flex items-center gap-1.5 text-destructive">
+          <XCircle className="size-3.5 shrink-0" />
+          已执行 {total} 个工具调用，其中存在失败
+        </span>
+      )
+    }
+  }
+
+  return {
+    isRunning: false,
+    node: (
+      <span className="flex items-center gap-1.5">
+        <CheckCircle2 className="size-3.5 shrink-0 text-emerald-500" />
+        已执行 {total} 个工具调用
+      </span>
+    )
+  }
+}
+
+/** 工具调用轨迹折叠面板：收起时展示一行摘要，展开时渲染完整轨迹列表 */
+function ToolCallsPanel({ toolCalls }: { toolCalls: AgentToolCallRecord[] }): React.JSX.Element {
+  const { isRunning, node } = summarizeToolCalls(toolCalls)
+  return (
+    <CollapsibleTracePanel defaultOpen={isRunning} summary={node}>
+      {toolCalls.map((tc) => (
+        <ToolCallTraceItem key={tc.id} toolCall={tc} />
+      ))}
+    </CollapsibleTracePanel>
+  )
+}
+
 /** 单轮"用户指令 → Agent 结果"展示
  *
  * 自定义 arePropsEqual：只比较影响渲染的关键字段（turn.id、streamingText、
@@ -157,13 +256,7 @@ const ConversationTurnItem = memo(function ConversationTurnItem({
           </div>
         )}
 
-        {run && run.toolCalls.length > 0 && (
-          <div className="space-y-1.5">
-            {run.toolCalls.map((tc) => (
-              <ToolCallTraceItem key={tc.id} toolCall={tc} />
-            ))}
-          </div>
-        )}
+        {run && run.toolCalls.length > 0 && <ToolCallsPanel toolCalls={run.toolCalls} />}
 
         {/* 流式文本（实时逐 token 渲染） */}
         {streamingText && (
@@ -223,6 +316,7 @@ export default function ConversationView(): React.JSX.Element {
   const references = useConversationStore((s) => s.references)
   const removeReference = useConversationStore((s) => s.removeReference)
   const turns = useConversationStore((s) => s.turns)
+  const activeConversationId = useConversationStore((s) => s.activeConversationId)
   const sendInstructionStream = useConversationStore((s) => s.sendInstructionStream)
   const confirmPendingToolCall = useConversationStore((s) => s.confirmPendingToolCall)
   const loadConversationList = useConversationStore((s) => s.loadConversationList)
@@ -234,9 +328,11 @@ export default function ConversationView(): React.JSX.Element {
 
   // 滚动容器 ref
   const scrollRef = useRef<HTMLDivElement>(null)
-  // 是否自动跟随滚动到底部
+  // 是否自动跟随滚动到底部（同时决定"回到底部"悬浮按钮的显隐）
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true)
   const prevTurnsLength = useRef(turns.length)
+  // 标记刚切换/加载了一个对话，下次内容落地时需强制跳到底部（忽略"是否已接近底部"的判断）
+  const justSwitchedRef = useRef(true)
 
   // 挂载时加载对话列表
   useEffect(() => {
@@ -251,6 +347,14 @@ export default function ConversationView(): React.JSX.Element {
     })()
   }, [loadConversationList, selectConversation, createConversation])
 
+  // 切换对话（含首次加载）时，标记下一次内容落地需强制跳底，不受历史滚动位置影响
+  useLayoutEffect(() => {
+    justSwitchedRef.current = true
+    // 切换对话时必须立即重置为可自动滚动，避免沿用上一个对话的滚动状态；标准场景
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setShouldAutoScroll(true)
+  }, [activeConversationId])
+
   // 新消息到达时自动滚到底部
   useEffect(() => {
     if (turns.length > prevTurnsLength.current) {
@@ -261,8 +365,18 @@ export default function ConversationView(): React.JSX.Element {
 
   // 自动滚动（requestAnimationFrame 节流）
   useEffect(() => {
-    if (!shouldAutoScroll || !scrollRef.current) return
     const el = scrollRef.current
+    if (!el) return
+
+    // 切换对话后的第一次有内容渲染：直接跳底，不做"是否接近底部"的判断
+    if (justSwitchedRef.current) {
+      if (turns.length === 0) return // 历史消息尚未加载完成，等下一次渲染再判断
+      el.scrollTop = el.scrollHeight
+      justSwitchedRef.current = false
+      return
+    }
+
+    if (!shouldAutoScroll) return
     const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 200
     if (isNearBottom) {
       requestAnimationFrame(() => {
@@ -275,6 +389,14 @@ export default function ConversationView(): React.JSX.Element {
     const el = scrollRef.current
     if (!el) return
     setShouldAutoScroll(el.scrollHeight - el.scrollTop - el.clientHeight < 100)
+  }
+
+  // "回到底部"悬浮按钮：丝滑（平滑）滚动到最新一条对话结果
+  const handleScrollToBottomClick = (): void => {
+    const el = scrollRef.current
+    if (!el) return
+    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
+    setShouldAutoScroll(true)
   }
 
   const handleSend = (): void => {
@@ -316,16 +438,28 @@ export default function ConversationView(): React.JSX.Element {
         </div>
       ) : (
         <>
-          <div ref={scrollRef} className="flex-1 overflow-y-auto p-6" onScroll={handleScroll}>
-            <div className="flex flex-col gap-4 [&>*]:[content-visibility:auto] [&>*]:[contain-intrinsic-size:auto_200px]">
-              {turns.map((turn) => (
-                <ConversationTurnItem
-                  key={turn.id}
-                  turn={turn}
-                  confirmPendingToolCall={confirmPendingToolCall}
-                />
-              ))}
+          <div className="relative flex-1 overflow-hidden">
+            <div ref={scrollRef} className="h-full overflow-y-auto p-6" onScroll={handleScroll}>
+              <div className="flex flex-col gap-4 [&>*]:[content-visibility:auto] [&>*]:[contain-intrinsic-size:auto_200px]">
+                {turns.map((turn) => (
+                  <ConversationTurnItem
+                    key={turn.id}
+                    turn={turn}
+                    confirmPendingToolCall={confirmPendingToolCall}
+                  />
+                ))}
+              </div>
             </div>
+            {!shouldAutoScroll && (
+              <button
+                type="button"
+                onClick={handleScrollToBottomClick}
+                title="回到底部"
+                className="absolute bottom-4 right-6 flex size-9 animate-in items-center justify-center rounded-full border border-border bg-background text-muted-foreground shadow-md fade-in-0 slide-in-from-bottom-2 duration-200 transition-colors hover:bg-accent hover:text-foreground"
+              >
+                <ArrowDown className="size-4" />
+              </button>
+            )}
           </div>
           <div className="mx-auto w-full max-w-2xl p-4">
             <ConversationInputCard
