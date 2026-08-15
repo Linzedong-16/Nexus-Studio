@@ -27,7 +27,7 @@ import type { ConversationTurn } from '@/store/conversationStore'
 import type { ReferenceType } from '@/types/conversation'
 import type { AgentErrorCode, AgentToolCallRecord } from '@/types/agent'
 import MemoizedMarkdown from './MarkdownContent'
-import { markdownKey } from '@/lib/markdownUtils'
+import { streamingMarkdownKey, completedMarkdownKey } from '@/lib/markdownUtils'
 
 const toolBtnClass =
   'flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground'
@@ -146,7 +146,7 @@ const ConversationTurnItem = memo(function ConversationTurnItem({
             <MemoizedMarkdown
               content={streamingText}
               isStreaming
-              key={markdownKey(streamingText)}
+              key={streamingMarkdownKey(streamingText)}
             />
           </div>
         )}
@@ -154,7 +154,10 @@ const ConversationTurnItem = memo(function ConversationTurnItem({
         {/* 完整结果（Markdown 渲染） */}
         {!streamingText && run?.status === 'completed' && run.finalMessage && (
           <div className="rounded-xl bg-muted px-3.5 py-2.5">
-            <MemoizedMarkdown content={run.finalMessage} key={markdownKey(run.finalMessage)} />
+            <MemoizedMarkdown
+              content={run.finalMessage}
+              key={completedMarkdownKey(run.finalMessage)}
+            />
           </div>
         )}
 
@@ -289,7 +292,7 @@ export default function ConversationView(): React.JSX.Element {
       ) : (
         <>
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-6" onScroll={handleScroll}>
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-4 [&>*]:[content-visibility:auto] [&>*]:[contain-intrinsic-size:auto_200px]">
               {turns.map((turn) => (
                 <ConversationTurnItem
                   key={turn.id}

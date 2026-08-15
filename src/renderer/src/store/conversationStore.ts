@@ -5,6 +5,7 @@ import type { AgentRun } from '@/types/agent'
 import { agentService } from '@/services/agentService'
 import { conversationService } from '@/services/conversationService'
 import { useConnectionStore } from '@/store/connectionStore'
+import { createRafBatcher } from '@/lib/markdownUtils'
 
 /** 一轮"指令 → Agent 运行结果"，单轮对话模式下一次发送对应一个 turn */
 export interface ConversationTurn {
@@ -315,6 +316,14 @@ export const useConversationStore = create<ConversationState>()((set, get) => ({
     }
 
     // 订阅流式事件
+    // RAF 批量更新缓冲：将同一帧内的多个 text-delta 合并为一次 Zustand set()
+    const rafBatcher = createRafBatcher((fullText) => {
+      const currentTurns = get().turns
+      const turn = currentTurns.find((t) => t.id === turnId)
+      if (!turn) return
+      updateTurn((t) => ({ ...t, streamingText: fullText }))
+    })
+
     const unsubscribe = window.api.agent.onStreamEvent((event) => {
       const currentTurns = get().turns
       const turn = currentTurns.find((t) => t.id === turnId)
@@ -322,12 +331,10 @@ export const useConversationStore = create<ConversationState>()((set, get) => ({
 
       switch (event.type) {
         case 'text-delta':
-          updateTurn((t) => ({
-            ...t,
-            streamingText: (t.streamingText ?? '') + (event.content ?? '')
-          }))
+          rafBatcher.append(event.content ?? '')
           break
         case 'tool-call-start':
+          rafBatcher.reset()
           // 流式模式下将工具调用记录追加到当前 run（tool-call-end 时按 id 匹配更新，而非新增）
           if (event.toolCall) {
             updateTurn((t) => {
