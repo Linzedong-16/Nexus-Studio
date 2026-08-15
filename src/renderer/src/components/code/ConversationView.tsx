@@ -386,21 +386,51 @@ export default function ConversationView(): React.JSX.Element {
     const el = scrollRef.current
     if (!el) return
 
-    // 切换对话后的第一次有内容渲染：直接跳底，不做"是否接近底部"的判断
+    // 切换对话后的第一次有内容渲染：直接跳底，不做"是否接近底部"的判断。
+    // 历史消息容器用了 content-visibility: auto 做渲染性能优化（见下方渲染部分），
+    // 屏幕外的轮次此时高度只是 contain-intrinsic-size 占位值，跳底后原本在
+    // 占位区域、现在进入可视范围的轮次才会逐步替换成真实高度，导致 scrollHeight
+    // 持续增长——只赋值一次 scrollTop 会"够不到"真正的底部。这里用 ResizeObserver
+    // 持续监听内容容器的高度变化并反复贴底，直到一段时间内高度不再变化（渐进渲染
+    // 收敛）才解除强制跳底标记，交还给下面的常规自动滚动逻辑。
     if (justSwitchedRef.current) {
-      if (turns.length === 0) return // 历史消息尚未加载完成，等下一次渲染再判断
+      if (turns.length === 0) return undefined // 历史消息尚未加载完成，等下一次渲染再判断
+      const inner = el.firstElementChild
+      if (!inner) {
+        justSwitchedRef.current = false
+        return undefined
+      }
+
       el.scrollTop = el.scrollHeight
-      justSwitchedRef.current = false
-      return
+      let settleTimer: ReturnType<typeof setTimeout>
+      const observer = new ResizeObserver(() => {
+        el.scrollTop = el.scrollHeight
+        clearTimeout(settleTimer)
+        settleTimer = setTimeout(() => {
+          justSwitchedRef.current = false
+          observer.disconnect()
+        }, 300)
+      })
+      observer.observe(inner)
+      settleTimer = setTimeout(() => {
+        justSwitchedRef.current = false
+        observer.disconnect()
+      }, 300)
+
+      return () => {
+        observer.disconnect()
+        clearTimeout(settleTimer)
+      }
     }
 
-    if (!shouldAutoScroll) return
+    if (!shouldAutoScroll) return undefined
     const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 200
     if (isNearBottom) {
       requestAnimationFrame(() => {
         el.scrollTop = el.scrollHeight
       })
     }
+    return undefined
   })
 
   const handleScroll = (): void => {
