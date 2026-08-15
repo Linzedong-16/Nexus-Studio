@@ -3,6 +3,7 @@ import type {
   AgentRunStatus,
   AgentToolCallRecord
 } from '../../../renderer/src/types/agent'
+import type { ConversationReference } from '../../../renderer/src/types/conversation'
 
 /**
  * 消息，多轮对话上下文载体（data-model.md §5 → 009 升级为实际使用）
@@ -29,6 +30,8 @@ export interface AgentRun {
   status: AgentRunStatus
   conversationId: string
   instruction: string
+  /** 本轮发送时携带的引用快照，用于确认/恢复流程结束后持久化时仍能带上这轮最初的引用 */
+  references: ConversationReference[]
   history: AgentMessage[]
   iterationCount: number
   toolCalls: AgentToolCallRecord[]
@@ -46,18 +49,21 @@ export interface AgentRun {
  * @param conversationId - 关联的对话 ID
  * @param instruction - 用户提交的原始自然语言指令
  * @param history - 对话历史消息（多轮上下文），当前 run 之前的所有轮次
+ * @param references - 本轮发送时携带的引用快照（数据库连接/文件等），默认为空
  */
 export function createAgentRun(
   id: string,
   conversationId: string,
   instruction: string,
-  history: AgentMessage[] = []
+  history: AgentMessage[] = [],
+  references: ConversationReference[] = []
 ): AgentRun {
   return {
     id,
     status: 'running',
     conversationId,
     instruction,
+    references,
     history,
     iterationCount: 0,
     toolCalls: [],

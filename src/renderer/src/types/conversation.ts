@@ -69,6 +69,8 @@ export interface ConversationMessage {
   content: string
   /** 本轮产生的工具调用记录（复用 008 类型） */
   toolCalls: AgentToolCallRecord[]
+  /** 发送时携带的引用快照（仅 role === 'user' 时可能非空；旧数据可能不含此字段） */
+  references?: ConversationReference[]
   /** 关联的 AgentRun ID（用于切换恢复），完成/失败后置 null */
   runId: string | null
   /** AgentRun 的最终状态 */

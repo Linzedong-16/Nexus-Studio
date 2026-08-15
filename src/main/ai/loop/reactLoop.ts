@@ -3,6 +3,7 @@ import type {
   AgentToolCallRecord,
   ToolExecutionResult
 } from '../../../renderer/src/types/agent'
+import type { ConversationReference, ReferenceType } from '../../../renderer/src/types/conversation'
 import type { ModelProviderConfig } from '../config'
 import { isProviderConfigured } from '../config'
 import type {
@@ -183,11 +184,32 @@ function buildModelTools(): ModelToolSpec[] {
   }))
 }
 
+/** 引用类型 → 中文标签，用于将用户引用的数据库对象/文件格式化为模型可读的提示文本 */
+const REFERENCE_TYPE_LABEL: Record<ReferenceType, string> = {
+  file: '文件',
+  connection: '连接',
+  database: '数据库',
+  schema: 'schema',
+  table: '表',
+  moduleGroup: '模块分组'
+}
+
+/** 将引用列表格式化为一段提示文本；仅传递元信息（类型/名称/描述），不读取实际内容 */
+function formatReferences(references?: ConversationReference[]): string {
+  if (!references || references.length === 0) return ''
+  const lines = references.map((r) => {
+    const detail = r.detail ? `（${r.detail}）` : ''
+    return `- [${REFERENCE_TYPE_LABEL[r.type]}] ${r.label}${detail}`
+  })
+  return `\n用户在本轮引用了以下对象：\n${lines.join('\n')}`
+}
+
 /** 将连接/数据库上下文与用户指令拼接为首条用户消息，供模型判断是否缺少数据库上下文 */
 function buildContextMessage(request: AgentChatRequest): string {
   const connectionId = request.connectionId ?? '（未选择连接）'
   const database = request.database ?? '（未选择数据库）'
-  return `当前上下文：connectionId=${connectionId}，database=${database}\n\n用户指令：${request.instruction}`
+  const referencesText = formatReferences(request.references)
+  return `当前上下文：connectionId=${connectionId}，database=${database}${referencesText}\n\n用户指令：${request.instruction}`
 }
 
 /** 将 provider 抛出的异常统一转换为 `ModelProviderError`，未知异常归为 `provider_unavailable` */
@@ -324,7 +346,13 @@ export async function startRun(
   provider: IModelProvider,
   config: ModelProviderConfig
 ): Promise<LoopState> {
-  const run = createAgentRun(runId, conversationId, request.instruction, historyMessages)
+  const run = createAgentRun(
+    runId,
+    conversationId,
+    request.instruction,
+    historyMessages,
+    request.references ?? []
+  )
   const context: LoopContext = { provider, config, tools: buildModelTools() }
 
   if (!isProviderConfigured(config)) {
@@ -568,7 +596,13 @@ export async function startRunStream(
   config: ModelProviderConfig,
   callbacks: StreamCallbacks
 ): Promise<LoopState> {
-  const run = createAgentRun(runId, conversationId, request.instruction, historyMessages)
+  const run = createAgentRun(
+    runId,
+    conversationId,
+    request.instruction,
+    historyMessages,
+    request.references ?? []
+  )
   const context: LoopContext = { provider, config, tools: buildModelTools() }
 
   if (!isProviderConfigured(config)) {

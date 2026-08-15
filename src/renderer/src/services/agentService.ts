@@ -4,6 +4,7 @@ import type {
   AgentToolSummary,
   ToolExecutionResult
 } from '../types/agent'
+import type { ConversationReference } from '../types/conversation'
 
 /**
  * Agent 对话服务层（Code 模式）
@@ -22,9 +23,16 @@ export const agentService = {
     instruction: string,
     connectionId: string | null,
     database: string | null,
-    conversationId?: string
+    conversationId?: string,
+    references?: ConversationReference[]
   ): Promise<AgentRun> {
-    const request: AgentChatRequest = { instruction, connectionId, database, conversationId }
+    const request: AgentChatRequest = {
+      instruction,
+      connectionId,
+      database,
+      conversationId,
+      references
+    }
     return window.api.agent.chat(request)
   },
 
@@ -38,9 +46,16 @@ export const agentService = {
     instruction: string,
     connectionId: string | null,
     database: string | null,
-    conversationId?: string
+    conversationId?: string,
+    references?: ConversationReference[]
   ): Promise<{ runId: string; conversationId: string }> {
-    const request: AgentChatRequest = { instruction, connectionId, database, conversationId }
+    const request: AgentChatRequest = {
+      instruction,
+      connectionId,
+      database,
+      conversationId,
+      references
+    }
     return window.api.agent.chatStream(request)
   },
 

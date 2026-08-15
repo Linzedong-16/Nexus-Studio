@@ -6,7 +6,10 @@ import type {
   AgentToolSummary,
   ToolExecutionResult
 } from '../../renderer/src/types/agent'
-import type { ConversationMessage } from '../../renderer/src/types/conversation'
+import type {
+  ConversationMessage,
+  ConversationReference
+} from '../../renderer/src/types/conversation'
 import { loadModelProviderConfig } from '../ai/config'
 import { DeepSeekProvider } from '../ai/provider/DeepSeekProvider'
 import { resumeRun, startRun, startRunStream, type LoopState } from '../ai/loop/reactLoop'
@@ -60,6 +63,7 @@ function toRendererAgentRun(run: MainAgentRun): RendererAgentRun {
     status: run.status,
     instruction: run.instruction,
     conversationId: run.conversationId,
+    references: run.references,
     iterationCount: run.iterationCount,
     toolCalls: run.toolCalls,
     pendingConfirmation: run.pendingConfirmation,
@@ -88,7 +92,8 @@ function buildConversationMessage(
   conversationId: string,
   run: MainAgentRun,
   instruction: string,
-  sequence: number
+  sequence: number,
+  references: ConversationReference[]
 ): ConversationMessage[] {
   const now = Date.now()
   const messages: ConversationMessage[] = [
@@ -100,6 +105,7 @@ function buildConversationMessage(
       instruction,
       content: '',
       toolCalls: [],
+      references,
       runId: run.id,
       runStatus: run.status,
       error: null,
@@ -114,6 +120,7 @@ function buildConversationMessage(
       instruction: '',
       content: run.finalMessage ?? '',
       toolCalls: run.toolCalls,
+      references: [],
       runId: run.id,
       runStatus: run.status,
       error: run.error,
@@ -175,7 +182,8 @@ export function registerAgentIPC(): void {
         conversationId,
         state.run,
         request.instruction,
-        nextSeq
+        nextSeq,
+        request.references ?? []
       )
       // 持久化消息
       for (const msg of newMessages) {
@@ -221,7 +229,8 @@ export function registerAgentIPC(): void {
           conversationId,
           nextState.run,
           instruction,
-          nextSeq
+          nextSeq,
+          nextState.run.references
         )
         for (const msg of newMessages) {
           await appendMessage(conversationId, msg)
@@ -324,7 +333,8 @@ export function registerAgentIPC(): void {
           conversationId,
           state.run,
           request.instruction,
-          nextSeq
+          nextSeq,
+          request.references ?? []
         )
         for (const msg of newMessages) {
           await appendMessage(conversationId, msg)

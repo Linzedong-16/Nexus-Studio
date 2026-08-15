@@ -4,6 +4,7 @@
  * 与主进程 `src/main/ai/` 共享的数据结构（渲染进程侧仅保留展示所需字段），
  * 字段定义与 `specs/008-code-mode-agent/data-model.md` 保持一致。
  */
+import type { ConversationReference } from './conversation'
 
 // ─── 工具定义（展示形态） ───
 
@@ -59,6 +60,8 @@ export interface AgentRun {
   instruction: string
   /** 关联的对话 ID（009 新增） */
   conversationId: string
+  /** 本轮发送时携带的引用快照（数据库连接/文件等） */
+  references: ConversationReference[]
   iterationCount: number
   toolCalls: AgentToolCallRecord[]
   pendingConfirmation: { toolCallId: string; summary: string } | null
@@ -94,4 +97,6 @@ export interface AgentChatRequest {
   database: string | null
   /** 可选：指定对话 ID，不传则自动创建新对话 */
   conversationId?: string
+  /** 可选：本轮发送时携带的引用快照（数据库连接/文件等），用于让模型感知用户关注的上下文对象 */
+  references?: ConversationReference[]
 }

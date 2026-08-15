@@ -235,9 +235,27 @@ const ConversationTurnItem = memo(function ConversationTurnItem({
 
   return (
     <div className="space-y-2">
-      {/* 用户指令 */}
-      <div className="ml-auto max-w-[80%] rounded-xl bg-primary px-3.5 py-2 text-sm text-primary-foreground">
-        {turn.instruction}
+      {/* 用户指令：发送时携带的引用快照（只读，不可移除）+ 指令文本 */}
+      <div className="ml-auto flex max-w-[80%] flex-col items-end gap-1.5">
+        {turn.references.length > 0 && (
+          <div className="flex flex-wrap items-center justify-end gap-1.5">
+            {turn.references.map((ref) => {
+              const Icon = REFERENCE_ICON[ref.type]
+              return (
+                <div
+                  key={ref.id}
+                  className="flex items-center gap-1 rounded-md border bg-accent/40 px-1.5 py-0.5 text-[12px]"
+                >
+                  <Icon className="size-3 shrink-0 text-muted-foreground" />
+                  <span className="max-w-32 truncate text-foreground">{ref.label}</span>
+                </div>
+              )
+            })}
+          </div>
+        )}
+        <div className="rounded-xl bg-primary px-3.5 py-2 text-sm text-primary-foreground">
+          {turn.instruction}
+        </div>
       </div>
 
       {/* Agent 响应 */}

@@ -11,6 +11,8 @@ import { createRafBatcher } from '@/lib/markdownUtils'
 export interface ConversationTurn {
   id: string
   instruction: string
+  /** 发送时携带的引用快照（数据库连接/文件等），用于在消息气泡中渲染引用标签 */
+  references: ConversationReference[]
   /** 请求已发出但尚未收到结果（含暂停确认后恢复期间）时为 true */
   pending: boolean
   /** 本轮的 Agent 运行快照；请求仍在进行时为 null */
@@ -90,12 +92,14 @@ function messagesToTurns(
     turns.push({
       id: replyMsg.runId ?? userMsg.id,
       instruction: userMsg.instruction,
+      references: userMsg.references ?? [],
       pending: false,
       run: {
         id: replyMsg.runId ?? '',
         status: replyMsg.runStatus ?? 'completed',
         instruction: userMsg.instruction,
         conversationId,
+        references: userMsg.references ?? [],
         iterationCount: 0,
         toolCalls: replyMsg.toolCalls,
         pendingConfirmation: null,
@@ -170,6 +174,7 @@ export const useConversationStore = create<ConversationState>()((set, get) => ({
         resumeTurns.push({
           id: run.id,
           instruction: run.instruction,
+          references: run.references,
           pending: run.status === 'running',
           run
         })
@@ -254,7 +259,10 @@ export const useConversationStore = create<ConversationState>()((set, get) => ({
 
   sendInstruction: async (instruction) => {
     const turnId = crypto.randomUUID()
-    const { activeConversationId } = get()
+    const { activeConversationId, references } = get()
+    // 立即清空"待发送"引用，避免残留到下一轮；后续统一使用这份快照变量，
+    // 不再重新读取 store，防止 AI 处理期间用户为下一轮新增的引用被本轮误用
+    get().clearReferences()
 
     // 自动创建对话（如果没有活跃对话）
     let convId = activeConversationId
@@ -263,7 +271,7 @@ export const useConversationStore = create<ConversationState>()((set, get) => ({
     }
 
     set((s) => ({
-      turns: [...s.turns, { id: turnId, instruction, pending: true, run: null }]
+      turns: [...s.turns, { id: turnId, instruction, references, pending: true, run: null }]
     }))
 
     const { activeConnectionId, connections } = useConnectionStore.getState()
@@ -278,7 +286,13 @@ export const useConversationStore = create<ConversationState>()((set, get) => ({
     }
 
     try {
-      const run = await agentService.chat(instruction, activeConnectionId, database, convId)
+      const run = await agentService.chat(
+        instruction,
+        activeConnectionId,
+        database,
+        convId,
+        references
+      )
       updateTurn((t) => ({ ...t, pending: false, run }))
       // 刷新对话列表以更新元数据（标题、时间、消息计数）
       await get().loadConversationList()
@@ -293,7 +307,10 @@ export const useConversationStore = create<ConversationState>()((set, get) => ({
 
   sendInstructionStream: async (instruction) => {
     const turnId = crypto.randomUUID()
-    const { activeConversationId } = get()
+    const { activeConversationId, references } = get()
+    // 立即清空"待发送"引用，避免残留到下一轮；后续统一使用这份快照变量，
+    // 不再重新读取 store，防止 AI 处理期间用户为下一轮新增的引用被本轮误用
+    get().clearReferences()
 
     let convId = activeConversationId
     if (!convId) {
@@ -301,7 +318,10 @@ export const useConversationStore = create<ConversationState>()((set, get) => ({
     }
 
     set((s) => ({
-      turns: [...s.turns, { id: turnId, instruction, pending: true, run: null, streamingText: '' }]
+      turns: [
+        ...s.turns,
+        { id: turnId, instruction, references, pending: true, run: null, streamingText: '' }
+      ]
     }))
 
     const { activeConnectionId, connections } = useConnectionStore.getState()
@@ -343,6 +363,7 @@ export const useConversationStore = create<ConversationState>()((set, get) => ({
                 status: 'running',
                 instruction,
                 conversationId: convId ?? '',
+                references,
                 iterationCount: 0,
                 toolCalls: [],
                 pendingConfirmation: null,
@@ -396,6 +417,7 @@ export const useConversationStore = create<ConversationState>()((set, get) => ({
               status: 'completed',
               instruction,
               conversationId: convId ?? '',
+              references,
               iterationCount: 0,
               toolCalls: t.run?.toolCalls ?? [],
               pendingConfirmation: null,
@@ -420,7 +442,7 @@ export const useConversationStore = create<ConversationState>()((set, get) => ({
     })
 
     try {
-      await agentService.chatStream(instruction, activeConnectionId, database, convId)
+      await agentService.chatStream(instruction, activeConnectionId, database, convId, references)
     } catch (error) {
       updateTurn((t) => ({
         ...t,
