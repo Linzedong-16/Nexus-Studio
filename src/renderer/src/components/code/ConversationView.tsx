@@ -53,7 +53,16 @@ const ERROR_CODE_TEXT: Record<AgentErrorCode, string> = {
   max_iterations_exceeded: '未能在限定步数内完成任务，已在结果中列出目前收集到的信息'
 }
 
-/** 单条工具调用轨迹 */
+/** 单条工具调用轨迹
+ *
+ * 自定义 arePropsEqual：只比较 toolCall.id 和 toolCall.result，
+ * 避免 Zustand set() 产生的数组新引用导致不必要的重渲染。
+ */
+const areToolCallPropsEqual = (
+  prev: { toolCall: AgentToolCallRecord },
+  next: { toolCall: AgentToolCallRecord }
+): boolean => prev.toolCall.id === next.toolCall.id && prev.toolCall.result === next.toolCall.result
+
 const ToolCallTraceItem = memo(function ToolCallTraceItem({
   toolCall
 }: {
@@ -97,9 +106,25 @@ const ToolCallTraceItem = memo(function ToolCallTraceItem({
       </div>
     </div>
   )
-})
+}, areToolCallPropsEqual)
 
-/** 单轮"用户指令 → Agent 结果"展示（memo 优化避免不必要重渲染） */
+/** 单轮"用户指令 → Agent 结果"展示
+ *
+ * 自定义 arePropsEqual：只比较影响渲染的关键字段（turn.id、streamingText、
+ * run.status、run.finalMessage、pending、confirmPendingToolCall 引用），
+ * 避免 Zustand set() 新数组引用导致历史 turn 全量重新渲染。
+ */
+const areTurnPropsEqual = (
+  prev: { turn: ConversationTurn; confirmPendingToolCall: (approved: boolean) => void },
+  next: { turn: ConversationTurn; confirmPendingToolCall: (approved: boolean) => void }
+): boolean =>
+  prev.turn.id === next.turn.id &&
+  prev.turn.streamingText === next.turn.streamingText &&
+  prev.turn.run?.status === next.turn.run?.status &&
+  prev.turn.run?.finalMessage === next.turn.run?.finalMessage &&
+  prev.turn.pending === next.turn.pending &&
+  prev.confirmPendingToolCall === next.confirmPendingToolCall
+
 const ConversationTurnItem = memo(function ConversationTurnItem({
   turn,
   confirmPendingToolCall
@@ -192,7 +217,7 @@ const ConversationTurnItem = memo(function ConversationTurnItem({
       </div>
     </div>
   )
-})
+}, areTurnPropsEqual)
 
 export default function ConversationView(): React.JSX.Element {
   const references = useConversationStore((s) => s.references)

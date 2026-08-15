@@ -1,0 +1,11 @@
+- [x] RAF Batcher 流式输出时 ~16ms 推送一次 store 更新，而非逐 token
+- [x] `useDeferredValue` 已从 `StreamingMarkdown` 中移除
+- [x] `remarkGfm` / `rehypeHighlight` 插件数组为模块顶层常量
+- [x] `ConversationTurnItem` 在 props 语义不变时跳过重渲染
+- [x] `ToolCallTraceItem` 在 toolCall 未变化时跳过重渲染
+- [x] 流式阶段纯文本走 `<pre>` 渲染
+- [x] 含代码块的流式内容切回 `ReactMarkdown` 完整渲染
+- [x] 完成态答案走完整 `ReactMarkdown` + 语法高亮
+- [x] `content-visibility: auto` 在消息列表容器上生效
+- [x] `npx tsc --noEmit` 零错误
+- [x] `npx eslint` 零错误

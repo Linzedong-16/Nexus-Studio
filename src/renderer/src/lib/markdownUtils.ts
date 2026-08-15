@@ -59,7 +59,7 @@ export function createRafBatcher(flush: (fullText: string) => void): {
   append: (delta: string) => void
   reset: () => void
 } {
-  const buf: RafBuffer = { text: '', lastFlushAt: 0, scheduled: false }
+  const buf: RafBuffer = { text: '', lastFlushAt: performance.now(), scheduled: false }
 
   const doFlush = (): void => {
     buf.scheduled = false
@@ -86,7 +86,7 @@ export function createRafBatcher(flush: (fullText: string) => void): {
     },
     reset: () => {
       buf.text = ''
-      buf.lastFlushAt = 0
+      buf.lastFlushAt = performance.now()
       buf.scheduled = false
     }
   }

@@ -1,8 +1,12 @@
-import { memo, useDeferredValue } from 'react'
+import { memo } from 'react'
 import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
 import 'highlight.js/styles/github-dark.min.css'
+
+/** 稳定插件引用：提前到模块顶层常量避免每帧创建新数组，防止 ReactMarkdown 重新初始化管线 */
+const MARKDOWN_REMARK_PLUGINS = [remarkGfm]
+const MARKDOWN_REHYPE_PLUGINS = [rehypeHighlight]
 
 /** 各 Markdown 元素的样式映射，复用项目既有的 shadcn 设计令牌 */
 const markdownComponents: Components = {
@@ -82,17 +86,15 @@ interface MarkdownProps {
  * 优化后：流式阶段 ~0.1ms/帧，完成态 ~2-5ms（含 AST + highlight）
  */
 function StreamingMarkdown({ content }: { content: string }): React.ReactElement {
-  // useDeferredValue 让 React 在空闲时段处理后续渲染
-  const deferred = useDeferredValue(content)
-
-  // 当内容变化但尚未稳定时，使用 light DOM 直接渲染文本
-  const needsFullParse = deferred.includes('```')
+  // 当内容尚未包含代码块标记时，使用轻量 <pre> 直接渲染文本
+  // 仅当出现 ``` 标记后才切换到完整的 react-markdown 管线
+  const needsFullParse = content.includes('```')
 
   if (!needsFullParse) {
     // 纯文本路径：跳过 react-markdown 的 remark/rehype 管线
     return (
       <pre className="my-0 whitespace-pre-wrap break-words font-sans text-sm leading-relaxed">
-        {deferred}
+        {content}
         <span className="inline-block h-4 w-0.5 animate-pulse bg-primary align-middle" />
       </pre>
     )
@@ -101,11 +103,11 @@ function StreamingMarkdown({ content }: { content: string }): React.ReactElement
   return (
     <div className="text-sm">
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeHighlight]}
+        remarkPlugins={MARKDOWN_REMARK_PLUGINS}
+        rehypePlugins={MARKDOWN_REHYPE_PLUGINS}
         components={markdownComponents}
       >
-        {deferred}
+        {content}
       </ReactMarkdown>
       <span className="inline-block h-4 w-0.5 animate-pulse bg-primary align-middle" />
     </div>
@@ -122,8 +124,8 @@ function CompletedMarkdown({ content }: { content: string }): React.ReactElement
   return (
     <div className="text-sm">
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeHighlight]}
+        remarkPlugins={MARKDOWN_REMARK_PLUGINS}
+        rehypePlugins={MARKDOWN_REHYPE_PLUGINS}
         components={markdownComponents}
       >
         {content}
