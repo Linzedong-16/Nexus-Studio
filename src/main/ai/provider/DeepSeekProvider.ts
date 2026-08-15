@@ -1,5 +1,6 @@
 import OpenAI from 'openai'
 import type { ModelProviderConfig } from '../config'
+import type { ModelProviderTestResult } from '../../../renderer/src/types/ipc'
 import type {
   ChatMessage,
   ChatToolCall,
@@ -216,6 +217,25 @@ export class DeepSeekProvider implements IModelProvider {
     } catch (error) {
       if (error instanceof ModelProviderError) throw error
       throw toProviderError(error)
+    }
+  }
+
+  /**
+   * 测试当前配置的 baseURL/apiKey 是否可用（"模型配置"页"测试连接"按钮专用）
+   *
+   * 用 `models.list()` 探测鉴权与网络可达性，不占用生成 token；
+   * 失败时把 SDK 抛出的真实错误信息原样返回，不做场景假设。
+   */
+  async testConnection(): Promise<ModelProviderTestResult> {
+    const start = Date.now()
+    try {
+      await this.client.models.list()
+      return { success: true, message: '连接成功', latencyMs: Date.now() - start }
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : String(error)
+      }
     }
   }
 }

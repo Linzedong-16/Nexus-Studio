@@ -6,6 +6,13 @@
  */
 import type { ConversationReference } from './conversation'
 
+// ─── 模型提供方（DeepSeek）───
+
+/** DeepSeek 当前支持的模型；设置页"模型配置"与对话框"选择模型"下拉共用同一份选项，避免定义漂移 */
+export const DEEPSEEK_MODEL_OPTIONS = ['deepseek-v4-flash', 'deepseek-v4-pro'] as const
+
+export type DeepSeekModelName = (typeof DEEPSEEK_MODEL_OPTIONS)[number]
+
 // ─── 工具定义（展示形态） ───
 
 /** `agent:list-tools` 返回的单个工具展示信息，不含 `execute` 与内部 zod schema */
@@ -101,4 +108,6 @@ export interface AgentChatRequest {
   references?: ConversationReference[]
   /** 可选：当前打开的项目根目录，用于限定 file.readFile 工具的读取范围 */
   activeProjectPath?: string | null
+  /** 可选：本轮对话临时选用的模型（来自对话框"选择模型"下拉），缺省时使用已保存的默认模型 */
+  model?: string
 }

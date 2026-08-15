@@ -1,4 +1,4 @@
-import type { ConnectionConfig, ConfigStore } from '../types/ipc'
+import type { ConnectionConfig, ConfigStore, ModelProviderFormValue } from '../types/ipc'
 import type { RecentProjectEntry } from '../types/fileExplorer'
 
 /**
@@ -97,5 +97,19 @@ export const configService = {
    */
   async setRecentProjects(list: RecentProjectEntry[]): Promise<void> {
     return window.api.config.set('recentProjects', list)
+  },
+
+  /**
+   * 获取当前生效的模型提供方配置（已解密 apiKey，用于设置表单预填充）
+   */
+  async getModelProviderConfig(): Promise<ModelProviderFormValue> {
+    return window.api.config.getModelProviderConfig()
+  },
+
+  /**
+   * 保存模型提供方配置；保存后下一次对话请求立即生效，无需重启
+   */
+  async saveModelProviderConfig(value: ModelProviderFormValue): Promise<void> {
+    return window.api.config.saveModelProviderConfig(value)
   }
 }

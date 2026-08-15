@@ -383,7 +383,7 @@ export async function startRun(
       run: failRun(
         run,
         'provider_not_configured',
-        '尚未配置 DeepSeek API 密钥，请在 .env 中填入 DEEPSEEK_API_KEY 后重启应用'
+        '尚未配置 DeepSeek API 密钥，请前往设置面板「模型配置」页填写后重试'
       ),
       messages: [],
       pendingBatch: [],
@@ -633,7 +633,7 @@ export async function startRunStream(
     const failedRun = failRun(
       run,
       'provider_not_configured',
-      '尚未配置 DeepSeek API 密钥，请在 .env 中填入 DEEPSEEK_API_KEY 后重启应用'
+      '尚未配置 DeepSeek API 密钥，请前往设置面板「模型配置」页填写后重试'
     )
     callbacks.onFailed?.({
       code: 'provider_not_configured',

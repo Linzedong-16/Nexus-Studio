@@ -5,6 +5,7 @@ import type {
   ToolExecutionResult
 } from '../types/agent'
 import type { ConversationReference } from '../types/conversation'
+import type { ModelProviderTestResult } from '../types/ipc'
 
 /**
  * Agent 对话服务层（Code 模式）
@@ -25,7 +26,8 @@ export const agentService = {
     database: string | null,
     conversationId?: string,
     references?: ConversationReference[],
-    activeProjectPath?: string | null
+    activeProjectPath?: string | null,
+    model?: string
   ): Promise<AgentRun> {
     const request: AgentChatRequest = {
       instruction,
@@ -33,7 +35,8 @@ export const agentService = {
       database,
       conversationId,
       references,
-      activeProjectPath
+      activeProjectPath,
+      model
     }
     return window.api.agent.chat(request)
   },
@@ -50,7 +53,8 @@ export const agentService = {
     database: string | null,
     conversationId?: string,
     references?: ConversationReference[],
-    activeProjectPath?: string | null
+    activeProjectPath?: string | null,
+    model?: string
   ): Promise<{ runId: string; conversationId: string }> {
     const request: AgentChatRequest = {
       instruction,
@@ -58,7 +62,8 @@ export const agentService = {
       database,
       conversationId,
       references,
-      activeProjectPath
+      activeProjectPath,
+      model
     }
     return window.api.agent.chatStream(request)
   },
@@ -82,5 +87,15 @@ export const agentService = {
    */
   async runTool(toolName: string, input: unknown): Promise<ToolExecutionResult<unknown>> {
     return window.api.agent.runTool(toolName, input)
+  },
+
+  /**
+   * 测试指定 baseURL/apiKey 是否可正常连接 DeepSeek（"模型配置"页"测试连接"按钮专用）
+   */
+  async testModelProvider(input: {
+    baseURL: string
+    apiKey: string
+  }): Promise<ModelProviderTestResult> {
+    return window.api.agent.testModelProvider(input)
   }
 }

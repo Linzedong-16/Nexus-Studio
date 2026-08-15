@@ -15,7 +15,9 @@ import type {
   ImportRowsRequest,
   ImportSqlRequest,
   ImportResult,
-  BackupResult
+  BackupResult,
+  ModelProviderFormValue,
+  ModelProviderTestResult
 } from '../renderer/src/types/ipc'
 import type { KeybindingEntry } from '../renderer/src/types/keybinding'
 import type { FileNode } from '../renderer/src/types/fileExplorer'
@@ -89,7 +91,11 @@ const api: Api = {
     delete: createInvoke('config:delete'),
     getConnections: createInvoke('config:get-connections'),
     saveConnection: createInvoke('config:save-connection'),
-    removeConnection: createInvoke('config:remove-connection')
+    removeConnection: createInvoke('config:remove-connection'),
+    getModelProviderConfig: createInvoke<[], ModelProviderFormValue>('config:get-model-provider'),
+    saveModelProviderConfig: createInvoke<[ModelProviderFormValue], void>(
+      'config:save-model-provider'
+    )
   },
 
   // ─── 快捷键配置 ───
@@ -173,7 +179,10 @@ const api: Api = {
     chatStream: createInvoke<[AgentChatRequest], { runId: string; conversationId: string }>(
       'agent:chat-stream'
     ),
-    onStreamEvent: createListener('agent:stream-event')
+    onStreamEvent: createListener('agent:stream-event'),
+    testModelProvider: createInvoke<[{ baseURL: string; apiKey: string }], ModelProviderTestResult>(
+      'agent:test-model-provider'
+    )
   },
 
   // ─── 对话管理（009 号功能） ───

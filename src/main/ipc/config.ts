@@ -1,7 +1,14 @@
 import { createIPCHandler } from './utils'
 import { configStore } from '../config/store'
 import { decryptPassword, encryptPassword } from '../config/crypto'
-import type { ConfigStore, ConnectionConfig, StoredConnection } from '../../renderer/src/types/ipc'
+import { loadModelProviderConfig } from '../ai/config'
+import type {
+  ConfigStore,
+  ConnectionConfig,
+  StoredConnection,
+  StoredModelProviderConfig,
+  ModelProviderFormValue
+} from '../../renderer/src/types/ipc'
 
 /**
  * 配置读写 IPC 处理器
@@ -89,4 +96,22 @@ export function registerConfigIPC(): void {
       stored.filter((c) => c.id !== id)
     )
   })
+
+  createIPCHandler<[], ModelProviderFormValue>('config:get-model-provider', async () => {
+    const config = loadModelProviderConfig()
+    return { baseURL: config.baseURL, model: config.model, apiKey: config.apiKey ?? '' }
+  })
+
+  createIPCHandler<[ModelProviderFormValue], void>(
+    'config:save-model-provider',
+    async ({ baseURL, model, apiKey }) => {
+      const trimmedApiKey = apiKey.trim()
+      const next: StoredModelProviderConfig = {
+        baseURL: baseURL.trim(),
+        model: model.trim(),
+        encryptedApiKey: trimmedApiKey ? encryptPassword(trimmedApiKey) : undefined
+      }
+      configStore.set('deepseekConfig', next)
+    }
+  )
 }

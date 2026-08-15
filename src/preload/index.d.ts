@@ -14,6 +14,8 @@ import type {
   RoleInfo,
   ConnectionStatus,
   ConfigStore,
+  ModelProviderFormValue,
+  ModelProviderTestResult,
   ErDiagramData,
   DdlResult,
   DbLogEntry,
@@ -150,6 +152,10 @@ export interface ConfigApi {
   saveConnection(config: ConnectionConfig): Promise<void>
   /** 删除指定连接配置 */
   removeConnection(id: string): Promise<void>
+  /** 获取当前生效的模型提供方配置（已解密 apiKey，用于设置表单预填充） */
+  getModelProviderConfig(): Promise<ModelProviderFormValue>
+  /** 保存模型提供方配置（主进程会加密 apiKey）；保存后下一次对话请求立即生效，无需重启 */
+  saveModelProviderConfig(value: ModelProviderFormValue): Promise<void>
 }
 
 // ─── 快捷键 API ───
@@ -285,6 +291,8 @@ export interface AgentApi {
   chatStream(request: AgentChatRequest): Promise<{ runId: string; conversationId: string }>
   /** 订阅流式 Agent 事件；返回取消订阅函数 */
   onStreamEvent(callback: (event: AgentStreamEvent) => void): () => void
+  /** 测试指定 baseURL/apiKey 是否可正常连接 DeepSeek（"模型配置"页"测试连接"按钮专用） */
+  testModelProvider(input: { baseURL: string; apiKey: string }): Promise<ModelProviderTestResult>
 }
 
 // ─── 对话管理 API（009 号功能） ───

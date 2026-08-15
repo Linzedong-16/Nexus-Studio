@@ -1,4 +1,9 @@
-/** Agent 模型提供方配置：`ModelProviderConfig` 的加载与解析（data-model.md §6） */
+/** Agent 模型提供方配置：`ModelProviderConfig` 的加载与解析 */
+
+import { DEEPSEEK_MODEL_OPTIONS } from '../../renderer/src/types/agent'
+import type { StoredModelProviderConfig } from '../../renderer/src/types/ipc'
+import { configStore } from '../config/store'
+import { decryptPassword } from '../config/crypto'
 
 export type ModelProviderName = 'deepseek'
 
@@ -12,7 +17,7 @@ export interface ModelProviderConfig {
 }
 
 const DEFAULT_BASE_URL = 'https://api.deepseek.com'
-const DEFAULT_MODEL = 'deepseek-v4-flash'
+const DEFAULT_MODEL = DEEPSEEK_MODEL_OPTIONS[0]
 const DEFAULT_MAX_ITERATIONS = 8
 const DEFAULT_REQUEST_TIMEOUT_MS = 60000
 
@@ -23,19 +28,22 @@ function parseIntEnv(value: string | undefined, fallback: number): number {
 }
 
 /**
- * 从 `process.env` 读取 DeepSeek 模型提供方配置
+ * 加载 DeepSeek 模型提供方配置
  *
- * `.env` 文件由 `src/main/index.ts` 在 `app.whenReady()` 之前通过 `dotenv.config()` 加载到
- * `process.env`，本函数只负责读取与默认值填充，不涉及文件系统。
+ * `apiKey`/`baseURL`/`model` 完全由用户在设置面板"模型配置"页保存的内容决定
+ * （持久化于 `configStore` 的 `deepseekConfig`，`apiKey` 经 `safeStorage` 加密），
+ * 不依赖 `.env` 文件——避免终端用户需要理解/编辑 `.env` 才能完成配置。
+ * `maxIterations`/`requestTimeoutMs` 暂未在设置面板开放，仍从环境变量读取（含默认值）。
  *
  * @returns 解析后的 `ModelProviderConfig`
  */
 export function loadModelProviderConfig(): ModelProviderConfig {
+  const stored = configStore.get('deepseekConfig') as StoredModelProviderConfig | undefined
   return {
     provider: 'deepseek',
-    apiKey: process.env.DEEPSEEK_API_KEY?.trim() || null,
-    baseURL: process.env.DEEPSEEK_BASE_URL?.trim() || DEFAULT_BASE_URL,
-    model: process.env.DEEPSEEK_MODEL?.trim() || DEFAULT_MODEL,
+    apiKey: stored?.encryptedApiKey ? decryptPassword(stored.encryptedApiKey) : null,
+    baseURL: stored?.baseURL?.trim() || DEFAULT_BASE_URL,
+    model: stored?.model?.trim() || DEFAULT_MODEL,
     maxIterations: parseIntEnv(process.env.AGENT_MAX_ITERATIONS, DEFAULT_MAX_ITERATIONS),
     requestTimeoutMs: parseIntEnv(process.env.AGENT_REQUEST_TIMEOUT_MS, DEFAULT_REQUEST_TIMEOUT_MS)
   }

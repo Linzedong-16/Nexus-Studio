@@ -338,6 +338,13 @@ export interface StoredConnection {
   }
 }
 
+/** 落盘持久化的模型提供方配置（当前仅 DeepSeek），apiKey 经 safeStorage 加密 */
+export interface StoredModelProviderConfig {
+  baseURL: string
+  model?: string
+  encryptedApiKey?: string
+}
+
 export interface ConfigStore {
   theme: 'light' | 'dark'
   fontSize: number
@@ -347,6 +354,22 @@ export interface ConfigStore {
   /** 「最近项目」列表，按最近使用排序，上限 20 条 */
   recentProjects: RecentProjectEntry[]
   windowBounds?: { x: number; y: number; width: number; height: number }
+  /** DeepSeek 模型提供方配置（设置面板"模型配置"页维护） */
+  deepseekConfig?: StoredModelProviderConfig
+}
+
+/** "模型配置"设置表单读写用的明文形态，仅在 IPC 边界内传输 */
+export interface ModelProviderFormValue {
+  baseURL: string
+  model: string
+  apiKey: string
+}
+
+/** 模型提供方"测试连接"的结果 */
+export interface ModelProviderTestResult {
+  success: boolean
+  message: string
+  latencyMs?: number
 }
 
 // ─── 窗口控制 ───
@@ -443,6 +466,10 @@ export interface ConfigApi {
   getConnections(): Promise<ConnectionConfig[]>
   saveConnection(config: ConnectionConfig): Promise<void>
   removeConnection(id: string): Promise<void>
+
+  // 模型提供方配置专用方法（主进程内部处理 safeStorage 加解密）
+  getModelProviderConfig(): Promise<ModelProviderFormValue>
+  saveModelProviderConfig(value: ModelProviderFormValue): Promise<void>
 }
 
 // ─── 应用信息 ───

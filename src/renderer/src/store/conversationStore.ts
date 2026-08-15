@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import type { ConversationReference } from '@/types/conversation'
 import type { Conversation, ConversationMessage } from '@/types/conversation'
 import type { AgentRun } from '@/types/agent'
+import { DEEPSEEK_MODEL_OPTIONS } from '@/types/agent'
 import { agentService } from '@/services/agentService'
 import { conversationService } from '@/services/conversationService'
 import { useConnectionStore } from '@/store/connectionStore'
@@ -64,6 +65,11 @@ interface ConversationState {
   /* ─── Agent 交互（既有功能，009 升级） ─── */
   /** 当前对话的消息回合 */
   turns: ConversationTurn[]
+
+  /** 对话框"选择模型"下拉当前选中的模型，默认 deepseek-v4-flash（项目默认模型） */
+  selectedModel: string
+  /** 切换对话框"选择模型"下拉的选中项 */
+  setSelectedModel: (model: string) => void
 
   /** 发起一次多轮 Agent 对话；自动携带当前连接上下文和 conversationId */
   sendInstruction: (instruction: string) => Promise<void>
@@ -258,6 +264,9 @@ export const useConversationStore = create<ConversationState>()((set, get) => ({
   /* ─── Agent 交互（009 升级） ─── */
   turns: [],
 
+  selectedModel: DEEPSEEK_MODEL_OPTIONS[0],
+  setSelectedModel: (model) => set({ selectedModel: model }),
+
   sendInstruction: async (instruction) => {
     const turnId = crypto.randomUUID()
     const { activeConversationId, references } = get()
@@ -293,7 +302,8 @@ export const useConversationStore = create<ConversationState>()((set, get) => ({
         database,
         convId,
         references,
-        useFileExplorerStore.getState().activeProjectPath
+        useFileExplorerStore.getState().activeProjectPath,
+        get().selectedModel
       )
       updateTurn((t) => ({ ...t, pending: false, run }))
       // 刷新对话列表以更新元数据（标题、时间、消息计数）
@@ -450,7 +460,8 @@ export const useConversationStore = create<ConversationState>()((set, get) => ({
         database,
         convId,
         references,
-        useFileExplorerStore.getState().activeProjectPath
+        useFileExplorerStore.getState().activeProjectPath,
+        get().selectedModel
       )
     } catch (error) {
       updateTurn((t) => ({

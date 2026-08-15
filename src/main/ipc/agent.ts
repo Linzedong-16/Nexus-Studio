@@ -10,6 +10,7 @@ import type {
   ConversationMessage,
   ConversationReference
 } from '../../renderer/src/types/conversation'
+import type { ModelProviderTestResult } from '../../renderer/src/types/ipc'
 import { loadModelProviderConfig } from '../ai/config'
 import { DeepSeekProvider } from '../ai/provider/DeepSeekProvider'
 import { resumeRun, startRun, startRunStream, type LoopState } from '../ai/loop/reactLoop'
@@ -133,17 +134,18 @@ function buildConversationMessage(
 
 /**
  * 注册 Agent 对话相关 IPC 通道：`agent:chat`、`agent:confirm-tool-call`、
- * `agent:list-tools`、`agent:run-tool`
+ * `agent:list-tools`、`agent:run-tool`、`agent:test-model-provider`
  *
  * 009 升级：agent:chat 支持多轮——加载历史上下文、自动创建对话、持久化消息。
  *
- * `config`/`provider` 在注册时（`app.whenReady()` 之后）读取一次并复用，确保 `.env` 已被
- * `src/main/index.ts` 加载到 `process.env`；`runs` 以内存 Map 保存每个运行的完整循环状态
- * （含喂给模型的对话上下文），供 `agent:confirm-tool-call` 恢复同一运行继续执行。
+ * `config`/`provider` 改为在 `agent:chat`/`agent:chat-stream` 每次收到请求时动态创建
+ * （而非注册时一次性创建并被闭包长期复用），确保用户在设置面板"模型配置"页保存新配置后，
+ * 下一次对话立即生效，无需重启应用；`request.model`（对话框"选择模型"下拉）可临时覆盖
+ * 已保存的默认模型。`runs` 以内存 Map 保存每个运行的完整循环状态（含喂给模型的对话上下文
+ * 及运行开始时固定的 provider/config），供 `agent:confirm-tool-call` 恢复同一运行继续执行
+ * ——运行中途不应切换 provider/model。
  */
 export function registerAgentIPC(): void {
-  const config = loadModelProviderConfig()
-  const provider = new DeepSeekProvider(config)
   const runs = new Map<string, LoopState>()
   runsMap = runs
 
@@ -152,6 +154,9 @@ export function registerAgentIPC(): void {
 
   createIPCHandler<[AgentChatRequest], RendererAgentRun>('agent:chat', async (request) => {
     const runId = randomUUID()
+    const baseConfig = loadModelProviderConfig()
+    const config = request.model ? { ...baseConfig, model: request.model } : baseConfig
+    const provider = new DeepSeekProvider(config)
 
     // 确定对话 ID：使用传入的或自动创建
     let conversationId = request.conversationId
@@ -255,6 +260,9 @@ export function registerAgentIPC(): void {
     'agent:chat-stream',
     async (request) => {
       const runId = randomUUID()
+      const baseConfig = loadModelProviderConfig()
+      const config = request.model ? { ...baseConfig, model: request.model } : baseConfig
+      const provider = new DeepSeekProvider(config)
       const mainWindow = BrowserWindow.getAllWindows()[0]
 
       let conversationId = request.conversationId
@@ -361,6 +369,22 @@ export function registerAgentIPC(): void {
     'agent:run-tool',
     async (toolName, input) => {
       return toolRegistry.invoke(toolName, input)
+    }
+  )
+
+  // 用较短的 10s 超时（而非对话默认的 60s），避免地址不可达时设置页 UI 长时间卡住
+  createIPCHandler<[{ baseURL: string; apiKey: string }], ModelProviderTestResult>(
+    'agent:test-model-provider',
+    async ({ baseURL, apiKey }) => {
+      const testProvider = new DeepSeekProvider({
+        provider: 'deepseek',
+        baseURL,
+        apiKey,
+        model: '',
+        maxIterations: 1,
+        requestTimeoutMs: 10_000
+      })
+      return testProvider.testConnection()
     }
   )
 }

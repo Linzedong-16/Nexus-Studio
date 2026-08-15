@@ -9,6 +9,7 @@ import {
   ArrowUp,
   ArrowDown,
   ChevronDown,
+  Check,
   Monitor,
   Folder,
   Database,
@@ -23,10 +24,20 @@ import {
   AlertTriangle
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useConversationStore } from '@/store/conversationStore'
 import type { ConversationTurn } from '@/store/conversationStore'
+import { useUserStore } from '@/store/userStore'
+import { useAvatarSrc } from '@/hooks/useAvatarSrc'
 import type { ReferenceType } from '@/types/conversation'
 import type { AgentErrorCode, AgentToolCallRecord } from '@/types/agent'
+import { DEEPSEEK_MODEL_OPTIONS } from '@/types/agent'
 import MemoizedMarkdown from './MarkdownContent'
 import { streamingMarkdownKey, completedMarkdownKey } from '@/lib/markdownUtils'
 
@@ -45,8 +56,7 @@ const REFERENCE_ICON: Record<ReferenceType, typeof File> = {
 
 /** `AgentErrorCode` → 面向用户的中文提示 */
 const ERROR_CODE_TEXT: Record<AgentErrorCode, string> = {
-  provider_not_configured:
-    '尚未配置 DeepSeek API 密钥，请在 .env 中填入 DEEPSEEK_API_KEY 后重启应用',
+  provider_not_configured: '尚未配置 DeepSeek API 密钥，请前往设置面板「模型配置」页填写后重试',
   provider_auth_failed: 'DeepSeek 密钥校验失败，请检查密钥是否正确或已过期',
   provider_rate_limited: 'DeepSeek 服务当前限流，请稍后重试',
   provider_timeout: 'DeepSeek 服务响应超时，请稍后重试',
@@ -210,52 +220,77 @@ function ToolCallsPanel({ toolCalls }: { toolCalls: AgentToolCallRecord[] }): Re
 /** 单轮"用户指令 → Agent 结果"展示
  *
  * 自定义 arePropsEqual：只比较影响渲染的关键字段（turn.id、streamingText、
- * run.status、run.finalMessage、pending、confirmPendingToolCall 引用），
- * 避免 Zustand set() 新数组引用导致历史 turn 全量重新渲染。
+ * run.status、run.finalMessage、pending、confirmPendingToolCall 引用、
+ * avatarSrc、displayName），避免 Zustand set() 新数组引用导致历史 turn 全量重新渲染。
  */
 const areTurnPropsEqual = (
-  prev: { turn: ConversationTurn; confirmPendingToolCall: (approved: boolean) => void },
-  next: { turn: ConversationTurn; confirmPendingToolCall: (approved: boolean) => void }
+  prev: {
+    turn: ConversationTurn
+    confirmPendingToolCall: (approved: boolean) => void
+    avatarSrc: string | null
+    displayName: string
+  },
+  next: {
+    turn: ConversationTurn
+    confirmPendingToolCall: (approved: boolean) => void
+    avatarSrc: string | null
+    displayName: string
+  }
 ): boolean =>
   prev.turn.id === next.turn.id &&
   prev.turn.streamingText === next.turn.streamingText &&
   prev.turn.run?.status === next.turn.run?.status &&
   prev.turn.run?.finalMessage === next.turn.run?.finalMessage &&
   prev.turn.pending === next.turn.pending &&
-  prev.confirmPendingToolCall === next.confirmPendingToolCall
+  prev.confirmPendingToolCall === next.confirmPendingToolCall &&
+  prev.avatarSrc === next.avatarSrc &&
+  prev.displayName === next.displayName
 
 const ConversationTurnItem = memo(function ConversationTurnItem({
   turn,
-  confirmPendingToolCall
+  confirmPendingToolCall,
+  avatarSrc,
+  displayName
 }: {
   turn: ConversationTurn
   confirmPendingToolCall: (approved: boolean) => void
+  avatarSrc: string | null
+  displayName: string
 }): React.JSX.Element {
   const { run, pending, dispatchError, streamingText } = turn
 
   return (
     <div className="space-y-2">
-      {/* 用户指令：发送时携带的引用快照（只读，不可移除）+ 指令文本 */}
-      <div className="ml-auto flex max-w-[80%] flex-col items-end gap-1.5">
-        {turn.references.length > 0 && (
-          <div className="flex flex-wrap items-center justify-end gap-1.5">
-            {turn.references.map((ref) => {
-              const Icon = REFERENCE_ICON[ref.type]
-              return (
-                <div
-                  key={ref.id}
-                  className="flex items-center gap-1 rounded-md border bg-accent/40 px-1.5 py-0.5 text-[12px]"
-                >
-                  <Icon className="size-3 shrink-0 text-muted-foreground" />
-                  <span className="max-w-32 truncate text-foreground">{ref.label}</span>
-                </div>
-              )
-            })}
+      {/* 用户指令：发送时携带的引用快照（只读，不可移除）+ 指令文本 + 头像标记，
+          用头像与 Agent 响应区分开发送方 */}
+      <div className="flex items-start justify-end gap-2">
+        <div className="flex max-w-[80%] flex-col items-end gap-1.5">
+          {turn.references.length > 0 && (
+            <div className="flex flex-wrap items-center justify-end gap-1.5">
+              {turn.references.map((ref) => {
+                const Icon = REFERENCE_ICON[ref.type]
+                return (
+                  <div
+                    key={ref.id}
+                    className="flex items-center gap-1 rounded-md border bg-accent/40 px-1.5 py-0.5 text-[12px]"
+                  >
+                    <Icon className="size-3 shrink-0 text-muted-foreground" />
+                    <span className="max-w-32 truncate text-foreground">{ref.label}</span>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+          <div className="rounded-xl bg-primary px-3.5 py-2 text-sm text-primary-foreground">
+            {turn.instruction}
           </div>
-        )}
-        <div className="rounded-xl bg-primary px-3.5 py-2 text-sm text-primary-foreground">
-          {turn.instruction}
         </div>
+        <Avatar className="size-7 shrink-0">
+          {avatarSrc && <AvatarImage src={avatarSrc} alt={displayName} />}
+          <AvatarFallback className="bg-primary/10 text-xs text-primary">
+            {displayName[0]}
+          </AvatarFallback>
+        </Avatar>
       </div>
 
       {/* Agent 响应 */}
@@ -340,6 +375,10 @@ export default function ConversationView(): React.JSX.Element {
   const loadConversationList = useConversationStore((s) => s.loadConversationList)
   const selectConversation = useConversationStore((s) => s.selectConversation)
   const createConversation = useConversationStore((s) => s.createConversation)
+  const selectedModel = useConversationStore((s) => s.selectedModel)
+  const setSelectedModel = useConversationStore((s) => s.setSelectedModel)
+  const displayName = useUserStore((s) => s.displayName)
+  const avatarSrc = useAvatarSrc()
 
   const [input, setInput] = useState('')
   const isBusy = turns.length > 0 && turns[turns.length - 1].pending
@@ -482,6 +521,8 @@ export default function ConversationView(): React.JSX.Element {
             removeReference={removeReference}
             onSend={handleSend}
             disabled={isBusy}
+            selectedModel={selectedModel}
+            setSelectedModel={setSelectedModel}
           />
         </div>
       ) : (
@@ -494,6 +535,8 @@ export default function ConversationView(): React.JSX.Element {
                     key={turn.id}
                     turn={turn}
                     confirmPendingToolCall={confirmPendingToolCall}
+                    avatarSrc={avatarSrc}
+                    displayName={displayName}
                   />
                 ))}
               </div>
@@ -517,6 +560,8 @@ export default function ConversationView(): React.JSX.Element {
               removeReference={removeReference}
               onSend={handleSend}
               disabled={isBusy}
+              selectedModel={selectedModel}
+              setSelectedModel={setSelectedModel}
             />
           </div>
         </>
@@ -532,6 +577,8 @@ interface ConversationInputCardProps {
   removeReference: (id: string) => void
   onSend: () => void
   disabled: boolean
+  selectedModel: string
+  setSelectedModel: (model: string) => void
 }
 
 /** 输入框卡片：指令输入 + 引用小图标 + 工具栏 */
@@ -541,7 +588,9 @@ function ConversationInputCard({
   references,
   removeReference,
   onSend,
-  disabled
+  disabled,
+  selectedModel,
+  setSelectedModel
 }: ConversationInputCardProps): React.JSX.Element {
   return (
     <div className="w-full max-w-2xl">
@@ -597,13 +646,20 @@ function ConversationInputCard({
             </button>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className="flex items-center gap-1 rounded-md px-2 py-1 text-[13px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            >
-              选择模型
-              <ChevronDown className="size-3.5" />
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger className="flex items-center gap-1 rounded-md px-2 py-1 text-[13px] text-muted-foreground transition-colors hover:bg-accent hover:text-foreground data-[state=open]:bg-accent data-[state=open]:text-foreground">
+                {selectedModel}
+                <ChevronDown className="size-3.5" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {DEEPSEEK_MODEL_OPTIONS.map((m) => (
+                  <DropdownMenuItem key={m} onClick={() => setSelectedModel(m)}>
+                    {m}
+                    {m === selectedModel && <Check className="ml-auto size-3.5" />}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
             <button type="button" title="语音输入" className={toolBtnClass}>
               <Mic className="size-4" />
             </button>
