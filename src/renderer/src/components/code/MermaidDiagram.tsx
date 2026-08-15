@@ -1,11 +1,11 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import mermaid from 'mermaid'
-import { useThemeStore } from '@/store/themeStore'
+import { useThemeStore, type ThemeMode } from '@/store/themeStore'
 
 /** 记录已初始化的主题，避免每次渲染都重新 initialize */
-let initializedTheme: 'light' | 'dark' | null = null
+let initializedTheme: ThemeMode | null = null
 
-function ensureInitialized(mode: 'light' | 'dark'): void {
+function ensureInitialized(mode: ThemeMode): void {
   if (initializedTheme === mode) return
   mermaid.initialize({
     startOnLoad: false,
@@ -24,6 +24,10 @@ interface MermaidDiagramProps {
  *
  * 异步将 mermaid 源码渲染为 SVG；语法不完整或解析失败时回退为原始代码展示，
  * 不影响 Markdown 其余内容的渲染。
+ *
+ * 按主题缓存渲染结果：主题切换时优先复用缓存的 SVG，避免重复触发 mermaid 的
+ * 布局计算；缓存未命中且非首次挂载/内容变化（即纯粹因主题切换导致）时，
+ * 渲染会延后到浏览器空闲时执行，避免与主题切换过渡动画抢占主线程。
  */
 export function MermaidDiagram({ code }: MermaidDiagramProps): React.ReactElement {
   const mode = useThemeStore((s) => s.mode)
@@ -33,23 +37,56 @@ export function MermaidDiagram({ code }: MermaidDiagramProps): React.ReactElemen
   const [error, setError] = useState<string | null>(null)
   // 防止旧渲染结果在 code/mode 变化后异步落地覆盖新结果
   const renderTokenRef = useRef(0)
+  // 按主题缓存已渲染的 SVG：主题切换时优先复用，避免重复计算图表布局
+  const svgCacheRef = useRef<Map<ThemeMode, string>>(new Map())
+  // 记录上一次渲染所依据的源码，用于判断本次触发是内容变化还是纯主题切换
+  const prevCodeRef = useRef<string | null>(null)
 
   useEffect(() => {
+    const isContentChange = prevCodeRef.current !== null && prevCodeRef.current !== code
+    prevCodeRef.current = code
+    if (isContentChange) {
+      // 图表源码变了，旧主题缓存已不对应当前内容
+      svgCacheRef.current.clear()
+    }
+
+    const cached = svgCacheRef.current.get(mode)
+    if (cached) {
+      setSvg(cached)
+      setError(null)
+      return undefined
+    }
+
     const token = ++renderTokenRef.current
-    ensureInitialized(mode)
-    mermaid
-      .render(diagramId, code)
-      .then((result) => {
-        if (renderTokenRef.current === token) {
-          setSvg(result.svg)
-          setError(null)
-        }
-      })
-      .catch((err: unknown) => {
-        if (renderTokenRef.current === token) {
-          setError(err instanceof Error ? err.message : '图表解析失败')
-        }
-      })
+    const doRender = (): void => {
+      ensureInitialized(mode)
+      mermaid
+        .render(diagramId, code)
+        .then((result) => {
+          if (renderTokenRef.current === token) {
+            svgCacheRef.current.set(mode, result.svg)
+            setSvg(result.svg)
+            setError(null)
+          }
+        })
+        .catch((err: unknown) => {
+          if (renderTokenRef.current === token) {
+            setError(err instanceof Error ? err.message : '图表解析失败')
+          }
+        })
+    }
+
+    // 首次挂载或内容变化：立即渲染，尽快让用户看到图表
+    // 纯主题切换触发的重渲染（该图表首次遇到这个新主题）：延后到浏览器空闲时执行，
+    // 避免与主题切换过渡动画（View Transition 生成新状态截图）竞争主线程，导致动画卡顿
+    const isPureThemeSwitch = !isContentChange && svgCacheRef.current.size > 0
+    if (isPureThemeSwitch) {
+      const idleId = requestIdleCallback(doRender, { timeout: 1000 })
+      return () => cancelIdleCallback(idleId)
+    }
+
+    doRender()
+    return undefined
   }, [code, mode, diagramId])
 
   if (error) {
