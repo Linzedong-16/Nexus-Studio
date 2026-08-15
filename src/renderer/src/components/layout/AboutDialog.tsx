@@ -1,8 +1,11 @@
-import { Copy, Check } from 'lucide-react'
+import { Copy, Check, RefreshCw } from 'lucide-react'
 import { useEffect, useState, useCallback } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 import { useShellStore } from '@/store/shellStore'
+import { updaterService } from '@/services/updaterService'
 import type { AppVersions } from '@/types/ipc'
+import type { UpdateStatus } from '@/types/updater'
 
 /** 各信息项展示的标签映射 */
 const LABELS: Record<keyof AppVersions, string> = {
@@ -38,6 +41,67 @@ function CopyButton({ text }: { text: string }): React.JSX.Element {
     >
       {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
     </button>
+  )
+}
+
+/** 更新状态对应的展示文案 */
+function describeStatus(status: UpdateStatus): string {
+  switch (status.state) {
+    case 'checking':
+      return '正在检查更新…'
+    case 'available':
+      return `发现新版本 v${status.version}`
+    case 'not-available':
+      return '已是最新版本'
+    case 'downloading':
+      return `正在下载更新… ${status.percent}%`
+    case 'downloaded':
+      return `新版本 v${status.version} 已下载，重启后生效`
+    case 'error':
+      return `检查更新失败：${status.message}`
+    case 'idle':
+      return ''
+  }
+}
+
+/** 检查更新区域：展示当前状态，按状态驱动下一步操作 */
+function UpdateSection(): React.JSX.Element {
+  const [status, setStatus] = useState<UpdateStatus>({ state: 'idle' })
+
+  useEffect(() => {
+    return updaterService.onStatusChange(setStatus)
+  }, [])
+
+  const handleAction = useCallback(() => {
+    switch (status.state) {
+      case 'available':
+        updaterService.download()
+        return
+      case 'downloaded':
+        updaterService.install()
+        return
+      default:
+        setStatus({ state: 'checking' })
+        updaterService.check()
+    }
+  }, [status.state])
+
+  const busy = status.state === 'checking' || status.state === 'downloading'
+  const actionLabel =
+    status.state === 'available'
+      ? '下载更新'
+      : status.state === 'downloaded'
+        ? '重启并安装'
+        : '检查更新'
+
+  return (
+    <div className="flex items-center justify-between border-t pt-3 text-sm">
+      <span className="text-muted-foreground">{describeStatus(status) || '有更新会在此提示'}</span>
+      <Button variant="outline" size="sm" disabled={busy} onClick={handleAction}>
+        <RefreshCw className={`mr-1.5 size-3.5 ${busy ? 'animate-spin' : ''}`} />
+        {actionLabel}
+      </Button>
+    </div>
   )
 }
 
@@ -92,6 +156,8 @@ export default function AboutDialog(): React.JSX.Element {
         ) : (
           <div className="py-4 text-center text-sm text-muted-foreground">加载中...</div>
         )}
+
+        <UpdateSection />
 
         <div className="flex justify-end pt-2">
           <button

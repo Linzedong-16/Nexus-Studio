@@ -45,6 +45,7 @@ import type {
   ConversationGetResponse,
   ConversationActionRequest
 } from '../renderer/src/types/conversation'
+import type { UpdateStatus } from '../renderer/src/types/updater'
 
 // ─── 窗口控制 API ───
 
@@ -312,6 +313,19 @@ export interface ConversationApi {
   getActiveRun(request: ConversationActionRequest): Promise<{ run: AgentRun } | null>
 }
 
+// ─── 自动更新 API ───
+
+export interface UpdaterApi {
+  /** 触发一次检查更新；结果通过 onStatusChange 推送，不抛出异常 */
+  check(): Promise<void>
+  /** 下载已检测到的新版本 */
+  download(): Promise<void>
+  /** 重启并安装已下载的更新 */
+  install(): Promise<void>
+  /** 订阅更新状态变更；返回取消订阅函数 */
+  onStatusChange(callback: (status: UpdateStatus) => void): () => void
+}
+
 // ─── 全局 API ───
 
 export interface Api {
@@ -327,6 +341,7 @@ export interface Api {
   task: TaskApi
   agent: AgentApi
   conversation: ConversationApi
+  updater: UpdaterApi
 }
 
 declare global {

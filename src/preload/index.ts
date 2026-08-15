@@ -34,6 +34,7 @@ import type {
   ConversationGetResponse,
   ConversationActionRequest
 } from '../renderer/src/types/conversation'
+import type { UpdateStatus } from '../renderer/src/types/updater'
 
 /**
  * 渲染进程可用 API —— 使用工厂函数创建，声明式定义
@@ -195,6 +196,14 @@ const api: Api = {
     getActiveRun: createInvoke<[ConversationActionRequest], { run: AgentRun } | null>(
       'conversation:get-active-run'
     )
+  },
+
+  // ─── 自动更新 ───
+  updater: {
+    check: createInvoke<[], void>('updater:check'),
+    download: createInvoke<[], void>('updater:download'),
+    install: createInvoke<[], void>('updater:install'),
+    onStatusChange: createListener<UpdateStatus>('updater:status-changed')
   }
 }
 

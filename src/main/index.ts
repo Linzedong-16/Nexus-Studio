@@ -20,6 +20,11 @@ process.noDeprecation = true
 import { registerAllIPC } from './ipc'
 import { driverManager } from './db/core/DriverManager'
 import { taskScheduler } from './scheduler'
+import { isQuitting, markQuitting } from './lifecycle'
+import { checkForUpdates } from './updater'
+
+/** 应用启动后延迟检查更新的等待时长（毫秒），避免影响首屏加载速度 */
+const UPDATE_CHECK_DELAY_MS = 10_000
 
 let tray: Tray | null = null
 
@@ -91,8 +96,9 @@ function createWindow(): BrowserWindow {
   // 启动定时任务调度器（恢复已启用任务 + 补偿执行）
   taskScheduler.bootstrap()
 
-  // 关闭窗口时：隐藏到托盘而非退出
+  // 关闭窗口时：隐藏到托盘而非退出（isQuitting 为 true 时放行，见 lifecycle.ts）
   mainWindow.on('close', (e) => {
+    if (isQuitting()) return
     e.preventDefault()
     mainWindow.hide()
   })
@@ -123,7 +129,7 @@ function createWindow(): BrowserWindow {
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
   // Set app user model id for windows
-  electronApp.setAppUserModelId('com.electron')
+  electronApp.setAppUserModelId('io.github.linzedong16.nexusstudio')
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
@@ -137,6 +143,11 @@ app.whenReady().then(() => {
   const mainWindow = BrowserWindow.getAllWindows()[0]
   createTray(mainWindow)
 
+  // 打包环境下延迟检查更新，避免影响首屏加载；开发环境无发布产物，跳过
+  if (app.isPackaged) {
+    setTimeout(() => checkForUpdates(), UPDATE_CHECK_DELAY_MS)
+  }
+
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
@@ -146,7 +157,9 @@ app.whenReady().then(() => {
 
 // 应用退出前优雅关闭所有数据库连接和定时任务调度
 app.on('before-quit', async (event) => {
+  if (isQuitting()) return
   event.preventDefault()
+  markQuitting()
   await taskScheduler.shutdown()
   await driverManager.disconnectAll()
   app.quit()

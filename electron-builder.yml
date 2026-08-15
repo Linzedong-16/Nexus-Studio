@@ -1,4 +1,4 @@
-appId: com.electron.app
+appId: io.github.linzedong16.nexusstudio
 productName: Nexus Studio
 directories:
   buildResources: build
@@ -14,6 +14,8 @@ asarUnpack:
 win:
   executableName: nexus-studio
 nsis:
+  oneClick: false
+  perMachine: false
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
@@ -32,13 +34,13 @@ dmg:
 linux:
   target:
     - AppImage
-    - snap
     - deb
-  maintainer: electronjs.org
+  maintainer: Linzedong-16
   category: Utility
 appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
 publish:
-  provider: generic
-  url: https://example.com/auto-updates
+  provider: github
+  owner: Linzedong-16
+  repo: Nexus-Studio
