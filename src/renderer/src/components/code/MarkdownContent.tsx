@@ -1,12 +1,42 @@
-import { memo } from 'react'
+import { createContext, isValidElement, memo, useContext } from 'react'
 import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
 import 'highlight.js/styles/github-dark.min.css'
+import { MermaidDiagram } from './MermaidDiagram'
 
 /** 稳定插件引用：提前到模块顶层常量避免每帧创建新数组，防止 ReactMarkdown 重新初始化管线 */
 const MARKDOWN_REMARK_PLUGINS = [remarkGfm]
 const MARKDOWN_REHYPE_PLUGINS = [rehypeHighlight]
+
+/**
+ * 是否处于流式阶段。流式阶段代码块内容随 token 持续增量变化、语法可能尚不完整，
+ * mermaid 图表统一退化为普通代码块展示，避免对不完整语法反复解析报错。
+ */
+const MarkdownStreamingContext = createContext(false)
+
+/** 递归提取 code 元素 children 中的纯文本，用于喂给 mermaid 解析 */
+function extractCodeText(node: React.ReactNode): string {
+  if (typeof node === 'string') return node
+  if (typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(extractCodeText).join('')
+  if (isValidElement(node)) {
+    return extractCodeText((node.props as { children?: React.ReactNode }).children)
+  }
+  return ''
+}
+
+/** fenced 代码块的 `<pre>` 渲染：识别 mermaid 语言并在非流式阶段替换为图表 */
+function MarkdownPre({ children }: { children?: React.ReactNode }): React.ReactElement {
+  const isStreaming = useContext(MarkdownStreamingContext)
+  if (!isStreaming && isValidElement(children)) {
+    const codeProps = children.props as { className?: string; children?: React.ReactNode }
+    if (codeProps.className?.includes('language-mermaid')) {
+      return <MermaidDiagram code={extractCodeText(codeProps.children).replace(/\n$/, '')} />
+    }
+  }
+  return <pre className="my-2 overflow-x-auto rounded-lg bg-[#0d1117] p-3 text-xs">{children}</pre>
+}
 
 /** 各 Markdown 元素的样式映射，复用项目既有的 shadcn 设计令牌 */
 const markdownComponents: Components = {
@@ -66,9 +96,7 @@ const markdownComponents: Components = {
       </code>
     )
   },
-  pre: ({ children }) => (
-    <pre className="my-2 overflow-x-auto rounded-lg bg-[#0d1117] p-3 text-xs">{children}</pre>
-  )
+  pre: MarkdownPre
 }
 
 interface MarkdownProps {
@@ -102,13 +130,15 @@ function StreamingMarkdown({ content }: { content: string }): React.ReactElement
 
   return (
     <div className="text-sm">
-      <ReactMarkdown
-        remarkPlugins={MARKDOWN_REMARK_PLUGINS}
-        rehypePlugins={MARKDOWN_REHYPE_PLUGINS}
-        components={markdownComponents}
-      >
-        {content}
-      </ReactMarkdown>
+      <MarkdownStreamingContext value={true}>
+        <ReactMarkdown
+          remarkPlugins={MARKDOWN_REMARK_PLUGINS}
+          rehypePlugins={MARKDOWN_REHYPE_PLUGINS}
+          components={markdownComponents}
+        >
+          {content}
+        </ReactMarkdown>
+      </MarkdownStreamingContext>
       <span className="inline-block h-4 w-0.5 animate-pulse bg-primary align-middle" />
     </div>
   )
