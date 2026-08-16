@@ -4,6 +4,7 @@
   "description": "An Electron application with React and TypeScript",
   "main": "./out/main/index.js",
   "author": "Linzedong-16",
+  "license": "MIT",
   "homepage": "https://github.com/Linzedong-16/Nexus-Studio",
   "repository": {
     "type": "git",
