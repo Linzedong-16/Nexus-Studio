@@ -5,12 +5,16 @@ directories:
 files:
   - '!**/.vscode/*'
   - '!src/*'
+  - '!dist{,/**/*}'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
   - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  - '!{.agents,.claude,.specify,.trae,.vscode,.git,.github,doc,docs,specs,temp,skills-lock.json}/**'
+  - '!{.agents,.claude,.specify,.trae,.vscode,.git,.github,doc,docs,specs,temp,skills-lock.json}'
 asarUnpack:
   - resources/**
+compression: maximum
 win:
   executableName: nexus-studio
 nsis:
