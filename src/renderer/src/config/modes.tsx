@@ -56,12 +56,7 @@ function buildCodeMenuGroups(): MenuGroup[] {
       id: 'actions',
       title: null,
       headerActions: [],
-      items: [
-        { id: 'new-connection', label: '新建连接', icon: CirclePlus, path: null },
-        { id: 'plugins', label: '插件市场', icon: Blocks, path: null },
-        { id: 'automation', label: '自动化', icon: Timer, path: null },
-        { id: 'templates', label: '模板库', icon: LayoutTemplate, path: null }
-      ]
+      items: [{ id: 'plugins', label: '插件市场', icon: Blocks, path: null }]
     }
   ]
 }
