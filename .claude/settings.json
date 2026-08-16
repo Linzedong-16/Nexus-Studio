@@ -65,7 +65,14 @@
       "Read(//d/tmp/**)",
       "Bash(awk -F'\\\\\\\\' '{print $2}' asar-list-new.txt)",
       "Bash(grep -n '\\\\\\\\out\\\\\\\\main\\\\\\\\index.js$\\\\|\\\\\\\\package.json$' asar-list-new.txt)",
-      "Bash(grep -n '^\\\\\\\\out' asar-list-new.txt)"
+      "Bash(grep -n '^\\\\\\\\out' asar-list-new.txt)",
+      "Bash(git tag *)",
+      "Bash(gh run *)",
+      "WebFetch(domain:github.com)",
+      "WebSearch",
+      "Bash(npx tsc *)",
+      "Bash(git add *)",
+      "Bash(git commit *)"
     ]
   }
 }

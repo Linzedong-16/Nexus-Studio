@@ -48,21 +48,21 @@
 
 ## 🛠️ 技术栈
 
-| 层级 | 技术选型 |
-|------|----------|
-| 桌面框架 | Electron 39 |
-| UI 框架 | React 19 |
-| 语言 | TypeScript（strict 模式） |
-| 样式 | Tailwind CSS 4 |
-| 组件库 | shadcn/ui（Radix 原语） |
-| 状态管理 | Zustand 5 |
-| 构建工具 | electron-vite |
-| 打包工具 | electron-builder |
-| 包管理 | pnpm |
-| 代码编辑器 | Monaco Editor |
-| ER 图渲染 | Mermaid / @xyflow/react |
-| 语法高亮 | highlight.js |
-| AI 集成 | DeepSeek API（OpenAI 兼容 SDK） |
+| 层级       | 技术选型                          |
+| ---------- | --------------------------------- |
+| 桌面框架   | Electron 39                       |
+| UI 框架    | React 19                          |
+| 语言       | TypeScript（strict 模式）         |
+| 样式       | Tailwind CSS 4                    |
+| 组件库     | shadcn/ui（Radix 原语）           |
+| 状态管理   | Zustand 5                         |
+| 构建工具   | electron-vite                     |
+| 打包工具   | electron-builder                  |
+| 包管理     | pnpm                              |
+| 代码编辑器 | Monaco Editor                     |
+| ER 图渲染  | Mermaid / @xyflow/react           |
+| 语法高亮   | highlight.js                      |
+| AI 集成    | DeepSeek API（OpenAI 兼容 SDK）   |
 | 数据库驱动 | pg（PostgreSQL）、mysql2（MySQL） |
 
 ---
