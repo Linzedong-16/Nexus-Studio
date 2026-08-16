@@ -38,7 +38,7 @@ export const useUserStore = create<UserStore>()(
     (set) => ({
       avatarType: 'none',
       avatarUrl: null,
-      displayName: 'LLinzex',
+      displayName: 'Nexus',
       email: '',
       avatarVersion: 0,
       updateProfile: (patch): void => {

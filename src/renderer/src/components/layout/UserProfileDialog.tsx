@@ -95,7 +95,7 @@ export default function UserProfileDialog({
       userStore.updateProfile({
         avatarType: 'remote',
         avatarUrl: previewDataUrl,
-        displayName: displayName.trim() || 'LLinzex',
+        displayName: displayName.trim() || 'Nexus',
         email: email.trim(),
         avatarVersion: userStore.avatarVersion + 1
       })
@@ -104,7 +104,7 @@ export default function UserProfileDialog({
       userStore.updateProfile({
         avatarType: 'local',
         avatarUrl: null,
-        displayName: displayName.trim() || 'LLinzex',
+        displayName: displayName.trim() || 'Nexus',
         email: email.trim(),
         avatarVersion: userStore.avatarVersion + 1
       })
