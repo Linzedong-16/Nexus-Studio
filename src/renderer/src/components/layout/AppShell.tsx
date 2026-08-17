@@ -64,7 +64,13 @@ export default function AppShell(): React.JSX.Element {
       <div className="flex min-h-0 flex-1">
         <Sidebar />
         <main className="min-w-0 flex-1 overflow-y-auto bg-background">
-          <Suspense fallback={<div className="flex h-full items-center justify-center text-muted-foreground">加载中…</div>}>
+          <Suspense
+            fallback={
+              <div className="flex h-full items-center justify-center text-muted-foreground">
+                加载中…
+              </div>
+            }
+          >
             <Outlet />
           </Suspense>
         </main>

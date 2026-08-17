@@ -22,8 +22,11 @@ export default defineConfig({
       rollupOptions: {
         output: {
           manualChunks: {
-            // Monaco Editor 自托管 (~3MB)，独立 chunk，业务改动不会导致用户重下
-            monaco: ['monaco-editor', '@monaco-editor/react'],
+            // 注意：不要在此把 monaco-editor 强制归并为独立 vendor chunk。
+            // SqlEditor/DdlViewerDialog 均通过路由懒加载引入，Monaco 本身已随之落入
+            // 各自的异步 chunk；强制合并成单一巨型 chunk 曾在 macOS arm64 CI runner 上
+            // 触发 electron-vite build 原生崩溃（Abort trap: 6 / exit 134），
+            // Windows / Linux 未复现。交给 Vite 默认分包即可。
             // ER 图用 reactflow (~500KB)，独立拆分
             reactflow: ['@xyflow/react'],
             // Mermaid 图表渲染 (~1MB)，仅 ER 图极少数场景用到
