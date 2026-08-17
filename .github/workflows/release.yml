@@ -49,7 +49,11 @@ jobs:
       - run: pnpm run build
 
       - name: 构建安装包
-        run: npx electron-builder ${{ matrix.target }}
+        # electron-builder.yml 中配置了 publish（provider: github），即使命令行不带
+        # --publish，electron-builder 在 CI + tag 触发场景下也会自动尝试发布，进而
+        # 因缺少 GH_TOKEN 报错。这里必须显式传 --publish never，把发布完全交给
+        # 下面单独的 publish job。
+        run: npx electron-builder ${{ matrix.target }} --publish never
 
       - name: 上传安装包产物
         uses: actions/upload-artifact@v4
