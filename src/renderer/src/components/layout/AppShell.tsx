@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, Suspense } from 'react'
 import { Outlet, useLocation } from 'react-router'
 import TitleBar from './TitleBar'
 import Sidebar from './Sidebar'
@@ -64,7 +64,9 @@ export default function AppShell(): React.JSX.Element {
       <div className="flex min-h-0 flex-1">
         <Sidebar />
         <main className="min-w-0 flex-1 overflow-y-auto bg-background">
-          <Outlet />
+          <Suspense fallback={<div className="flex h-full items-center justify-center text-muted-foreground">加载中…</div>}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
       <SearchPalette />

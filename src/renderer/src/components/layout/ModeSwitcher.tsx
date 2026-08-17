@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
-import { MODES, resolveModeByPath } from '@/config/modes'
+import { MODES, resolveModeByPath, preloadPage } from '@/config/modes'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 
@@ -85,7 +85,11 @@ export default function ModeSwitcher({ collapsed = false }: ModeSwitcherProps): 
                 tabRefs.current.delete(mode.id)
               }
             }}
-            onClick={() => navigate(mode.basePath)}
+            onClick={() => {
+              preloadPage(mode.id)
+              navigate(mode.basePath)
+            }}
+            onMouseEnter={() => preloadPage(mode.id)}
             className={cn(
               'relative z-10 flex items-center rounded-md transition-colors',
               collapsed

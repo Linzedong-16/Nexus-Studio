@@ -375,6 +375,8 @@ export default function ConversationView(): React.JSX.Element {
   const loadConversationList = useConversationStore((s) => s.loadConversationList)
   const selectConversation = useConversationStore((s) => s.selectConversation)
   const createConversation = useConversationStore((s) => s.createConversation)
+  const listLoading = useConversationStore((s) => s.listLoading)
+  const initialized = useConversationStore((s) => s.initialized)
   const selectedModel = useConversationStore((s) => s.selectedModel)
   const setSelectedModel = useConversationStore((s) => s.setSelectedModel)
   const displayName = useUserStore((s) => s.displayName)
@@ -393,6 +395,10 @@ export default function ConversationView(): React.JSX.Element {
 
   // 挂载时加载对话列表
   useEffect(() => {
+    // 如果 store 中已有活跃对话 ID，说明是页面切换（Work→Code）回来，
+    // 上一次的数据仍在 store 中，无需重新从主进程加载，避免 turns 被清空导致的闪烁
+    if (useConversationStore.getState().activeConversationId) return
+
     void (async () => {
       await loadConversationList()
       const state = useConversationStore.getState()
@@ -495,7 +501,7 @@ export default function ConversationView(): React.JSX.Element {
 
   return (
     <div className="flex h-full flex-col">
-      {turns.length === 0 ? (
+      {turns.length === 0 && !listLoading && initialized ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-8 p-8">
           {references.length === 0 ? (
             <>
@@ -524,6 +530,11 @@ export default function ConversationView(): React.JSX.Element {
             selectedModel={selectedModel}
             setSelectedModel={setSelectedModel}
           />
+        </div>
+      ) : turns.length === 0 ? (
+        // 加载中：显示轻量 loading 动画，避免闪烁出空白占位页面
+        <div className="flex flex-1 items-center justify-center">
+          <Loader2 className="size-6 animate-spin text-muted-foreground" />
         </div>
       ) : (
         <>

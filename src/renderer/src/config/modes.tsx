@@ -1,10 +1,18 @@
+import { lazy } from 'react'
 import { Blocks, BookOpen, CirclePlus, CodeXml, LayoutTemplate, Timer } from 'lucide-react'
 import type { MenuGroup, ModeConfig } from '@/types/shell'
 import { useWorkspaceStore } from '@/store/workspaceStore'
 import { useErStore } from '@/store/erStore'
 import { useTaskStore } from '@/store/taskStore'
-import WorkHomePage from '@/pages/work/WorkHomePage'
-import CodeHomePage from '@/pages/code/CodeHomePage'
+
+const WorkHomePage = lazy(() => import('@/pages/work/WorkHomePage'))
+const CodeHomePage = lazy(() => import('@/pages/code/CodeHomePage'))
+
+/** 预加载页面 chunk，供 ModeSwitcher 等组件在切换前调用，避免 Suspense fallback 打断动画 */
+export function preloadPage(modeId: string): void {
+  if (modeId === 'work') import('@/pages/work/WorkHomePage')
+  if (modeId === 'code') import('@/pages/code/CodeHomePage')
+}
 
 /**
  * 模式注册表 —— 外壳的唯一配置源（contracts/shell-config.md）

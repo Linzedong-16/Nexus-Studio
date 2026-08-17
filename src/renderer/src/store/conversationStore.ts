@@ -46,6 +46,8 @@ interface ConversationState {
   messagesLoading: boolean
   /** 对话列表加载中 */
   listLoading: boolean
+  /** 标记是否已完成首次加载（区分"尚未加载"与"确实是空列表"） */
+  initialized: boolean
 
   /** 从主进程加载对话索引列表 */
   loadConversationList: () => Promise<void>
@@ -148,14 +150,15 @@ export const useConversationStore = create<ConversationState>()((set, get) => ({
   messagesTotal: 0,
   messagesLoading: false,
   listLoading: false,
+  initialized: false,
 
   loadConversationList: async () => {
     set({ listLoading: true })
     try {
       const conversations = await conversationService.list()
-      set({ conversations, listLoading: false })
+      set({ conversations, listLoading: false, initialized: true })
     } catch {
-      set({ listLoading: false })
+      set({ listLoading: false, initialized: true })
     }
   },
 

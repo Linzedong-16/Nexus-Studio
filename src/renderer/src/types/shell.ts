@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
-import type { ComponentType } from 'react'
+import type { ComponentType, LazyExoticComponent } from 'react'
 
 /**
  * 外壳领域类型 —— 契约见 specs/001-app-shell-ui/contracts/shell-config.md
@@ -14,7 +14,7 @@ export interface ModeRoute {
   /** 相对 basePath 的子路径；'' 表示模式默认首页（每个模式恰一条） */
   path: string
   title: string
-  Component: ComponentType
+  Component: ComponentType | LazyExoticComponent<ComponentType<object>>
 }
 
 /** 菜单分组头部操作（图标按钮占位） */
