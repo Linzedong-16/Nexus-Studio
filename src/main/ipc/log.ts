@@ -1,5 +1,5 @@
 import type { BrowserWindow } from 'electron'
-import { createIPCHandler } from './utils'
+import { createIPCHandler, safeSend } from './utils'
 import { dbLogger } from '../logger/dbLogger'
 import type { DbLogEntry } from '../../renderer/src/types/ipc'
 
@@ -8,7 +8,7 @@ import type { DbLogEntry } from '../../renderer/src/types/ipc'
  */
 export function registerLogIPC(mainWindow: BrowserWindow): void {
   dbLogger.onLog((entry) => {
-    mainWindow.webContents.send('log:db-log', entry)
+    safeSend(mainWindow, 'log:db-log', entry)
   })
 
   createIPCHandler<[], DbLogEntry[]>('log:get-backlog', async () => dbLogger.getBacklog())

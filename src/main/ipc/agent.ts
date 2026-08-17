@@ -16,7 +16,7 @@ import { DeepSeekProvider } from '../ai/provider/DeepSeekProvider'
 import { resumeRun, startRun, startRunStream, type LoopState } from '../ai/loop/reactLoop'
 import type { AgentRun as MainAgentRun, AgentMessage } from '../ai/loop/AgentRun'
 import { toolRegistry } from '../ai/tools'
-import { createIPCHandler } from './utils'
+import { createIPCHandler, safeSend } from './utils'
 import {
   appendMessage,
   createConversation,
@@ -264,6 +264,10 @@ export function registerAgentIPC(): void {
       const config = request.model ? { ...baseConfig, model: request.model } : baseConfig
       const provider = new DeepSeekProvider(config)
       const mainWindow = BrowserWindow.getAllWindows()[0]
+      /** 流式事件推送：mainWindow 可能在长耗时的 Agent 运行期间被用户关闭/销毁 */
+      const sendStreamEvent = (payload: object): void => {
+        if (mainWindow) safeSend(mainWindow, 'agent:stream-event', payload)
+      }
 
       let conversationId = request.conversationId
       if (!conversationId) {
@@ -281,7 +285,7 @@ export function registerAgentIPC(): void {
           input: unknown
           mutates: boolean
         }) => {
-          mainWindow?.webContents.send('agent:stream-event', {
+          sendStreamEvent({
             runId,
             conversationId,
             type: 'tool-call-start',
@@ -289,7 +293,7 @@ export function registerAgentIPC(): void {
           })
         },
         onToolCallEnd: (toolCallId: string, result: ToolExecutionResult<unknown>) => {
-          mainWindow?.webContents.send('agent:stream-event', {
+          sendStreamEvent({
             runId,
             conversationId,
             type: 'tool-call-end',
@@ -298,7 +302,7 @@ export function registerAgentIPC(): void {
           })
         },
         onTextDelta: (delta: string) => {
-          mainWindow?.webContents.send('agent:stream-event', {
+          sendStreamEvent({
             runId,
             conversationId,
             type: 'text-delta',
@@ -306,7 +310,7 @@ export function registerAgentIPC(): void {
           })
         },
         onCompleted: (finalMessage: string) => {
-          mainWindow?.webContents.send('agent:stream-event', {
+          sendStreamEvent({
             runId,
             conversationId,
             type: 'completed',
@@ -314,7 +318,7 @@ export function registerAgentIPC(): void {
           })
         },
         onFailed: (error: { code: string; message: string }) => {
-          mainWindow?.webContents.send('agent:stream-event', {
+          sendStreamEvent({
             runId,
             conversationId,
             type: 'failed',

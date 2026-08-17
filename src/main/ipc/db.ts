@@ -1,5 +1,5 @@
 import type { BrowserWindow } from 'electron'
-import { createIPCHandler } from './utils'
+import { createIPCHandler, safeSend } from './utils'
 import { driverManager } from '../db/core/DriverManager'
 import { PostgreSQLDriver } from '../db/driver/pg'
 import { MySQLDriver } from '../db/driver/mysql'
@@ -163,7 +163,7 @@ export function registerDbIPC(mainWindow: BrowserWindow): void {
   // 注入配置加载器，使 DriverManager 支持自动重连
   driverManager.setConfigLoader(loadConnectionConfig)
   driverManager.onStatusChange((status) => {
-    mainWindow.webContents.send('db:status-changed', status)
+    safeSend(mainWindow, 'db:status-changed', status)
   })
 
   createIPCHandler<[ConnectionConfig], TestResult>('db:test-connection', async (config) => {

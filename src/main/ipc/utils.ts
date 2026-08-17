@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { ipcMain, type BrowserWindow } from 'electron'
 
 /**
  * 创建类型安全的 IPC invoke/handle 处理器
@@ -40,4 +40,17 @@ export function createIPCListener<TArgs extends unknown[]>(
   ipcMain.on(channel, (_event, ...args: TArgs) => {
     handler(...args)
   })
+}
+
+/**
+ * 安全地向渲染进程推送消息
+ *
+ * dbLogger/driverManager/taskScheduler/updater 均为跨窗口生命周期的全局单例，
+ * 它们的事件回调在应用退出流程中（before-quit 异步清理阶段）仍可能触发——
+ * 此时 mainWindow 或其 webContents 已被销毁，直接 send 会抛出
+ * "Object has been destroyed"，因此统一在此处做销毁检查后再发送。
+ */
+export function safeSend(mainWindow: BrowserWindow, channel: string, ...args: unknown[]): void {
+  if (mainWindow.isDestroyed() || mainWindow.webContents.isDestroyed()) return
+  mainWindow.webContents.send(channel, ...args)
 }

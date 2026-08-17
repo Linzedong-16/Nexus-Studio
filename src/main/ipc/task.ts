@@ -5,7 +5,7 @@
  * 并通过 mainWindow.webContents.send 推送任务状态变更。
  */
 import type { BrowserWindow } from 'electron'
-import { createIPCHandler } from './utils'
+import { createIPCHandler, safeSend } from './utils'
 import { taskStore, taskScheduler } from '../scheduler'
 import type {
   ScheduledTask,
@@ -19,7 +19,7 @@ export function registerTaskIPC(mainWindow: BrowserWindow): void {
   // 注册状态变更推送
   taskScheduler.onStatusChange((taskId, status, runLog, error) => {
     const payload: TaskStatusChangePayload = { taskId, status, error, runLog }
-    mainWindow.webContents.send('task:status-changed', payload)
+    safeSend(mainWindow, 'task:status-changed', payload)
   })
 
   // ─── CRUD ───

@@ -123,9 +123,9 @@ description: 'Task list template for feature implementation'
 
 **Purpose**：跨故事的收尾验证，不新增功能性改动
 
-- [X] T029 [P] 执行完整质量门禁：`pnpm run typecheck && pnpm run lint && pnpm run format`
-- [X] T030 按 [quickstart.md](./quickstart.md) 的四个场景逐一执行手动验证，并确认回归检查项（`db:query` 返回值新增字段未破坏既有 Schema 浏览/ER 分析/DDL 查看等调用点；应用整体关闭时 `disconnect()`/`disconnectAll()` 仍能一次性清理全部连接池）
-- [X] T031 [P] 核对 `doc/08-性能优化方案-内存占用.md` 第 5 节"建议实施顺序"表，确认 P0~P3 全部落地，如实现细节与文档描述存在偏差则同步更新文档
+- [x] T029 [P] 执行完整质量门禁：`pnpm run typecheck && pnpm run lint && pnpm run format`
+- [x] T030 按 [quickstart.md](./quickstart.md) 的四个场景逐一执行手动验证，并确认回归检查项（`db:query` 返回值新增字段未破坏既有 Schema 浏览/ER 分析/DDL 查看等调用点；应用整体关闭时 `disconnect()`/`disconnectAll()` 仍能一次性清理全部连接池）
+- [x] T031 [P] 核对 `doc/08-性能优化方案-内存占用.md` 第 5 节"建议实施顺序"表，确认 P0~P3 全部落地，如实现细节与文档描述存在偏差则同步更新文档
 
 ---
 
