@@ -9,7 +9,9 @@ import type { DatabaseType, StoredConnection } from '../../renderer/src/types/ip
 import type { IDatabaseDriverStatic } from '../db/core/IDatabaseDriver'
 import { execFile } from 'child_process'
 import { existsSync, mkdirSync, readdirSync } from 'fs'
+import { writeFile } from 'fs/promises'
 import path from 'path'
+import { toCsv, toJson } from '../utils/resultExport'
 
 /** 按数据库类型返回对应驱动类，用于分发静态方法（如 testConnection） */
 function getDriverClass(type: DatabaseType): IDatabaseDriverStatic {
@@ -127,7 +129,8 @@ import type {
   ImportRowsRequest,
   ImportSqlRequest,
   ImportResult,
-  BackupResult
+  BackupResult,
+  ExportQueryResultRequest
 } from '../../renderer/src/types/ipc'
 
 /**
@@ -188,6 +191,29 @@ export function registerDbIPC(mainWindow: BrowserWindow): void {
     'db:query',
     async (connectionId, database, sql, params) => {
       return driverManager.query(connectionId, database, sql, params)
+    }
+  )
+
+  createIPCHandler<[ExportQueryResultRequest], { rowCount: number }>(
+    'db:export-query-result',
+    async (request) => {
+      const result = await driverManager.query(
+        request.connectionId,
+        request.database,
+        request.sql,
+        request.params,
+        { unbounded: true }
+      )
+      const content = request.format === 'csv' ? toCsv(result) : toJson(result)
+      await writeFile(request.filePath, content, 'utf-8')
+      return { rowCount: result.rowCount }
+    }
+  )
+
+  createIPCHandler<[string, string], void>(
+    'db:release-database',
+    async (connectionId, database) => {
+      await driverManager.releaseDatabase(connectionId, database)
     }
   )
 

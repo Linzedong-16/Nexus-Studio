@@ -36,6 +36,7 @@ import type {
 } from '../../../../renderer/src/types/ipc'
 import type { IDatabaseDriver } from '../../core/IDatabaseDriver'
 import { dbLogger } from '../../../logger/dbLogger'
+import { MAX_RESULT_ROWS, truncateRows } from '../../core/resultLimits'
 
 /** mysql2 的 Types 对象为数字码与名称双向映射，此处仅保留“名称 → 数字码”方向再反转，镜像 PostgreSQLDriver 的 OID_TO_TYPE_NAME */
 const TYPE_CODE_TO_NAME: Record<number, string> = Object.entries(Types).reduce(
@@ -119,8 +120,13 @@ export class MySQLDriver implements IDatabaseDriver {
     return result.rows as unknown as RoleInfo[]
   }
 
-  async query(database: string, sql: string, params?: unknown[]): Promise<QueryResult> {
-    return this.runQuery(this.getPool(database), sql, params)
+  async query(
+    database: string,
+    sql: string,
+    params?: unknown[],
+    options?: { unbounded?: boolean }
+  ): Promise<QueryResult> {
+    return this.runQuery(this.getPool(database), sql, params, options)
   }
 
   async getSchemas(database: string): Promise<SchemaInfo[]> {
@@ -376,6 +382,23 @@ export class MySQLDriver implements IDatabaseDriver {
     return { id: this.id, state: this.pools.size === 0 ? 'disconnected' : 'connected' }
   }
 
+  /**
+   * 释放指定数据库的连接池
+   *
+   * 管理连接池（承载 `getDatabases`/`getRoles` 等跨数据库能力）需保持常驻，故静默跳过。
+   */
+  async releaseDatabase(database: string): Promise<void> {
+    if (database === this.managementKey) return
+    const pool = this.pools.get(database)
+    if (!pool) return
+    this.pools.delete(database)
+    await pool.end()
+    dbLogger.log('info', 'connection', `释放连接池 ${this.id}/${database}`, {
+      connectionId: this.id,
+      database
+    })
+  }
+
   static async testConnection(config: ConnectionConfig): Promise<TestResult> {
     const pool = new MySQLDriver('test').createPool(config, config.database)
     const startTime = Date.now()
@@ -531,7 +554,12 @@ export class MySQLDriver implements IDatabaseDriver {
     return pool
   }
 
-  private async runQuery(pool: Pool, sql: string, params?: unknown[]): Promise<QueryResult> {
+  private async runQuery(
+    pool: Pool,
+    sql: string,
+    params?: unknown[],
+    options?: { unbounded?: boolean }
+  ): Promise<QueryResult> {
     const database = this.findDatabaseForPool(pool)
     const startTime = Date.now()
     try {
@@ -541,12 +569,17 @@ export class MySQLDriver implements IDatabaseDriver {
       const durationMs = Date.now() - startTime
       dbLogger.log('info', 'sql', `[${durationMs}ms] ${sql}`, { connectionId: this.id, database })
 
-      const rows = Array.isArray(data) ? (data as RowDataPacket[]) : []
+      const rawRows = Array.isArray(data) ? (data as RowDataPacket[]) : []
+      const { rows, truncated } = options?.unbounded
+        ? { rows: rawRows, truncated: false }
+        : truncateRows(rawRows, MAX_RESULT_ROWS)
+
       return {
         fields: fields.map((field) => this.mapField(field)),
         rows,
         rowCount: Array.isArray(data) ? data.length : (data as ResultSetHeader).affectedRows,
-        durationMs
+        durationMs,
+        truncated
       }
     } catch (error) {
       dbLogger.log(

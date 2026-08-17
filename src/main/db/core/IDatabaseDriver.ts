@@ -36,7 +36,16 @@ export interface IDatabaseDriver {
   /** 获取服务器上全部角色（集群级安全对象）；不支持角色概念的类型可不实现 */
   getRoles?(): Promise<RoleInfo[]>
 
-  query(database: string, sql: string, params?: unknown[]): Promise<QueryResult>
+  /**
+   * 执行 SQL 查询
+   * @param options.unbounded - 为真时跳过结果行数截断（用于导出等需要完整数据的路径）
+   */
+  query(
+    database: string,
+    sql: string,
+    params?: unknown[],
+    options?: { unbounded?: boolean }
+  ): Promise<QueryResult>
   getSchemas(database: string): Promise<SchemaInfo[]>
   getTables(database: string, schema: string): Promise<TableInfo[]>
   getColumns(database: string, schema: string, table: string): Promise<ColumnInfo[]>
@@ -70,6 +79,9 @@ export interface IDatabaseDriver {
   importSql(database: string, statements: string[]): Promise<ImportResult>
 
   getStatus(): ConnectionStatus
+
+  /** 释放指定数据库的后台连接池；管理数据库或不支持该能力的类型可静默跳过 */
+  releaseDatabase?(database: string): Promise<void>
 }
 
 export interface IDatabaseDriverStatic {

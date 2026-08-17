@@ -22,7 +22,8 @@ import type {
   ImportRowsRequest,
   ImportSqlRequest,
   ImportResult,
-  BackupResult
+  BackupResult,
+  ExportQueryResultRequest
 } from '../renderer/src/types/ipc'
 import type { KeybindingEntry } from '../renderer/src/types/keybinding'
 import type { FileNode } from '../renderer/src/types/fileExplorer'
@@ -136,6 +137,10 @@ export interface DatabaseApi {
     exportDir: string,
     pgDumpPath?: string
   ): Promise<BackupResult>
+  /** 导出查询结果为完整数据文件（跳过预览行数上限），用于结果被截断时的完整导出 */
+  exportQueryResult(request: ExportQueryResultRequest): Promise<{ rowCount: number }>
+  /** 释放指定数据库的后台连接池；连接不存在或驱动不支持该能力时静默跳过 */
+  releaseDatabase(connectionId: string, database: string): Promise<void>
   /** 订阅连接状态变化；返回取消订阅函数 */
   onStatusChange(callback: (status: ConnectionStatus) => void): () => void
 }

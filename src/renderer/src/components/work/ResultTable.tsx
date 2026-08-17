@@ -13,8 +13,17 @@ import { cn } from '@/lib/utils'
 import { resultToCsv, resultToJson } from '@/lib/exportFormat'
 import { buildRowClipboardPayload } from '@/lib/rowClipboard'
 import { fsService } from '@/services/fsService'
+import { queryService } from '@/services/queryService'
 import type { QueryResult } from '@/types/ipc'
 import LargeValueEditorDialog from './LargeValueEditorDialog'
+
+/** 结果被截断时，导出完整数据所需的查询上下文（重新在主进程执行一次无截断查询） */
+export interface ResultQueryContext {
+  connectionId: string
+  database: string
+  sql: string
+  params?: unknown[]
+}
 
 interface ResultTableProps {
   result: QueryResult | null
@@ -27,6 +36,8 @@ interface ResultTableProps {
   onCellCommit?: (rowIndex: number, columnName: string, rawValue: string) => Promise<void>
   /** 结果集的唯一来源表（用于「复制为 INSERT」）；未知/不可确定时传 null 或省略，生成占位符表名 */
   sourceTable?: { schema: string; name: string } | null
+  /** 结果被截断时导出完整数据所需的查询上下文；未提供时截断结果的导出仍只包含已展示的行 */
+  queryContext?: ResultQueryContext | null
 }
 
 /** 单元格格式化：null → NULL，对象/数组 → JSON，其余转字符串 */
@@ -120,7 +131,8 @@ export default function ResultTable({
   selectedRowIndexes,
   onToggleRow,
   onCellCommit,
-  sourceTable
+  sourceTable,
+  queryContext
 }: ResultTableProps): React.JSX.Element {
   const [editingCell, setEditingCell] = useState<EditingCell | null>(null)
   const [editValue, setEditValue] = useState('')
@@ -131,6 +143,7 @@ export default function ResultTable({
   const [prevEditMode, setPrevEditMode] = useState(editMode)
   const [exportStatus, setExportStatus] = useState<'idle' | 'csv' | 'json'>('idle')
   const [exportError, setExportError] = useState<string | null>(null)
+  const [exportHint, setExportHint] = useState<string | null>(null)
   const [copyHint, setCopyHint] = useState<string | null>(null)
 
   const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null)
@@ -224,9 +237,19 @@ export default function ResultTable({
     if (!filePath) return
     setExportStatus(format)
     setExportError(null)
+    setExportHint(null)
     try {
-      const text = format === 'csv' ? resultToCsv(result) : resultToJson(result)
-      await fsService.writeFile(filePath, text)
+      if (result.truncated && queryContext) {
+        const { rowCount } = await queryService.exportQueryResult({
+          ...queryContext,
+          filePath,
+          format
+        })
+        setExportHint(`已导出完整数据，共 ${rowCount} 行`)
+      } else {
+        const text = format === 'csv' ? resultToCsv(result) : resultToJson(result)
+        await fsService.writeFile(filePath, text)
+      }
     } catch (err) {
       setExportError(err instanceof Error ? err.message : '导出失败')
     } finally {
@@ -306,6 +329,12 @@ export default function ResultTable({
           <div className="flex items-center justify-between border-b px-3 py-1.5 text-xs text-muted-foreground">
             <span>
               共 {result.rows.length} 行 · {result.fields.length} 列
+              {result.truncated && (
+                <span className="ml-2 text-amber-600 dark:text-amber-500">
+                  已达预览上限，结果被截断
+                  {queryContext ? '，可通过导出获取完整数据' : ''}
+                </span>
+              )}
             </span>
             <span className="flex items-center gap-2">
               {exportStatus !== 'idle' && (
@@ -315,6 +344,9 @@ export default function ResultTable({
                 </span>
               )}
               {exportError && <span className="text-destructive">{exportError}</span>}
+              {exportHint && (
+                <span className="text-emerald-600 dark:text-emerald-500">{exportHint}</span>
+              )}
               {copyHint && <span className="text-amber-600 dark:text-amber-500">{copyHint}</span>}
               <span>{result.durationMs} ms</span>
             </span>

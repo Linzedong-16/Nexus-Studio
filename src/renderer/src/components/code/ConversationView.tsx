@@ -44,6 +44,9 @@ import { streamingMarkdownKey, completedMarkdownKey } from '@/lib/markdownUtils'
 const toolBtnClass =
   'flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground'
 
+/** 对话轮次达到该阈值后，在输入框上方展示"建议新建对话"提示 */
+const CONVERSATION_LENGTH_NOTICE_THRESHOLD = 40
+
 /** 各引用类型的图标映射 */
 const REFERENCE_ICON: Record<ReferenceType, typeof File> = {
   file: File,
@@ -384,6 +387,7 @@ export default function ConversationView(): React.JSX.Element {
 
   const [input, setInput] = useState('')
   const isBusy = turns.length > 0 && turns[turns.length - 1].pending
+  const showLengthNotice = turns.length >= CONVERSATION_LENGTH_NOTICE_THRESHOLD
 
   // 滚动容器 ref
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -564,6 +568,21 @@ export default function ConversationView(): React.JSX.Element {
             )}
           </div>
           <div className="mx-auto w-full max-w-2xl p-4">
+            {showLengthNotice && (
+              <div className="mb-2 flex items-center justify-between gap-3 rounded-lg border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                <span>
+                  当前对话已进行 {turns.length} 轮，继续对话可能影响响应质量，建议新建对话
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0"
+                  onClick={() => void createConversation()}
+                >
+                  新建对话
+                </Button>
+              </div>
+            )}
             <ConversationInputCard
               input={input}
               setInput={setInput}

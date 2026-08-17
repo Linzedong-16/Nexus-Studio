@@ -8,6 +8,7 @@ import {
   FileUp,
   Loader2,
   Plus,
+  RotateCcw,
   SquarePen,
   Trash2
 } from 'lucide-react'
@@ -390,16 +391,35 @@ export default function DataBrowser({ tab }: DataBrowserProps): React.JSX.Elemen
       </div>
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <ResultTable
-          result={tab.result ?? null}
-          error={tab.error}
-          loading={tab.loading ?? false}
-          editMode={editMode}
-          selectedRowIndexes={editMode ? selectedRowIndexes : undefined}
-          onToggleRow={toggleRowSelected}
-          onCellCommit={commitCellEdit}
-          sourceTable={{ schema: state.schema, name: state.table }}
-        />
+        {tab.resultReleased ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
+            <span>结果已释放以节省内存</span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => void loadPage(state.page, state.pageSize)}
+            >
+              <RotateCcw className="size-3.5" />
+              重新执行
+            </Button>
+          </div>
+        ) : (
+          <ResultTable
+            result={tab.result ?? null}
+            error={tab.error}
+            loading={tab.loading ?? false}
+            editMode={editMode}
+            selectedRowIndexes={editMode ? selectedRowIndexes : undefined}
+            onToggleRow={toggleRowSelected}
+            onCellCommit={commitCellEdit}
+            sourceTable={{ schema: state.schema, name: state.table }}
+            queryContext={{
+              connectionId,
+              database: state.database,
+              sql: `SELECT * FROM "${state.schema}"."${state.table}"${state.filter ? ` WHERE ${state.filter}` : ''};`
+            }}
+          />
+        )}
 
         {/* 分页栏 */}
         <div className="flex h-9 shrink-0 items-center gap-2 border-t px-3 text-xs text-muted-foreground">

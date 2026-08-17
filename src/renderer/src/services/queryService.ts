@@ -17,7 +17,8 @@ import type {
   ImportRowsRequest,
   ImportSqlRequest,
   ImportResult,
-  BackupResult
+  BackupResult,
+  ExportQueryResultRequest
 } from '../types/ipc'
 
 /**
@@ -236,6 +237,20 @@ export const queryService = {
     pgDumpPath?: string
   ): Promise<BackupResult> {
     return window.api.db.backupDatabase(connectionId, database, exportDir, pgDumpPath)
+  },
+
+  /**
+   * 导出查询结果为完整数据文件（跳过预览行数上限），用于结果被截断时的完整导出
+   */
+  async exportQueryResult(request: ExportQueryResultRequest): Promise<{ rowCount: number }> {
+    return window.api.db.exportQueryResult(request)
+  },
+
+  /**
+   * 释放指定数据库的后台连接池；连接不存在或驱动不支持该能力时静默跳过
+   */
+  async releaseDatabase(connectionId: string, database: string): Promise<void> {
+    return window.api.db.releaseDatabase(connectionId, database)
   },
 
   /**

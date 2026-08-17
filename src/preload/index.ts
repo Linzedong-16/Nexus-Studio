@@ -16,6 +16,7 @@ import type {
   ImportSqlRequest,
   ImportResult,
   BackupResult,
+  ExportQueryResultRequest,
   ModelProviderFormValue,
   ModelProviderTestResult
 } from '../renderer/src/types/ipc'
@@ -81,6 +82,10 @@ const api: Api = {
     backupDatabase: createInvoke<[string, string, string, string?], BackupResult>(
       'db:backup-database'
     ),
+    exportQueryResult: createInvoke<[ExportQueryResultRequest], { rowCount: number }>(
+      'db:export-query-result'
+    ),
+    releaseDatabase: createInvoke<[string, string], void>('db:release-database'),
     onStatusChange: createListener('db:status-changed')
   },
 

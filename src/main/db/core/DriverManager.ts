@@ -120,10 +120,11 @@ export class DriverManager extends EventEmitter {
     connectionId: string,
     database: string,
     sql: string,
-    params?: unknown[]
+    params?: unknown[],
+    options?: { unbounded?: boolean }
   ): Promise<QueryResult> {
     const driver = await this.ensureConnection(connectionId)
-    return driver.query(database, sql, params)
+    return driver.query(database, sql, params, options)
   }
 
   async getSchemas(connectionId: string, database: string): Promise<SchemaInfo[]> {
@@ -252,6 +253,19 @@ export class DriverManager extends EventEmitter {
   ): Promise<ImportResult> {
     const driver = await this.ensureConnection(connectionId)
     return driver.importSql(database, statements)
+  }
+
+  /**
+   * 释放指定数据库的后台连接池
+   *
+   * 仅作用于内存中已存在的连接；连接本身不存在时无需重连即可视为释放完成，静默跳过。
+   * 驱动未实现该能力（或目标是管理数据库）时同样静默跳过，见 IDatabaseDriver.releaseDatabase。
+   */
+  async releaseDatabase(connectionId: string, database: string): Promise<void> {
+    const driver = this.drivers.get(connectionId)
+    if (!driver) return
+    if (typeof driver.releaseDatabase !== 'function') return
+    await driver.releaseDatabase(database)
   }
 
   getStatus(connectionId: string): ConnectionStatus {

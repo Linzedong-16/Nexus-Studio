@@ -111,6 +111,10 @@ export interface WorkspaceTab {
   result?: QueryResult | null
   error?: string
   loading?: boolean
+  /** 最近一次成为激活标签页或写入结果的时间戳（毫秒），用于非激活标签页闲置释放判定 */
+  lastActiveAt?: number
+  /** 结果是否已因闲置超时被释放（释放后需用户手动重新执行才能恢复展示） */
+  resultReleased?: boolean
 }
 
 /** 打开查询标签页的参数 */

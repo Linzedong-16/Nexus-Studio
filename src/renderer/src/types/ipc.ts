@@ -80,8 +80,21 @@ export interface QueryField {
 export interface QueryResult {
   fields: QueryField[]
   rows: Record<string, unknown>[]
+  /** 截断前的真实总行数 */
   rowCount: number
   durationMs: number
+  /** 本次结果是否因超过预览行数上限（默认 5 万行）被截断 */
+  truncated: boolean
+}
+
+/** 导出查询结果请求（跳过预览行数上限，导出完整数据） */
+export interface ExportQueryResultRequest {
+  connectionId: string
+  database: string
+  sql: string
+  params?: unknown[]
+  filePath: string
+  format: 'csv' | 'json'
 }
 
 // ─── 数据库信息 ───
@@ -451,6 +464,8 @@ export interface DatabaseApi {
     database: string,
     request: ImportSqlRequest
   ): Promise<ImportResult>
+  /** 导出查询结果为完整数据文件（跳过预览行数上限） */
+  exportQueryResult(request: ExportQueryResultRequest): Promise<{ rowCount: number }>
   onStatusChange(callback: (status: ConnectionStatus) => void): () => void
 }
 

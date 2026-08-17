@@ -31,6 +31,7 @@ import type {
 } from '../../../../renderer/src/types/ipc'
 import type { IDatabaseDriver } from '../../core/IDatabaseDriver'
 import { dbLogger } from '../../../logger/dbLogger'
+import { MAX_RESULT_ROWS, truncateRows } from '../../core/resultLimits'
 
 /** 未指定数据库时使用的默认管理数据库 */
 const DEFAULT_MANAGEMENT_DATABASE = 'postgres'
@@ -127,8 +128,13 @@ export class PostgreSQLDriver implements IDatabaseDriver {
     return result.rows as unknown as DatabaseInfo[]
   }
 
-  async query(database: string, sql: string, params?: unknown[]): Promise<QueryResult> {
-    return this.runQuery(this.getPool(database), sql, params)
+  async query(
+    database: string,
+    sql: string,
+    params?: unknown[],
+    options?: { unbounded?: boolean }
+  ): Promise<QueryResult> {
+    return this.runQuery(this.getPool(database), sql, params, options)
   }
 
   async getRoles(): Promise<RoleInfo[]> {
@@ -653,6 +659,23 @@ export class PostgreSQLDriver implements IDatabaseDriver {
     return { id: this.id, state: 'connected' }
   }
 
+  /**
+   * 释放指定数据库的连接池
+   *
+   * 管理数据库承载着 `getDatabases`/`getRoles` 等跨数据库能力，需保持常驻，故静默跳过。
+   */
+  async releaseDatabase(database: string): Promise<void> {
+    if (database === this.managementDatabase) return
+    const pool = this.pools.get(database)
+    if (!pool) return
+    this.pools.delete(database)
+    await pool.end()
+    dbLogger.log('info', 'connection', `释放连接池 ${this.id}/${database}`, {
+      connectionId: this.id,
+      database
+    })
+  }
+
   static async testConnection(config: ConnectionConfig): Promise<TestResult> {
     const pool = new PostgreSQLDriver('test').createPool(
       config,
@@ -750,7 +773,12 @@ export class PostgreSQLDriver implements IDatabaseDriver {
     return pool
   }
 
-  private async runQuery(pool: Pool, sql: string, params?: unknown[]): Promise<QueryResult> {
+  private async runQuery(
+    pool: Pool,
+    sql: string,
+    params?: unknown[],
+    options?: { unbounded?: boolean }
+  ): Promise<QueryResult> {
     const database = this.findDatabaseForPool(pool)
     const startTime = Date.now()
     try {
@@ -758,11 +786,16 @@ export class PostgreSQLDriver implements IDatabaseDriver {
       const durationMs = Date.now() - startTime
       dbLogger.log('info', 'sql', `[${durationMs}ms] ${sql}`, { connectionId: this.id, database })
 
+      const { rows, truncated } = options?.unbounded
+        ? { rows: result.rows, truncated: false }
+        : truncateRows(result.rows, MAX_RESULT_ROWS)
+
       return {
         fields: result.fields.map((field) => this.mapField(field)),
-        rows: result.rows,
+        rows,
         rowCount: result.rowCount ?? result.rows.length,
-        durationMs
+        durationMs,
+        truncated
       }
     } catch (error) {
       dbLogger.log(

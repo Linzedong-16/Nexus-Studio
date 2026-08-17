@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Play } from 'lucide-react'
+import { Play, RotateCcw } from 'lucide-react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -129,13 +129,28 @@ export default function QueryPanel({ tab }: QueryPanelProps): React.JSX.Element 
           />
           <Panel id="result" defaultSize="50" minSize="15">
             <div className="h-full">
-              <ResultTable
-                result={tab.result ?? null}
-                error={tab.error}
-                loading={tab.loading ?? false}
-                selectedRowIndexes={selectedRowIndexes}
-                onToggleRow={toggleRowSelected}
-              />
+              {tab.resultReleased ? (
+                <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <span>结果已释放以节省内存</span>
+                  <Button size="sm" variant="outline" onClick={() => void runQuery()}>
+                    <RotateCcw className="size-3.5" />
+                    重新执行
+                  </Button>
+                </div>
+              ) : (
+                <ResultTable
+                  result={tab.result ?? null}
+                  error={tab.error}
+                  loading={tab.loading ?? false}
+                  selectedRowIndexes={selectedRowIndexes}
+                  onToggleRow={toggleRowSelected}
+                  queryContext={{
+                    connectionId: state.connectionId,
+                    database: state.database,
+                    sql: state.sql
+                  }}
+                />
+              )}
             </div>
           </Panel>
         </Group>
