@@ -1,7 +1,15 @@
 name: Release
 
-# 推送 v*.*.* 标签时触发：三端并行构建，通过 electron-builder --publish always
-# 汇总产物到同一个 tag 对应的 GitHub Release（默认以 draft 创建），
+# 推送 v*.*.* 标签时触发：三端并行构建安装包并上传为 workflow 产物；
+# 待三端全部构建完成后，由单独的 publish job 一次性创建/更新同一个 tag 对应的
+# GitHub Release（默认以 draft 创建）。
+#
+# 注意：不要让 build job 直接 --publish 到 Release —— 三个 matrix job 并发
+# 调用 electron-builder --publish always 写同一个 Release 对象，后写入的
+# job 会覆盖先写入 job 已上传的资产，导致 Release 最终只剩极少数文件甚至清空
+# （实测 v1.1.0 发布后 Assets 为空）。改为构建与发布解耦、只由一个 job 写入
+# Release，从根本上消除并发写入。
+#
 # 完成后需要人工在 GitHub 上核对产物、补充说明后手动点击 Publish release。
 on:
   push:
@@ -12,7 +20,7 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  build:
     strategy:
       fail-fast: false
       matrix:
@@ -40,7 +48,44 @@ jobs:
 
       - run: pnpm run build
 
-      - name: 构建安装包并发布到 GitHub Release
-        run: npx electron-builder ${{ matrix.target }} --publish always
+      - name: 构建安装包
+        run: npx electron-builder ${{ matrix.target }}
+
+      - name: 上传安装包产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.os }}
+          path: |
+            dist/*.exe
+            dist/*.exe.blockmap
+            dist/*.dmg
+            dist/*.dmg.blockmap
+            dist/*.zip
+            dist/*.zip.blockmap
+            dist/*.AppImage
+            dist/*.deb
+            dist/latest*.yml
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 下载三端安装包产物
+        uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+
+      - name: 创建 GitHub Release 草稿并上传产物
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --draft \
+            --title "$GITHUB_REF_NAME" \
+            dist/*
