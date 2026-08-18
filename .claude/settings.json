@@ -72,7 +72,9 @@
       "WebSearch",
       "Bash(npx tsc *)",
       "Bash(git add *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(git ls-remote *)",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}, cost %{time_total}s\\\\n\" --max-time 15 -x http://127.0.0.1:7897 \"https://github.com/Linzedong-16/Nexus-Studio.git/info/refs?service=git-upload-pack\")"
     ]
   }
 }
