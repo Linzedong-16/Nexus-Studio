@@ -107,8 +107,10 @@ export interface WorkspaceTab {
     | ErAnalysisTabState
     | FileTabState
     | AutomationTabState
-  /** 查询标签页的瞬时结果（不持久化） */
+  /** 查询标签页的瞬时结果（不持久化）—— 过渡期保留，最终由 LRUCache 取代 */
   result?: QueryResult | null
+  /** 查询结果版本号，每次 setQueryResult 时 +1，用于驱动 LRU 缓存重读 */
+  resultVersion?: number
   error?: string
   loading?: boolean
   /** 最近一次成为激活标签页或写入结果的时间戳（毫秒），用于非激活标签页闲置释放判定 */

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Play, RotateCcw } from 'lucide-react'
 import { Group, Panel, Separator } from 'react-resizable-panels'
 import { Badge } from '@/components/ui/badge'
@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 import type { QueryTabState, WorkspaceTab } from '@/types/workspace'
 import { queryService } from '@/services/queryService'
 import { useConnectionStore } from '@/store/connectionStore'
-import { useWorkspaceStore } from '@/store/workspaceStore'
+import { useWorkspaceStore, resultCache } from '@/store/workspaceStore'
 import SqlEditor from './SqlEditor'
 import ResultTable from './ResultTable'
 
@@ -26,6 +26,15 @@ export default function QueryPanel({ tab }: QueryPanelProps): React.JSX.Element 
   const setQueryLoading = useWorkspaceStore((s) => s.setQueryLoading)
   const setQueryResult = useWorkspaceStore((s) => s.setQueryResult)
   const [selectedRowIndexes, setSelectedRowIndexes] = useState<Set<number>>(() => new Set())
+
+  // 从 LRU 缓存读取查询结果
+  const resultVersion = tab.resultVersion
+  const cached = useMemo(
+    () => resultCache.get(tab.id),
+    [tab.id, resultVersion]
+  )
+  const queryResult = cached?.result ?? null
+  const queryError = cached?.error ?? undefined
 
   const toggleRowSelected = (rowIndex: number): void => {
     setSelectedRowIndexes((prev) => {
@@ -139,8 +148,8 @@ export default function QueryPanel({ tab }: QueryPanelProps): React.JSX.Element 
                 </div>
               ) : (
                 <ResultTable
-                  result={tab.result ?? null}
-                  error={tab.error}
+                  result={queryResult}
+                  error={queryError}
                   loading={tab.loading ?? false}
                   selectedRowIndexes={selectedRowIndexes}
                   onToggleRow={toggleRowSelected}

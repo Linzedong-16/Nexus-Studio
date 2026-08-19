@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef, useState } from 'react'
+import { useEffect, useCallback, useMemo, useRef, useState } from 'react'
 import {
   BookOpen,
   ChevronFirst,
@@ -35,7 +35,7 @@ import type { ColumnInfo } from '@/types/ipc'
 import type { TableTabState, WorkspaceTab } from '@/types/workspace'
 import { queryService } from '@/services/queryService'
 import { useConnectionStore } from '@/store/connectionStore'
-import { useWorkspaceStore } from '@/store/workspaceStore'
+import { useWorkspaceStore, resultCache } from '@/store/workspaceStore'
 import AddRowDialog from './AddRowDialog'
 import ImportDataDialog from './ImportDataDialog'
 import ResultTable from './ResultTable'
@@ -61,6 +61,14 @@ export default function DataBrowser({ tab }: DataBrowserProps): React.JSX.Elemen
 
   const connectionId = activeConnectionId ?? state.connectionId
 
+  // 从 LRU 缓存读取查询结果
+  const resultVersion = tab.resultVersion
+  const cached = useMemo(
+    () => resultCache.get(tab.id),
+    [tab.id, resultVersion]
+  )
+  const queryResult = cached?.result ?? null
+
   /** 请求序号，防止快速翻页时旧请求结果覆盖新请求结果 */
   const requestSeqRef = useRef(0)
 
@@ -73,7 +81,7 @@ export default function DataBrowser({ tab }: DataBrowserProps): React.JSX.Elemen
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
-  const rowCount = tab.result?.rows.length ?? 0
+  const rowCount = queryResult?.rows.length ?? 0
   const allSelected = rowCount > 0 && selectedRowIndexes.size === rowCount
   const someSelected = selectedRowIndexes.size > 0 && !allSelected
   const selectAllChecked: boolean | 'indeterminate' = allSelected
@@ -189,7 +197,7 @@ export default function DataBrowser({ tab }: DataBrowserProps): React.JSX.Elemen
   }
 
   const confirmDeleteSelectedRows = async (): Promise<void> => {
-    const rows = tab.result?.rows ?? []
+    const rows = queryResult?.rows ?? []
     setDeleting(true)
     setDeleteError(null)
     try {
@@ -231,7 +239,7 @@ export default function DataBrowser({ tab }: DataBrowserProps): React.JSX.Elemen
     columnName: string,
     rawValue: string
   ): Promise<void> => {
-    const result = tab.result
+    const result = queryResult
     const row = result?.rows[rowIndex]
     if (!result || !row) return
 
@@ -405,7 +413,7 @@ export default function DataBrowser({ tab }: DataBrowserProps): React.JSX.Elemen
           </div>
         ) : (
           <ResultTable
-            result={tab.result ?? null}
+            result={queryResult ?? null}
             error={tab.error}
             loading={tab.loading ?? false}
             editMode={editMode}
@@ -424,7 +432,7 @@ export default function DataBrowser({ tab }: DataBrowserProps): React.JSX.Elemen
         {/* 分页栏 */}
         <div className="flex h-9 shrink-0 items-center gap-2 border-t px-3 text-xs text-muted-foreground">
           <span>
-            共 {state.total ?? tab.result?.rows.length ?? 0} 行
+            共 {state.total ?? queryResult?.rows.length ?? 0} 行
             {totalPages > 0 && ` · 第 ${state.page}/${totalPages} 页`}
           </span>
 
